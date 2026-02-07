@@ -3,7 +3,11 @@ import '../models/transaction_model.dart';
 import '../services/expense_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
-  final ExpenseService _expenseService = ExpenseService();
+  // final ExpenseService _expenseService = ExpenseService();
+
+  final ExpenseService _expenseService;
+  ExpenseProvider({ExpenseService? expenseService}) 
+      : _expenseService = expenseService ?? ExpenseService();
 
   List<TransactionModel> _transactions = [];
   bool _isLoading = false;

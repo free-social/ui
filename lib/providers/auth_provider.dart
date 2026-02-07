@@ -5,7 +5,13 @@ import '../services/auth_service.dart';
 import '../models/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
-  final AuthService _authService = AuthService();
+  // final AuthService _authService = AuthService();
+  // ✅ 1. Declare variable
+  final AuthService _authService;
+
+  // ✅ 2. Constructor Injection
+  AuthProvider({AuthService? authService}) 
+      : _authService = authService ?? AuthService();
 
   User? _user;
   bool _isAuthenticated = false;
