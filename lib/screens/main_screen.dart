@@ -3,7 +3,9 @@ import 'home_view.dart';
 import 'monthly_stats_screen.dart';
 import 'user_profile.dart';
 import 'transaction_form_screen.dart';
-import 'contact_screen.dart'; // ✅ 1. IMPORT THIS
+// import 'contact_screen.dart'; // ✅ 1. IMPORT THIS
+import 'wallet_screen.dart';
+// ឬ import 'package:mobileproject/ui/screens/wallet_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,10 +19,10 @@ class _MainScreenState extends State<MainScreen> {
   final PageController _pageController = PageController();
 
   final List<Widget> _screens = [
-    const HomeView(),           // Index 0
+    const HomeView(), // Index 0
     const MonthlyStatsScreen(), // Index 1
-    const ContactScreen(),      // ✅ 2. USE THE REAL SCREEN HERE
-    const UserProfileScreen(),  // Index 3
+    const WalletScreen(), // ✅ 2. USE THE REAL SCREEN HERE
+    const UserProfileScreen(), // Index 3
   ];
 
   void _onItemTapped(int index) {
@@ -75,10 +77,15 @@ class _MainScreenState extends State<MainScreen> {
             children: [
               _buildNavItem(Icons.home, 'Home', 0, isDark),
               _buildNavItem(Icons.bar_chart, 'Stats', 1, isDark),
-              
+
               const SizedBox(width: 40), // Space for FAB
-              
-              _buildNavItem(Icons.contact_support_outlined, 'Contact', 2, isDark),
+
+              _buildNavItem(
+                Icons.account_balance_wallet, // Icon Wallet
+                'Wallet', // ឈ្មោះថ្មី
+                2, // Index 2
+                isDark, // ត្រូវដាក់ isDark តាម function របស់អ្នក
+              ),
               _buildNavItem(Icons.person, 'Profile', 3, isDark),
             ],
           ),
