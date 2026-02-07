@@ -3,7 +3,12 @@ import '../models/transaction_model.dart';
 import 'api_service.dart';
 
 class ExpenseService {
-  final ApiService _apiService = ApiService();
+  // final ApiService _apiService = ApiService();
+  final ApiService _apiService;
+
+  // ✅ Constructor Injection
+  ExpenseService({ApiService? apiService}) 
+      : _apiService = apiService ?? ApiService();
 
   // 1. GET ALL (with Pagination & Filters)
   Future<List<TransactionModel>> getAllTransactions({

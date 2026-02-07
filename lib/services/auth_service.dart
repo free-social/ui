@@ -6,7 +6,11 @@ import 'dart:io'; // Required for File
 import 'api_service.dart';
 
 class AuthService {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService;
+
+  // ✅ Constructor Injection
+  AuthService({ApiService? apiService}) 
+      : _apiService = apiService ?? ApiService();
 
   // --- NEW: UPDATE USERNAME (PUT) ---
   // Route: {{expense_url}}/auth/:id
