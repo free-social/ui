@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/transaction_model.dart';
-import '../../models/wallet_balance_model.dart'; // ✅ Import ថ្មី
+import '../../models/wallet_balance_model.dart';
 import '../../services/wallet_service.dart';
 import '../../services/expense_service.dart';
 
@@ -13,11 +13,12 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  late Future<WalletData> _walletFuture;
+  // ✅ ប្រើ Future<List<dynamic>> ដើម្បីទាញយកទិន្នន័យ ២ ផ្សេងគ្នា (WalletData + ចំណាយខែមុន)
+  late Future<List<dynamic>> _dataFuture;
+
   final WalletService _walletService = WalletService();
   final ExpenseService _expenseService = ExpenseService();
 
-  // រក្សាទុក Balance បច្ចុប្បន្នដើម្បីផ្ទៀងផ្ទាត់
   double _currentWalletBalance = 0.0;
 
   @override
@@ -27,12 +28,27 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _refreshData() async {
+    // 1. គណនាខែមុន (Previous Month)
+    DateTime now = DateTime.now();
+    int prevMonth = now.month - 1;
+    int prevYear = now.year;
+
+    // បើខែនេះខែ 1 (មករា) -> ខែមុនគឺខែ 12 (ធ្នូ) ឆ្នាំចាស់
+    if (prevMonth == 0) {
+      prevMonth = 12;
+      prevYear = now.year - 1;
+    }
+
     setState(() {
-      _walletFuture = _walletService.fetchWalletData();
+      // 2. ហៅ API ២ ព្រមគ្នា៖ ទិន្នន័យ Wallet និង ចំណាយខែមុន
+      _dataFuture = Future.wait([
+        _walletService.fetchWalletData(), // Index 0
+        _expenseService.getMonthlyExpenseTotal(prevMonth, prevYear), // Index 1
+      ]);
     });
   }
 
-  // ✅ Function Top Up (ប្រើ API /wallet/adjust)
+  // --- Function Top Up ---
   void _showTopUpDialog(BuildContext context) {
     final TextEditingController amountController = TextEditingController();
     showDialog(
@@ -65,10 +81,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 ).showSnackBar(const SnackBar(content: Text("Processing...")));
 
                 try {
-                  // ✅ ហៅទៅ API Wallet Adjust
                   await _walletService.topUpWallet(amount);
-
-                  // (Optional) បង្កើត Transaction record ផងដែរដើម្បីអោយឃើញក្នុង list
                   await _expenseService.createTransaction(
                     TransactionModel(
                       id: "",
@@ -103,8 +116,7 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // ✅ Function សម្រាប់ Add Expense (ឧទាហរណ៍ការចាយលុយ)
-  // កន្លែងនេះសំខាន់៖ ឆែកមើលលុយសិន មុននឹងឱ្យចាយ
+  // --- Function Add Expense ---
   void _simulateAddExpense(BuildContext context) {
     final TextEditingController amountController = TextEditingController();
     showDialog(
@@ -127,20 +139,16 @@ class _WalletScreenState extends State<WalletScreen> {
               onPressed: () async {
                 final amount = double.tryParse(amountController.text) ?? 0.0;
 
-                // 🛑 CHECK: បើលុយក្នុង Wallet - ចំណាយ < 0, ហាមឃាត់!
                 if ((_currentWalletBalance - amount) < 0) {
                   Navigator.pop(context);
-                  _showWarningDialog(context); // បង្ហាញសារព្រមាន
+                  _showWarningDialog(context);
                   return;
                 }
 
                 Navigator.pop(context);
 
-                // បើលុយគ្រាន់គ្រាន់ បន្តហៅ API...
                 try {
-                  // 1. កាត់លុយពី Wallet (Adjust with negative value)
                   await _walletService.topUpWallet(-amount);
-                  // 2. បង្កើត Transaction
                   await _expenseService.createTransaction(
                     TransactionModel(
                       id: "",
@@ -163,7 +171,6 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // 🛑 ផ្ទាំងសារព្រមាន
   void _showWarningDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -189,26 +196,28 @@ class _WalletScreenState extends State<WalletScreen> {
         backgroundColor: const Color(0xFFF5F7FA),
         body: RefreshIndicator(
           onRefresh: _refreshData,
-          child: FutureBuilder<WalletData>(
-            future: _walletFuture,
+          child: FutureBuilder<List<dynamic>>(
+            // ✅ ប្តូរទៅ List<dynamic>
+            future: _dataFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasData) {
-                final data = snapshot.data!;
+                // ✅ បំបែកទិន្នន័យពី List
+                final walletData = snapshot.data![0] as WalletData;
+                final lastMonthExpense =
+                    snapshot.data![1] as double; // ទិន្នន័យចំណាយខែមុន
 
-                // គណនាសម្រាប់ Card 1 (Transaction History)
+                final transactions = walletData.transactions;
+
+                // គណនា Transaction Net (Card 1)
                 double calcBalance = 0;
-                double totalExpense = 0;
-                for (var tx in data.transactions) {
+                for (var tx in transactions) {
                   calcBalance += tx.amount;
-                  if (tx.amount < 0) totalExpense += tx.amount;
                 }
 
-                // យកទិន្នន័យសម្រាប់ Card 2 (Real Wallet API)
-                final walletModel = data.walletBalance;
-                _currentWalletBalance =
-                    walletModel.balance; // Update variable សម្រាប់ Check
+                final walletModel = walletData.walletBalance;
+                _currentWalletBalance = walletModel.balance;
 
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -225,11 +234,11 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // ✅ បង្ហាញ 3 Cards
+                        // ✅ បង្ហាញ 3 Cards (ដោយដាក់ lastMonthExpense ចូល)
                         _buildTopCardsSection(
                           calcBalance,
                           walletModel.balance,
-                          totalExpense,
+                          lastMonthExpense,
                         ),
 
                         const SizedBox(height: 30),
@@ -247,9 +256,7 @@ class _WalletScreenState extends State<WalletScreen> {
                               ),
                             ),
                             GestureDetector(
-                              onTap: () => _simulateAddExpense(
-                                context,
-                              ), // ឧទាហរណ៍ប៊ូតុងចាយលុយ
+                              onTap: () => _simulateAddExpense(context),
                               child: _buildActionButton(
                                 Icons.remove,
                                 "Pay",
@@ -269,9 +276,47 @@ class _WalletScreenState extends State<WalletScreen> {
                           ],
                         ),
 
-                        // List Transactions... (ដូចកូដចាស់)
-                        const SizedBox(height: 20),
-                        // ... ដាក់ ListView ដូចមុននៅទីនេះ ...
+                        const SizedBox(height: 30),
+
+                        // Title: Recent Transactions
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Recent Transactions",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {},
+                              child: const Text("See All"),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // Transaction List
+                        transactions.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.only(top: 20),
+                                child: Text(
+                                  "No transactions yet.",
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              )
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: transactions.length,
+                                itemBuilder: (context, index) {
+                                  final transaction = transactions[index];
+                                  return _buildTransactionItem(transaction);
+                                },
+                              ),
+                        const SizedBox(height: 50),
                       ],
                     ),
                   ),
@@ -285,19 +330,24 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // Widget សម្រាប់កាតទាំង ៣
+  // --- Widgets សម្រាប់ Design ---
+
   Widget _buildTopCardsSection(
     double historyBalance,
     double realWalletBalance,
-    double expense,
+    double lastMonthExpense,
   ) {
+    // ✅ រកឈ្មោះខែមុន (Previous Month Name)
+    DateTime now = DateTime.now();
+    DateTime prevDate = DateTime(now.year, now.month - 1);
+    String prevMonthName = DateFormat('MMM').format(prevDate); // ឧ. "Jan"
+
     return SizedBox(
       height: 200,
       child: PageView(
         controller: PageController(viewportFraction: 0.92),
         padEnds: false,
         children: [
-          // Card 1: Calculated Balance (ពី Transactions)
           _buildSingleCard(
             "Transaction Net",
             historyBalance,
@@ -305,8 +355,6 @@ class _WalletScreenState extends State<WalletScreen> {
             const Color(0xFF1976D2),
             Icons.history,
           ),
-
-          // Card 2: Real Wallet (ពី API /wallet) - នេះហើយដែលអ្នកចង់បាន
           _buildSingleCard(
             "Total Wallet",
             realWalletBalance,
@@ -315,13 +363,13 @@ class _WalletScreenState extends State<WalletScreen> {
             Icons.account_balance_wallet,
           ),
 
-          // Card 3: Expense
+          // ✅ Card ទី 3: បង្ហាញចំណាយខែមុន
           _buildSingleCard(
-            "Total Expense",
-            expense,
+            "Expense ($prevMonthName)",
+            lastMonthExpense, // លេខនេះបានមកពី API
             const Color(0xFFEF5350),
             const Color(0xFFD32F2F),
-            Icons.arrow_circle_up,
+            Icons.calendar_today,
           ),
         ],
       ),
@@ -365,7 +413,7 @@ class _WalletScreenState extends State<WalletScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const Text("....", style: TextStyle(color: Colors.white54)),
+          const Text("Tap for detail", style: TextStyle(color: Colors.white54)),
         ],
       ),
     );
@@ -386,6 +434,86 @@ class _WalletScreenState extends State<WalletScreen> {
         const SizedBox(height: 8),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
+    );
+  }
+
+  Widget _buildTransactionItem(TransactionModel transaction) {
+    final isIncome = transaction.amount > 0;
+    final displayAmount = isIncome
+        ? "+ \$${transaction.amount.toStringAsFixed(2)}"
+        : "\$${transaction.amount.toStringAsFixed(2)}";
+    final amountColor = isIncome ? Colors.green : Colors.black87;
+
+    IconData iconData = Icons.shopping_bag;
+    Color iconBgColor = Colors.orange;
+
+    if (isIncome) {
+      iconData = Icons.arrow_downward;
+      iconBgColor = Colors.green;
+    } else if (transaction.category.toLowerCase().contains('top up')) {
+      iconData = Icons.add_card;
+      iconBgColor = Colors.blue;
+    }
+
+    String formattedDate = DateFormat('MMM d, h:mm a').format(transaction.date);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: iconBgColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(iconData, color: iconBgColor),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction.description.isNotEmpty
+                      ? transaction.description
+                      : transaction.category,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  formattedDate,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            displayAmount,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: amountColor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
