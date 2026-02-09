@@ -7,8 +7,8 @@ class ExpenseService {
   final ApiService _apiService;
 
   // ✅ Constructor Injection
-  ExpenseService({ApiService? apiService}) 
-      : _apiService = apiService ?? ApiService();
+  ExpenseService({ApiService? apiService})
+    : _apiService = apiService ?? ApiService();
 
   // 1. GET ALL (with Pagination & Filters)
   Future<List<TransactionModel>> getAllTransactions({
@@ -65,7 +65,8 @@ class ExpenseService {
       // If date is provided, format it. Otherwise, send nothing (backend assumes today)
       String? formattedDate;
       if (date != null) {
-        formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+        formattedDate =
+            "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
       }
 
       final response = await _apiService.client.get(
@@ -79,14 +80,16 @@ class ExpenseService {
   }
 
   // 4. CREATE
-  Future<TransactionModel> createTransaction(TransactionModel transaction) async {
+  Future<TransactionModel> createTransaction(
+    TransactionModel transaction,
+  ) async {
     try {
       // ✅ IMPROVED: Use the model's toJson() since we fixed it to include 'date'
       final response = await _apiService.client.post(
-        '/transactions', 
-        data: transaction.toJson() 
+        '/transactions',
+        data: transaction.toJson(),
       );
-      
+
       // Return the created object from server (useful for getting the real ID)
       return TransactionModel.fromJson(response.data);
     } catch (e) {
@@ -95,7 +98,10 @@ class ExpenseService {
   }
 
   // 5. UPDATE
-  Future<void> updateTransaction(String id, Map<String, dynamic> updates) async {
+  Future<void> updateTransaction(
+    String id,
+    Map<String, dynamic> updates,
+  ) async {
     try {
       await _apiService.client.put('/transactions/$id', data: updates);
     } catch (e) {
@@ -119,6 +125,38 @@ class ExpenseService {
       await _apiService.client.delete('/transactions/$id');
     } catch (e) {
       throw Exception('Failed to delete transaction: $e');
+    }
+  }
+  // ... (កូដចាស់) ...
+
+  // ✅ Function ថ្មី៖ ទាញយកចំណាយសរុបប្រចាំខែ (តាមខែ និងឆ្នាំ)
+  Future<double> getMonthlyExpenseTotal(int month, int year) async {
+    try {
+      final response = await _apiService.client.get(
+        '/transactions/monthly',
+        queryParameters: {'month': month, 'year': year},
+      );
+
+      List<dynamic> data = [];
+      if (response.data is Map && response.data.containsKey('docs')) {
+        data = response.data['docs'];
+      } else if (response.data is List) {
+        data = response.data;
+      }
+
+      double totalExpense = 0;
+      for (var json in data) {
+        // បម្លែងទៅជា Model ដើម្បីងាយស្រួលប្រើ
+        final tx = TransactionModel.fromJson(json);
+        // បូកតែលេខអវិជ្ជមាន (Expense)
+        if (tx.amount < 0) {
+          totalExpense += tx.amount;
+        }
+      }
+      return totalExpense; // នឹង return លេខអវិជ្ជមាន (ឧ. -500.00)
+    } catch (e) {
+      print("Error fetching monthly expense: $e");
+      return 0.0;
     }
   }
 }
