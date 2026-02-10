@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/transaction_model.dart';
-import '../../models/wallet_balance_model.dart';
 import '../../services/wallet_service.dart';
 import '../../services/expense_service.dart';
 

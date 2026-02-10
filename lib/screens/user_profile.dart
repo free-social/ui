@@ -33,7 +33,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final Color textColor = isDark ? Colors.white : Colors.black87;
     final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey;
     final Color cardColor = theme.cardColor; 
-    final Color iconColor = isDark ? Colors.white : Colors.black;
+    // final Color iconColor = isDark ? Colors.white : Colors.black;
 
     return Scaffold(
       appBar: AppBar(

@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // REPLACE with your actual package name
 import 'package:spendwise/providers/auth_provider.dart';
 import 'package:spendwise/services/auth_service.dart';
-import 'package:spendwise/models/user_model.dart';
+// import 'package:spendwise/models/user_model.dart';
 
 // Generate Mock for AuthService
 @GenerateMocks([AuthService])
