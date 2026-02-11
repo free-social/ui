@@ -88,4 +88,15 @@ class WalletService {
       throw Exception('Top Up failed: $e');
     }
   }
+  Future<void> updateWalletBalance(double newBalance) async {
+    try {
+      await _apiService.client.put(
+        '/wallet',
+        data: {"balance": newBalance},
+      );
+    } catch (e) {
+      throw Exception('Update wallet failed: $e');
+    }
+  }
 }
+
