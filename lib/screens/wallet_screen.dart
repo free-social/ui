@@ -264,7 +264,9 @@ class _WalletScreenState extends State<WalletScreen> {
             future: _dataFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: Color(0xFF00BFA5)));
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF00BFA5)),
+                );
               } else if (snapshot.hasData) {
                 final walletData = snapshot.data![0] as WalletData;
                 final lastMonthExpense = snapshot.data![1] as double;
@@ -447,31 +449,36 @@ class _WalletScreenState extends State<WalletScreen> {
     String prevMonthName = DateFormat('MMM').format(prevDate);
 
     return SizedBox(
-      height: 200,
+      height: 180,
+      width: double.infinity,
       child: PageView(
-        controller: PageController(viewportFraction: 0.92),
+        controller: PageController(viewportFraction: 1),
         padEnds: false,
         children: [
-          _buildSingleCard(
-            "Transaction Net",
-            historyBalance,
-            const Color(0xFF42A5F5),
-            const Color(0xFF1976D2),
-            Icons.history,
-          ),
+          _buildSingleCard("Transaction Net", historyBalance, Icons.history, [
+            Colors.blue.shade400,
+            Colors.blue.shade600,
+            Colors.blue.shade800.withOpacity(0.9),
+          ]),
           _buildSingleCard(
             "Total Wallet",
             realWalletBalance,
-            const Color(0xFF00C4B4),
-            const Color(0xFF009E91),
             Icons.account_balance_wallet,
+            [
+              Colors.teal.shade400,
+              Colors.teal.shade600,
+              Colors.teal.shade800.withOpacity(0.9),
+            ],
           ),
           _buildSingleCard(
             "Expense ($prevMonthName)",
             lastMonthExpense,
-            const Color(0xFFEF5350),
-            const Color(0xFFD32F2F),
             Icons.calendar_today,
+            [
+              Colors.red.shade400,
+              Colors.red.shade600,
+              Colors.red.shade800.withOpacity(0.9),
+            ],
           ),
         ],
       ),
@@ -481,21 +488,42 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildSingleCard(
     String title,
     double amount,
-    Color c1,
-    Color c2,
     IconData icon,
+    List<Color> gradientColors, // Keeping this if you want to override per card
   ) {
+    // --- OPTION 1: "Aurora" (Teal -> Purple -> Pink) ---
+    // Rich, modern, and very colorful
+    const List<Color> activeGradient = [
+      Color(0xFF0093E9), // Bright Blue-Teal
+      Color(0xFF80D0C7), // Soft Teal
+      Color(0xFF8A2BE2), // Purple accent
+    ];
+
+    // --- OPTION 2: "Ocean Sunset" (Teal -> Orange) ---
+    // High contrast like your reference image
+    // const List<Color> activeGradient = [
+    //   Color(0xFF006064), // Deep Teal
+    //   Color(0xFF009688), // Teal
+    //   Color(0xFFFF7F50), // Coral Orange
+    // ];
+
+    // --- OPTION 3: "Deep Sea" (Teal -> Navy) ---
+    // Professional and clean
+    // const List<Color> activeGradient = [
+    //   Color(0xFF43cea2), // Sea Green/Teal
+    //   Color(0xFF185a9d), // Deep Blue
+    // ];
+
     return Container(
-      margin: const EdgeInsets.only(right: 15),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [c1, c2],
+          colors: activeGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(25),
       ),
-      padding: const EdgeInsets.all(25),
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -503,8 +531,29 @@ class _WalletScreenState extends State<WalletScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: Colors.white70)),
-              Icon(icon, color: Colors.white),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(0, 1),
+                      blurRadius: 2,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
             ],
           ),
           Text(
@@ -513,9 +562,16 @@ class _WalletScreenState extends State<WalletScreen> {
               color: Colors.white,
               fontSize: 32,
               fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+              shadows: [
+                Shadow(
+                  offset: Offset(0, 2),
+                  blurRadius: 4,
+                  color: Colors.black26,
+                ),
+              ],
             ),
           ),
-          const Text("Tap for detail", style: TextStyle(color: Colors.white54)),
         ],
       ),
     );
