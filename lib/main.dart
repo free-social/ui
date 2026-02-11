@@ -16,7 +16,9 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: authProvider), // Use the one we just checked
+        ChangeNotifierProvider.value(
+          value: authProvider,
+        ), // Use the one we just checked
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
@@ -24,6 +26,9 @@ void main() async {
     ),
   );
 }
+
+final GlobalKey<NavigatorState> navigatorKey =
+    GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -33,6 +38,7 @@ class MyApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
+          navigatorKey: navigatorKey,
           title: 'Spendwise',
           debugShowCheckedModeBanner: false,
 

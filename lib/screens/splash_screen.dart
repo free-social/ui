@@ -138,7 +138,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
                     minHeight: 4,
-                    backgroundColor: progressBgColor, // ✅ Dynamic
+                    backgroundColor: progressBgColor, 
                     valueColor: AlwaysStoppedAnimation<Color>(kPrimaryColor),
                   ),
                 ),

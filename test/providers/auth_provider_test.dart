@@ -81,7 +81,7 @@ void main() {
       // ASSERT
       expect(authProvider.isAuthenticated, true);
       expect(authProvider.user?.email, 'test@test.com');
-      expect(authProvider.isLoading, false); // Should turn off loading
+      expect(authProvider.isLoading, false); 
       
       verify(mockAuthService.login('test@test.com', 'password')).called(1);
     });

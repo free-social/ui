@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
-// REPLACE with your actual package name
 import 'package:spendwise/providers/expense_provider.dart';
 import 'package:spendwise/services/expense_service.dart';
 import 'package:spendwise/models/transaction_model.dart';
