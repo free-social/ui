@@ -4,19 +4,27 @@ import 'providers/auth_provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
-  // ✅ 1. Ensure Flutter is ready for native calls
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ 2. Initialize AuthProvider and check login status BEFORE app starts
+  // Initialize Notifications
+  await NotificationService.initialize();
+  await NotificationService.requestPermissions();
+  await NotificationService.scheduleDailyNotification();
+
+  // Check if we should show notification (fallback for OPPO)
+  await NotificationService.checkAndShowIfNeeded();
+
+  // Initialize AuthProvider
   final authProvider = AuthProvider();
   await authProvider.checkAuthStatus();
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: authProvider), // Use the one we just checked
+        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
@@ -24,6 +32,8 @@ void main() async {
     ),
   );
 }
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -33,6 +43,7 @@ class MyApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
+          navigatorKey: navigatorKey,
           title: 'Spendwise',
           debugShowCheckedModeBanner: false,
 

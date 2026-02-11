@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/notification_service.dart';
 import 'update_user_profile.dart';
 import 'login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,8 +17,48 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _notificationsEnabled = true;
 
-  final Color kPrimaryColor = const Color(0xFF00BFA5); 
+  final Color kPrimaryColor = const Color(0xFF00BFA5);
   final Color kRedColor = const Color(0xFFFF5252);
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNotificationStatus();
+  }
+
+  Future<void> _checkNotificationStatus() async {
+    final isEnabled = await NotificationService.areNotificationsEnabled();
+    setState(() {
+      _notificationsEnabled = isEnabled;
+    });
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    if (value) {
+      // Enable notifications
+      final granted = await NotificationService.requestPermissions();
+      if (granted) {
+        await NotificationService.scheduleDailyNotification();
+        setState(() => _notificationsEnabled = true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Daily notifications enabled at 11:50 PM'),
+            ),
+          );
+        }
+      }
+    } else {
+      // Disable notifications
+      await NotificationService.cancelAllNotifications();
+      setState(() => _notificationsEnabled = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Daily notifications disabled')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +73,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     // ✅ DYNAMIC COLORS (Strictly Typed)
     final Color textColor = isDark ? Colors.white : Colors.black87;
     final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey;
-    final Color cardColor = theme.cardColor; 
+    final Color cardColor = theme.cardColor;
     // final Color iconColor = isDark ? Colors.white : Colors.black;
 
     return Scaffold(
@@ -69,7 +110,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: cardColor, width: 4), // ✅ Dynamic Border
+                            border: Border.all(
+                              color: cardColor,
+                              width: 4,
+                            ), // ✅ Dynamic Border
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.1),
@@ -80,11 +124,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           ),
                           child: CircleAvatar(
                             radius: 50,
-                            backgroundColor: Colors.grey[200]!, // ✅ Force non-null
+                            backgroundColor:
+                                Colors.grey[200]!, // ✅ Force non-null
                             backgroundImage:
-                                (user?.avatar != null && user!.avatar.isNotEmpty)
+                                (user?.avatar != null &&
+                                    user!.avatar.isNotEmpty)
                                 ? NetworkImage(user.avatar)
-                                : const NetworkImage("https://i.pravatar.cc/150?img=12")
+                                : const NetworkImage(
+                                        "https://i.pravatar.cc/150?img=12",
+                                      )
                                       as ImageProvider,
                           ),
                         ),
@@ -96,9 +144,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             decoration: BoxDecoration(
                               color: kPrimaryColor,
                               shape: BoxShape.circle,
-                              border: Border.all(color: cardColor, width: 3), // ✅ Dynamic Border
+                              border: Border.all(
+                                color: cardColor,
+                                width: 3,
+                              ), // ✅ Dynamic Border
                             ),
-                            child: const Icon(Icons.edit, size: 16, color: Colors.white),
+                            child: const Icon(
+                              Icons.edit,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
@@ -114,7 +169,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                     Text(
                       user?.email ?? "@example.com",
-                      style: TextStyle(fontSize: 14, color: subTextColor), // ✅ Dynamic
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: subTextColor,
+                      ), // ✅ Dynamic
                     ),
                   ],
                 ),
@@ -133,7 +191,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 trailing: Switch.adaptive(
                   value: _notificationsEnabled,
                   activeColor: kPrimaryColor,
-                  onChanged: (val) => setState(() => _notificationsEnabled = val),
+                  onChanged: _toggleNotifications,
                 ),
               ),
               _buildDivider(context),
@@ -161,7 +219,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 textColor: textColor,
                 trailing: Text(
                   "USD",
-                  style: TextStyle(color: subTextColor, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               _buildDivider(context),
@@ -170,7 +231,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 iconColor: Colors.green,
                 title: "Security",
                 textColor: textColor,
-                trailing: Icon(Icons.arrow_forward_ios, size: 16, color: subTextColor),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: subTextColor,
+                ),
                 onTap: () {
                   // Security Page
                 },
@@ -187,7 +252,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 title: "Help & Support",
                 textColor: textColor,
                 onTap: () async {
-                  final Uri emailUri = Uri(scheme: 'mailto', path: 'oeunnuphea@gmail.com');
+                  final Uri emailUri = Uri(
+                    scheme: 'mailto',
+                    path: 'oeunnuphea@gmail.com',
+                  );
                   await launchUrl(emailUri);
                 },
               ),
@@ -263,8 +331,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildDivider(BuildContext context) => 
-      Divider(height: 1, color: Theme.of(context).dividerColor, indent: 60, endIndent: 20); 
+  Widget _buildDivider(BuildContext context) => Divider(
+    height: 1,
+    color: Theme.of(context).dividerColor,
+    indent: 60,
+    endIndent: 20,
+  );
 
   Widget _buildSectionHeader(String title) {
     return Padding(
@@ -288,7 +360,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     required IconData icon,
     required Color iconColor,
     required String title,
-    required Color textColor, 
+    required Color textColor,
     Widget? trailing,
     VoidCallback? onTap,
   }) {

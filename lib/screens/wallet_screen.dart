@@ -259,11 +259,12 @@ class _WalletScreenState extends State<WalletScreen> {
         backgroundColor: backgroundColor,
         body: RefreshIndicator(
           onRefresh: _refreshData,
+          color: const Color(0xFF00BFA5),
           child: FutureBuilder<List<dynamic>>(
             future: _dataFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF00BFA5)));
               } else if (snapshot.hasData) {
                 final walletData = snapshot.data![0] as WalletData;
                 final lastMonthExpense = snapshot.data![1] as double;
