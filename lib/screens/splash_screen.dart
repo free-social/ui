@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ Needed for status bar
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../providers/auth_provider.dart';
@@ -19,55 +20,44 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _initializeApp();
+
+    // ✅ Transparent status bar without changing any colors
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent, // top is fully transparent
+      statusBarIconBrightness: Brightness.light, // icons stay visible
+    ));
   }
 
   Future<void> _initializeApp() async {
-    // 1. Minimum delay
     final minDelay = Future.delayed(const Duration(seconds: 7));
-
-    // 2. Auth Check
-    final authCheck = Provider.of<AuthProvider>(
-      context,
-      listen: false,
-    ).checkAuthStatus();
-
-    // 3. Wait for BOTH
+    final authCheck = Provider.of<AuthProvider>(context, listen: false).checkAuthStatus();
     await Future.wait([minDelay, authCheck]);
 
-    // 4. Navigate
     if (!mounted) return;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     if (authProvider.isAuthenticated) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScreen()));
     } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ SETUP DYNAMIC COLORS
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // ✅ FIX: Force non-nullable 'Color' types for safety
     final Color titleColor = isDark ? Colors.white : const Color(0xFF1F2937);
     final Color subtitleColor = isDark ? Colors.grey[400]! : Colors.grey[500]!;
-    final Color progressBgColor = isDark
-        ? Colors.grey[800]!
-        : Colors.grey[100]!;
+    final Color progressBgColor = isDark ? Colors.grey[800]! : Colors.grey[100]!;
     final Color footerColor = isDark ? Colors.grey[600]! : Colors.grey[400]!;
 
     return Scaffold(
-      // Background uses Theme's scaffoldBackgroundColor automatically
+      extendBodyBehindAppBar: true, // ✅ Allows background to go behind status bar
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
+        top: false, // ✅ No extra padding at top, background visible behind status bar
         child: SizedBox(
           width: double.infinity,
           child: Column(
@@ -75,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen> {
             children: [
               const Spacer(flex: 3),
 
-              // --- 1. LOGO SECTION ---
+              // --- LOGO ---
               Container(
                 width: 100,
                 height: 100,
@@ -85,45 +75,41 @@ class _SplashScreenState extends State<SplashScreen> {
                     end: Alignment.bottomRight,
                     colors: [
                       kPrimaryColor,
-                      kPrimaryColor.withValues(alpha: 0.8),
+                      kPrimaryColor.withOpacity(0.8),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: kPrimaryColor.withValues(alpha: 0.4),
+                      color: kPrimaryColor.withOpacity(0.4),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: Colors.white,
-                  size: 48,
-                ),
+                child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 48),
               ),
               const SizedBox(height: 24),
 
-              // --- 2. TITLE TEXT ---
+              // --- TITLE ---
               Text(
                 "Spendwise",
                 style: TextStyle(
                   fontFamily: "Poppins",
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: titleColor, // ✅ Dynamic
+                  color: titleColor,
                   letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 8),
 
-              // --- 3. SUBTITLE TEXT ---
+              // --- SUBTITLE ---
               Text(
                 "Master your finances",
                 style: TextStyle(
                   fontSize: 16,
-                  color: subtitleColor, // ✅ Dynamic
+                  color: subtitleColor,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.2,
                 ),
@@ -131,37 +117,29 @@ class _SplashScreenState extends State<SplashScreen> {
 
               const Spacer(flex: 3),
 
-              // --- 4. LOADING INDICATOR ---
+              // --- LOADING INDICATOR ---
               SizedBox(
                 width: 120,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
                     minHeight: 4,
-                    backgroundColor: progressBgColor, 
+                    backgroundColor: progressBgColor,
                     valueColor: AlwaysStoppedAnimation<Color>(kPrimaryColor),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // --- 5. FOOTER (Secure v1.0.0) ---
+              // --- FOOTER ---
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.verified_user_outlined,
-                    size: 14,
-                    color: footerColor, // ✅ Dynamic
-                  ),
+                  Icon(Icons.verified_user_outlined, size: 14, color: footerColor),
                   const SizedBox(width: 6),
                   Text(
                     "Secure v1.0.0",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: footerColor, // ✅ Dynamic
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 12, color: footerColor, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
