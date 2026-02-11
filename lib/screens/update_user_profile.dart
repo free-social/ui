@@ -159,25 +159,17 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                   
                   Text(
                     _nameController.text.isEmpty ? "No Name" : _nameController.text,
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor), // ✅ Dynamic
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
                   ),
-                  
-                  TextButton(
-                    onPressed: _pickImage,
-                    child: Text(
-                      "Change Profile Photo",
-                      style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
 
+                  const SizedBox(height: 16),
                   // --- FULL NAME INPUT ---
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         "Full Name",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor), // ✅ Dynamic
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor), 
                       ),
                       const SizedBox(height: 12),
                       TextField(

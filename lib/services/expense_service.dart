@@ -158,4 +158,43 @@ class ExpenseService {
       return 0.0;
     }
   }
+
+  // ✅ Function ថ្មី៖ ទាញយកចំណាយសរុបប្រចាំថ្ងៃ (សម្រាប់ Notification)
+  Future<double> getDailyTotal({DateTime? date}) async {
+    try {
+      // 1. Get daily transactions
+      final dailyData = await getDailyExpenses(date: date);
+
+      List<dynamic> transactions = [];
+      // Handle different response structures
+      if (dailyData is Map) {
+        if (dailyData.containsKey('transactions')) {
+          transactions = dailyData['transactions'];
+        } else if (dailyData.containsKey('docs')) {
+          transactions = dailyData['docs'];
+        }
+      } else if (dailyData is List) {
+        transactions = dailyData;
+      }
+
+      // 2. Calculate Total
+      double total = 0.0;
+      for (var json in transactions) {
+        final tx = TransactionModel.fromJson(json);
+        // Assuming we want the absolute sum of expenses (usually negative in db)
+        if (tx.amount < 0) {
+          total += tx.amount.abs();
+        } else {
+          // If your logic treats expenses as positive, just add.
+          // Based on monthly logic above which checks < 0, likely expenses are negative.
+          // Notification usually wants "You spent $50", so we want positive magnitude.
+          // Let's stick to absolute value of negative amounts for safely.
+        }
+      }
+      return total;
+    } catch (e) {
+      print("Error calculating daily total: $e");
+      return 0.0;
+    }
+  }
 }
