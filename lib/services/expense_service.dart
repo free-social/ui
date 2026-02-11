@@ -1,5 +1,6 @@
 import '../models/transaction_model.dart';
 import 'api_service.dart';
+import 'wallet_service.dart';
 
 class ExpenseService {
   // final ApiService _apiService = ApiService();
@@ -83,6 +84,20 @@ class ExpenseService {
     TransactionModel transaction,
   ) async {
     try {
+      // ✅ Check wallet balance BEFORE creating expense (negative amount)
+      if (transaction.amount < 0) {
+        final walletService = WalletService();
+        final walletData = await walletService.fetchWalletData();
+        final currentBalance = walletData.walletBalance.balance;
+
+        // Expense amount is negative, so we check if absolute value exceeds balance
+        if (transaction.amount.abs() > currentBalance) {
+          throw Exception(
+            'Insufficient balance. Current balance: \$${currentBalance.toStringAsFixed(2)}',
+          );
+        }
+      }
+
       // ✅ IMPROVED: Use the model's toJson() since we fixed it to include 'date'
       final response = await _apiService.client.post(
         '/transactions',

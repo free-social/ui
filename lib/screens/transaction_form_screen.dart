@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction_model.dart';
 import '../providers/expense_provider.dart';
+import '../utils/snackbar_helper.dart';
 
 class TransactionFormScreen extends StatefulWidget {
   final TransactionModel? transaction;
@@ -83,17 +84,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
   Future<void> _handleSave() async {
     if (_selectedCategory == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select a category')));
+      showErrorSnackBar(context, 'Please select a category');
       return;
     }
 
     final double? amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount')),
-      );
+      showErrorSnackBar(context, 'Please enter a valid amount');
       return;
     }
 
@@ -122,9 +119,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     } catch (e) {
       debugPrint("Full Error: $e");
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        showErrorSnackBar(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -166,15 +161,11 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       ).deleteTransaction(widget.transaction!.id);
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Transaction deleted")));
+        showSuccessSnackBar(context, 'Transaction deleted');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Failed to delete: $e")));
+        showErrorSnackBar(context, 'Failed to delete: $e');
         setState(() => _isLoading = false);
       }
     }

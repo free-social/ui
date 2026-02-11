@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; 
+import 'package:url_launcher/url_launcher.dart';
+import '../utils/snackbar_helper.dart';
 
 class ContactScreen extends StatefulWidget {
   const ContactScreen({super.key});
@@ -11,9 +12,9 @@ class ContactScreen extends StatefulWidget {
 class _ContactScreenState extends State<ContactScreen> {
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
-  
-  final Color kPrimaryColor = const Color(0xFF00BFA5); 
-  final String supportEmail = "nupheaoeun@gmail.com"; 
+
+  final Color kPrimaryColor = const Color(0xFF00BFA5);
+  final String supportEmail = "nupheaoeun@gmail.com";
 
   @override
   void dispose() {
@@ -23,10 +24,9 @@ class _ContactScreenState extends State<ContactScreen> {
   }
 
   Future<void> _handleSend() async {
-    if (_subjectController.text.trim().isEmpty || _messageController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill in all fields")),
-      );
+    if (_subjectController.text.trim().isEmpty ||
+        _messageController.text.trim().isEmpty) {
+      showErrorSnackBar(context, 'Please fill in all fields');
       return;
     }
 
@@ -36,7 +36,8 @@ class _ContactScreenState extends State<ContactScreen> {
     final Uri emailUri = Uri(
       scheme: 'mailto',
       path: supportEmail,
-      query: 'subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
+      query:
+          'subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
     );
 
     try {
@@ -47,16 +48,12 @@ class _ContactScreenState extends State<ContactScreen> {
         FocusScope.of(context).unfocus();
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Could not open email app.")),
-          );
+          showErrorSnackBar(context, 'Could not open email app.');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
+        showErrorSnackBar(context, 'Error: $e');
       }
     }
   }
@@ -69,7 +66,9 @@ class _ContactScreenState extends State<ContactScreen> {
     final Color textColor = isDark ? Colors.white : const Color(0xFF1D1D1D);
     final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
     final Color cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.grey[50]!;
-    final Color inputFillColor = isDark ? const Color(0xFF2C2C2C) : Colors.grey[200]!;
+    final Color inputFillColor = isDark
+        ? const Color(0xFF2C2C2C)
+        : Colors.grey[200]!;
     final Color borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
 
     return Scaffold(
@@ -93,16 +92,20 @@ class _ContactScreenState extends State<ContactScreen> {
                   Text(
                     "We're here to help",
                     style: TextStyle(
-                      fontSize: 22, 
-                      fontWeight: FontWeight.bold, 
-                      color: textColor
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     "Have a question about your expenses? Choose an option below.",
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: subTextColor, fontSize: 14, height: 1.5),
+                    style: TextStyle(
+                      color: subTextColor,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
                   ),
                 ],
               ),
@@ -112,16 +115,16 @@ class _ContactScreenState extends State<ContactScreen> {
             _buildOptionCard(
               icon: Icons.email_outlined,
               title: "Email Us",
-              subtitle: supportEmail, 
+              subtitle: supportEmail,
               isLink: true,
               cardColor: cardColor,
               textColor: textColor,
               onTap: () async {
-                 final Uri emailUri = Uri(scheme: 'mailto', path: supportEmail);
-                 if (await canLaunchUrl(emailUri)) {
-                   await launchUrl(emailUri);
-                 }
-              }
+                final Uri emailUri = Uri(scheme: 'mailto', path: supportEmail);
+                if (await canLaunchUrl(emailUri)) {
+                  await launchUrl(emailUri);
+                }
+              },
             ),
             const SizedBox(height: 16),
             _buildOptionCard(
@@ -131,7 +134,7 @@ class _ContactScreenState extends State<ContactScreen> {
               isLink: false,
               cardColor: cardColor,
               textColor: textColor,
-              onTap: () {}
+              onTap: () {},
             ),
 
             const SizedBox(height: 40),
@@ -140,26 +143,30 @@ class _ContactScreenState extends State<ContactScreen> {
 
             Text(
               "Send a Message",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
             ),
             const SizedBox(height: 20),
 
             _buildLabel("Subject", textColor),
             _buildTextField(
-              controller: _subjectController, 
-              hint: "What is this regarding?", 
-              fillColor: inputFillColor, 
-              hintColor: subTextColor
+              controller: _subjectController,
+              hint: "What is this regarding?",
+              fillColor: inputFillColor,
+              hintColor: subTextColor,
             ),
             const SizedBox(height: 20),
 
             _buildLabel("Message", textColor),
             _buildTextField(
-              controller: _messageController, 
-              hint: "How can we help you today?", 
-              fillColor: inputFillColor, 
+              controller: _messageController,
+              hint: "How can we help you today?",
+              fillColor: inputFillColor,
               hintColor: subTextColor,
-              maxLines: 5
+              maxLines: 5,
             ),
 
             const SizedBox(height: 30),
@@ -168,10 +175,12 @@ class _ContactScreenState extends State<ContactScreen> {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: _handleSend, 
+                onPressed: _handleSend,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kPrimaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
                   elevation: 0,
                 ),
                 child: Row(
@@ -179,7 +188,11 @@ class _ContactScreenState extends State<ContactScreen> {
                   children: const [
                     Text(
                       "Send Message",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                     SizedBox(width: 8),
                     Icon(Icons.send_rounded, color: Colors.white, size: 20),
@@ -195,10 +208,10 @@ class _ContactScreenState extends State<ContactScreen> {
   }
 
   Widget _buildOptionCard({
-    required IconData icon, 
-    required String title, 
-    required String subtitle, 
-    required Color cardColor, 
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color cardColor,
     required Color textColor,
     required VoidCallback onTap,
     bool isLink = false,
@@ -215,8 +228,8 @@ class _ContactScreenState extends State<ContactScreen> {
               color: Colors.black.withOpacity(0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
-            )
-          ]
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -227,27 +240,42 @@ class _ContactScreenState extends State<ContactScreen> {
                 color: kPrimaryColor.withOpacity(0.15),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: kPrimaryColor, size: 22), // Changed from 24 to 22
+              child: Icon(
+                icon,
+                color: kPrimaryColor,
+                size: 22,
+              ), // Changed from 24 to 22
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: textColor,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
-                    subtitle, 
+                    subtitle,
                     style: TextStyle(
                       color: isLink ? kPrimaryColor : Colors.grey[500],
                       fontWeight: isLink ? FontWeight.w600 : FontWeight.normal,
-                      fontSize: 13
-                    )
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[400]),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: Colors.grey[400],
+            ),
           ],
         ),
       ),
@@ -257,21 +285,32 @@ class _ContactScreenState extends State<ContactScreen> {
   Widget _buildLabel(String text, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10, left: 4),
-      child: Text(text, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 14)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: color,
+          fontSize: 14,
+        ),
+      ),
     );
   }
 
   Widget _buildTextField({
-    required TextEditingController controller, 
-    required String hint, 
-    required Color fillColor, 
+    required TextEditingController controller,
+    required String hint,
+    required Color fillColor,
     required Color hintColor,
     int maxLines = 1,
   }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+      style: TextStyle(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black,
+      ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: hintColor, fontSize: 14),
@@ -288,7 +327,10 @@ class _ContactScreenState extends State<ContactScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(color: kPrimaryColor.withOpacity(0.5), width: 1.5),
+          borderSide: BorderSide(
+            color: kPrimaryColor.withOpacity(0.5),
+            width: 1.5,
+          ),
         ),
       ),
     );

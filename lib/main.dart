@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/expense_provider.dart';
+import 'providers/wallet_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
@@ -26,6 +27,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => WalletProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const MyApp(),
@@ -67,6 +69,10 @@ class MyApp extends StatelessWidget {
               bodyLarge: TextStyle(color: Colors.black87),
               bodyMedium: TextStyle(color: Colors.black87),
             ),
+            snackBarTheme: const SnackBarThemeData(
+              behavior: SnackBarBehavior.floating,
+              elevation: 8,
+            ),
           ),
 
           // Dark Theme
@@ -88,6 +94,10 @@ class MyApp extends StatelessWidget {
             textTheme: const TextTheme(
               bodyLarge: TextStyle(color: Colors.white),
               bodyMedium: TextStyle(color: Colors.white),
+            ),
+            snackBarTheme: const SnackBarThemeData(
+              behavior: SnackBarBehavior.floating,
+              elevation: 8,
             ),
           ),
 

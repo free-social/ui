@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/transaction_model.dart';
 import '../providers/expense_provider.dart';
-import '../screens/transaction_form_screen.dart'; 
+import '../screens/transaction_form_screen.dart';
+import '../utils/snackbar_helper.dart';
 
 class TransactionTile extends StatelessWidget {
   final TransactionModel transaction;
@@ -31,8 +32,13 @@ class TransactionTile extends StatelessWidget {
           leading: CircleAvatar(
             backgroundColor: Colors.blue.shade100,
             child: Text(
-              transaction.category.isNotEmpty ? transaction.category[0].toUpperCase() : "?",
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+              transaction.category.isNotEmpty
+                  ? transaction.category[0].toUpperCase()
+                  : "?",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
             ),
           ),
           title: Text(
@@ -40,33 +46,42 @@ class TransactionTile extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           subtitle: Text(_capitalize(transaction.category)),
-          
+
           // 2. Buttons Row (Price | Edit | Delete)
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 "\$${transaction.amount.toStringAsFixed(2)}",
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
               const SizedBox(width: 8),
-              
+
               // Edit Button
               IconButton(
                 icon: const Icon(Icons.edit, size: 20, color: Colors.blueGrey),
-                padding: EdgeInsets.zero, 
+                padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                onPressed: () => _openEditScreen(context), // ✅ Opens Full Screen Form
+                onPressed: () =>
+                    _openEditScreen(context), // ✅ Opens Full Screen Form
               ),
               const SizedBox(width: 12),
-              
+
               // Delete Button
               IconButton(
-                icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
+                icon: const Icon(
+                  Icons.delete,
+                  size: 20,
+                  color: Colors.redAccent,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () async {
-                  bool confirm = await _showDeleteConfirmation(context) ?? false;
+                  bool confirm =
+                      await _showDeleteConfirmation(context) ?? false;
                   if (confirm && context.mounted) {
                     _deleteTransaction(context);
                   }
@@ -92,10 +107,11 @@ class TransactionTile extends StatelessWidget {
 
   // --- Logic for Deleting ---
   void _deleteTransaction(BuildContext context) {
-    Provider.of<ExpenseProvider>(context, listen: false).deleteTransaction(transaction.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("${transaction.description} deleted")),
-    );
+    Provider.of<ExpenseProvider>(
+      context,
+      listen: false,
+    ).deleteTransaction(transaction.id);
+    showSuccessSnackBar(context, '${transaction.description} deleted');
   }
 
   Future<bool?> _showDeleteConfirmation(BuildContext context) {
@@ -103,7 +119,9 @@ class TransactionTile extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Delete?"),
-        content: const Text("Are you sure you want to remove this transaction?"),
+        content: const Text(
+          "Are you sure you want to remove this transaction?",
+        ),
         actions: [
           TextButton(
             child: const Text("Cancel"),
@@ -119,5 +137,6 @@ class TransactionTile extends StatelessWidget {
   }
 
   // Simple capitalization helper
-  String _capitalize(String s) => s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s;
+  String _capitalize(String s) =>
+      s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s;
 }

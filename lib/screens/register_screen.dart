@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/validation.dart';
+import '../utils/snackbar_helper.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,11 +16,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController userController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  final Color kPrimaryColor = const Color(0xFF00BFA5); 
+  final Color kPrimaryColor = const Color(0xFF00BFA5);
 
   @override
   void dispose() {
@@ -37,7 +38,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final Color textColor = isDark ? Colors.white : Colors.black;
     final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey;
-    final Color inputFillColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF9FAFB);
+    final Color inputFillColor = isDark
+        ? const Color(0xFF1E1E1E)
+        : const Color(0xFFF9FAFB);
     final Color borderColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
     final Color hintColor = isDark ? Colors.grey[600]! : Colors.grey[400]!;
     final Color iconColor = isDark ? Colors.grey[500]! : Colors.grey[400]!;
@@ -53,7 +56,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 40),
-                
+
                 // 1. TOP LOGO
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -61,27 +64,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: kPrimaryColor.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.account_balance_wallet, size: 45, color: kPrimaryColor),
+                  child: Icon(
+                    Icons.account_balance_wallet,
+                    size: 45,
+                    color: kPrimaryColor,
+                  ),
                 ),
-                
+
                 const SizedBox(height: 30),
-                
+
                 // 2. HEADER TEXT
                 Text(
                   "Create Account",
                   style: TextStyle(
-                    fontSize: 32, 
-                    fontWeight: FontWeight.w800, 
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
-                    color: textColor // ✅ Dynamic
+                    color: textColor, // ✅ Dynamic
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   "Join us to start tracking your expenses",
-                  style: TextStyle(color: subTextColor, fontSize: 16), // ✅ Dynamic
+                  style: TextStyle(
+                    color: subTextColor,
+                    fontSize: 16,
+                  ), // ✅ Dynamic
                 ),
-                
+
                 const SizedBox(height: 40),
 
                 // 3. FULL NAME FIELD
@@ -96,7 +106,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   hintColor: hintColor, // ✅ Clean usage (no !)
                   iconColor: iconColor, // ✅ Clean usage (no !)
                 ),
-                
+
                 const SizedBox(height: 20),
 
                 // 4. EMAIL FIELD
@@ -112,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   hintColor: hintColor,
                   iconColor: iconColor,
                 ),
-                
+
                 const SizedBox(height: 20),
 
                 // 5. PASSWORD FIELD
@@ -128,16 +138,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   iconColor: iconColor,
                   suffix: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, 
-                      color: iconColor // ✅ Dynamic
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: iconColor, // ✅ Dynamic
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   validator: ValidationUtils.validatePassword,
                 ),
-                
+
                 const SizedBox(height: 30),
-                
+
                 // 6. SIGN UP BUTTON
                 SizedBox(
                   width: double.infinity,
@@ -149,24 +162,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       foregroundColor: Colors.white,
                       elevation: 8,
                       shadowColor: kPrimaryColor.withOpacity(0.4),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     child: _isLoading
-                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                        : const Text("Sign Up", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text(
+                            "Sign Up",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
 
                 const SizedBox(height: 30),
-  
+
                 // 9. SIGN IN LINK
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Already have an account?", style: TextStyle(color: subTextColor, fontWeight: FontWeight.w500)), // ✅ Dynamic
+                    Text(
+                      "Already have an account?",
+                      style: TextStyle(
+                        color: subTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ), // ✅ Dynamic
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text("Sign In", style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        "Sign In",
+                        style: TextStyle(
+                          color: kPrimaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -186,7 +226,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 8),
-        child: Text(text, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)), // ✅ Dynamic
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: color,
+          ),
+        ), // ✅ Dynamic
       ),
     );
   }
@@ -209,7 +256,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       obscureText: obscure,
       validator: validator,
       keyboardType: keyboardType,
-      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), // ✅ Dynamic Input Text
+      style: TextStyle(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black,
+      ), // ✅ Dynamic Input Text
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: hintColor), // ✅ Dynamic
@@ -217,14 +268,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         fillColor: fillColor, // ✅ Dynamic
         prefixIcon: Icon(icon, color: iconColor, size: 22), // ✅ Dynamic
         suffixIcon: suffix,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: borderColor), // ✅ Dynamic
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: kPrimaryColor.withOpacity(0.5), width: 1.5),
+          borderSide: BorderSide(
+            color: kPrimaryColor.withOpacity(0.5),
+            width: 1.5,
+          ),
         ),
       ),
     );
@@ -246,16 +303,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Success! Please Login."), backgroundColor: Colors.green),
-        );
+        showSuccessSnackBar(context, 'Success! Please Login.');
       }
     } catch (e) {
       if (mounted) {
         String errorMessage = e.toString().replaceFirst('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-        );
+        showErrorSnackBar(context, errorMessage);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
