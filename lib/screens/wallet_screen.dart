@@ -195,12 +195,13 @@ class _WalletScreenState extends State<WalletScreen> {
         backgroundColor: const Color(0xFFF5F7FA),
         body: RefreshIndicator(
           onRefresh: _refreshData,
+          color: const Color(0xFF00BFA5),
           child: FutureBuilder<List<dynamic>>(
             // ✅ ប្តូរទៅ List<dynamic>
             future: _dataFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF00BFA5)));
               } else if (snapshot.hasData) {
                 // ✅ បំបែកទិន្នន័យពី List
                 final walletData = snapshot.data![0] as WalletData;
