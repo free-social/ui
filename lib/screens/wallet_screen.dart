@@ -12,13 +12,10 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  // ✅ ប្រើ Future<List<dynamic>> ដើម្បីទាញយកទិន្នន័យ ២ ផ្សេងគ្នា (WalletData + ចំណាយខែមុន)
   late Future<List<dynamic>> _dataFuture;
 
   final WalletService _walletService = WalletService();
   final ExpenseService _expenseService = ExpenseService();
-
-  double _currentWalletBalance = 0.0;
 
   @override
   void initState() {
@@ -27,34 +24,31 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _refreshData() async {
-    // 1. គណនាខែមុន (Previous Month)
     DateTime now = DateTime.now();
     int prevMonth = now.month - 1;
     int prevYear = now.year;
 
-    // បើខែនេះខែ 1 (មករា) -> ខែមុនគឺខែ 12 (ធ្នូ) ឆ្នាំចាស់
     if (prevMonth == 0) {
       prevMonth = 12;
       prevYear = now.year - 1;
     }
 
     setState(() {
-      // 2. ហៅ API ២ ព្រមគ្នា៖ ទិន្នន័យ Wallet និង ចំណាយខែមុន
       _dataFuture = Future.wait([
-        _walletService.fetchWalletData(), // Index 0
-        _expenseService.getMonthlyExpenseTotal(prevMonth, prevYear), // Index 1
+        _walletService.fetchWalletData(),
+        _expenseService.getMonthlyExpenseTotal(prevMonth, prevYear),
       ]);
     });
   }
 
-  // --- Function Top Up ---
-  void _showTopUpDialog(BuildContext context) {
+  // 🟢 1. Add Wallet
+  void _showAddWalletDialog(BuildContext context) {
     final TextEditingController amountController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Top Up Wallet"),
+          title: const Text("Add Wallet"),
           content: TextField(
             controller: amountController,
             keyboardType: TextInputType.number,
@@ -73,39 +67,13 @@ class _WalletScreenState extends State<WalletScreen> {
               onPressed: () async {
                 final amount = double.tryParse(amountController.text) ?? 0.0;
                 if (amount <= 0) return;
-
                 Navigator.pop(context);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("Processing...")));
-
-                try {
-                  await _walletService.topUpWallet(amount);
-                  await _expenseService.createTransaction(
-                    TransactionModel(
-                      id: "",
-                      amount: amount,
-                      category: "Top Up",
-                      description: "Wallet Deposit",
-                      date: DateTime.now(),
-                    ),
-                  );
-
-                  await _refreshData();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Top Up Successful!"),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted)
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text("Error: $e")));
-                }
+                _processTransaction(
+                  amount,
+                  "Add Wallet",
+                  "Wallet Deposit",
+                  isAdd: true,
+                );
               },
               child: const Text("Confirm"),
             ),
@@ -115,54 +83,50 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // --- Function Add Expense ---
-  void _simulateAddExpense(BuildContext context) {
+  // 🔴 2. Renew Wallet
+  void _showRenewWalletDialog(BuildContext context) {
     final TextEditingController amountController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Add Expense"),
-          content: TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              hintText: "Enter expense amount",
-              prefixText: "\$ ",
-              border: OutlineInputBorder(),
-            ),
+          title: const Text("Renew Wallet"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Set a new total balance.",
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  hintText: "New Balance",
+                  prefixText: "\$ ",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
           actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
               onPressed: () async {
-                final amount = double.tryParse(amountController.text) ?? 0.0;
-
-                if ((_currentWalletBalance - amount) < 0) {
-                  Navigator.pop(context);
-                  _showWarningDialog(context);
-                  return;
-                }
-
+                final amount = double.tryParse(amountController.text);
+                if (amount == null || amount < 0) return;
                 Navigator.pop(context);
-
-                try {
-                  await _walletService.topUpWallet(-amount);
-                  await _expenseService.createTransaction(
-                    TransactionModel(
-                      id: "",
-                      amount: -amount,
-                      category: "Expense",
-                      description: "Payment",
-                      date: DateTime.now(),
-                    ),
-                  );
-                  await _refreshData();
-                } catch (e) {
-                  print(e);
-                }
+                _processUpdateWallet(amount, "Renew Wallet");
               },
-              child: const Text("Pay", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Update",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -170,53 +134,143 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  void _showWarningDialog(BuildContext context) {
+  // ⚪ 3. Reset Wallet
+  void _showResetWalletDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("⚠️ Insufficient Balance"),
-        content: const Text(
-          "Your wallet balance is too low! Please Top Up first.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("OK"),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Reset Wallet"),
+          content: const Text("Reset balance to \$0.00?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                Navigator.pop(context);
+                _processUpdateWallet(0.0, "Reset Wallet");
+              },
+              child: const Text("Reset", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  // --- Helper Functions ---
+  Future<void> _processTransaction(
+    double amount,
+    String category,
+    String description, {
+    required bool isAdd,
+  }) async {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Processing...")));
+    try {
+      await _walletService.topUpWallet(isAdd ? amount : -amount);
+      await _expenseService.createTransaction(
+        TransactionModel(
+          id: "",
+          amount: isAdd ? amount : -amount,
+          category: category,
+          description: description,
+          date: DateTime.now(),
+        ),
+      );
+      await _refreshData();
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Success!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
+  Future<void> _processUpdateWallet(
+    double newBalance,
+    String actionName,
+  ) async {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Updating...")));
+    try {
+      await _walletService.updateWalletBalance(newBalance);
+      await _refreshData();
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("$actionName Successful!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
+  // ✅ 1. Function គណនាលុយសរុបតាម Category (ថ្មី)
+  Map<String, double> _calculateCategoryTotals(
+    List<TransactionModel> transactions,
+  ) {
+    Map<String, double> totals = {};
+    for (var tx in transactions) {
+      if (tx.amount < 0) {
+        String cat = tx.category.isNotEmpty
+            ? tx.category[0].toUpperCase() +
+                  tx.category.substring(1).toLowerCase()
+            : "Other";
+        totals[cat] = (totals[cat] ?? 0) + tx.amount.abs();
+      }
+    }
+    return totals;
   }
 
   @override
   Widget build(BuildContext context) {
+    // 🌑 Dark Mode Check
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    final backgroundColor = isDarkMode
+        ? const Color(0xFF121212)
+        : const Color(0xFFF5F7FA);
+    final cardBackgroundColor = isDarkMode
+        ? const Color(0xFF1E1E1E)
+        : Colors.white;
+    final primaryTextColor = isDarkMode ? Colors.white : Colors.black87;
+    final secondaryTextColor = isDarkMode ? Colors.white70 : Colors.grey;
+
     return SafeArea(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
+        backgroundColor: backgroundColor,
         body: RefreshIndicator(
           onRefresh: _refreshData,
           child: FutureBuilder<List<dynamic>>(
-            // ✅ ប្តូរទៅ List<dynamic>
             future: _dataFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasData) {
-                // ✅ បំបែកទិន្នន័យពី List
                 final walletData = snapshot.data![0] as WalletData;
-                final lastMonthExpense =
-                    snapshot.data![1] as double; // ទិន្នន័យចំណាយខែមុន
-
+                final lastMonthExpense = snapshot.data![1] as double;
                 final transactions = walletData.transactions;
-
-                // គណនា Transaction Net (Card 1)
                 double calcBalance = 0;
-                for (var tx in transactions) {
-                  calcBalance += tx.amount;
-                }
-
+                for (var tx in transactions) calcBalance += tx.amount;
                 final walletModel = walletData.walletBalance;
-                _currentWalletBalance = walletModel.balance;
 
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -224,16 +278,16 @@ class _WalletScreenState extends State<WalletScreen> {
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       children: [
-                        const Text(
+                        Text(
                           "My Wallet",
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
+                            color: primaryTextColor,
                           ),
                         ),
                         const SizedBox(height: 20),
 
-                        // ✅ បង្ហាញ 3 Cards (ដោយដាក់ lastMonthExpense ចូល)
                         _buildTopCardsSection(
                           calcBalance,
                           walletModel.balance,
@@ -242,86 +296,137 @@ class _WalletScreenState extends State<WalletScreen> {
 
                         const SizedBox(height: 30),
 
-                        // Action Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            GestureDetector(
-                              onTap: () => _showTopUpDialog(context),
-                              child: _buildActionButton(
-                                Icons.add,
-                                "Top Up",
-                                const Color(0xFFE0F7F5),
+                        // Button Container
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          decoration: BoxDecoration(
+                            color: cardBackgroundColor,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDarkMode
+                                    ? Colors.black.withOpacity(0.3)
+                                    : Colors.grey.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
                               ),
-                            ),
-                            GestureDetector(
-                              onTap: () => _simulateAddExpense(context),
-                              child: _buildActionButton(
-                                Icons.remove,
-                                "Pay",
-                                const Color(0xFFFFEBEE),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              GestureDetector(
+                                onTap: () => _showAddWalletDialog(context),
+                                child: _buildNewActionButton(
+                                  Icons.add,
+                                  "Add Wallet",
+                                  const Color(0xFFE0F7F5),
+                                  const Color(0xFF00C4B4),
+                                  isDarkMode,
+                                ),
                               ),
-                            ),
-                            _buildActionButton(
-                              Icons.qr_code,
-                              "Scan",
-                              const Color(0xFFE8EAF6),
-                            ),
-                            _buildActionButton(
-                              Icons.more_horiz,
-                              "More",
-                              const Color(0xFFF5F5F5),
-                            ),
-                          ],
+                              Container(
+                                width: 1,
+                                height: 50,
+                                color: secondaryTextColor.withOpacity(0.2),
+                              ),
+                              GestureDetector(
+                                onTap: () => _showRenewWalletDialog(context),
+                                child: _buildNewActionButton(
+                                  Icons.sync,
+                                  "Renew Wallet",
+                                  const Color(0xFFFFEBEE),
+                                  const Color(0xFFEF5350),
+                                  isDarkMode,
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 50,
+                                color: secondaryTextColor.withOpacity(0.2),
+                              ),
+                              GestureDetector(
+                                onTap: () => _showResetWalletDialog(context),
+                                child: _buildNewActionButton(
+                                  Icons.refresh,
+                                  "Reset Wallet",
+                                  const Color(0xFFE8EAF6),
+                                  const Color(0xFF3F51B5),
+                                  isDarkMode,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
 
                         const SizedBox(height: 30),
 
-                        // Title: Recent Transactions
+                        // ✅ Title ថ្មី: Expenses by Category
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              "Recent Transactions",
+                            Text(
+                              "Expenses by Category",
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
+                                color: primaryTextColor,
                               ),
-                            ),
-                            TextButton(
-                              onPressed: () {},
-                              child: const Text("See All"),
                             ),
                           ],
                         ),
 
                         const SizedBox(height: 10),
 
-                        // Transaction List
-                        transactions.isEmpty
-                            ? const Padding(
-                                padding: EdgeInsets.only(top: 20),
+                        // ✅ List ថ្មី: បង្ហាញ Category Summary
+                        Builder(
+                          builder: (context) {
+                            final categoryTotals = _calculateCategoryTotals(
+                              transactions,
+                            );
+                            final categories = categoryTotals.keys.toList();
+
+                            if (categoryTotals.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 20),
                                 child: Text(
-                                  "No transactions yet.",
-                                  style: TextStyle(color: Colors.grey),
+                                  "No expenses yet.",
+                                  style: TextStyle(color: secondaryTextColor),
                                 ),
-                              )
-                            : ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: transactions.length,
-                                itemBuilder: (context, index) {
-                                  final transaction = transactions[index];
-                                  return _buildTransactionItem(transaction);
-                                },
-                              ),
+                              );
+                            }
+
+                            return ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: categories.length,
+                              itemBuilder: (context, index) {
+                                String category = categories[index];
+                                double amount = categoryTotals[category]!;
+
+                                return _buildCategoryItem(
+                                  category,
+                                  amount,
+                                  cardBackgroundColor,
+                                  primaryTextColor,
+                                  secondaryTextColor,
+                                );
+                              },
+                            );
+                          },
+                        ),
                         const SizedBox(height: 50),
                       ],
                     ),
                   ),
                 );
               }
-              return const Center(child: Text("No Data"));
+              return Center(
+                child: Text(
+                  "No Data",
+                  style: TextStyle(color: primaryTextColor),
+                ),
+              );
             },
           ),
         ),
@@ -329,17 +434,16 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // --- Widgets សម្រាប់ Design ---
+  // --- Widgets ---
 
   Widget _buildTopCardsSection(
     double historyBalance,
     double realWalletBalance,
     double lastMonthExpense,
   ) {
-    // ✅ រកឈ្មោះខែមុន (Previous Month Name)
     DateTime now = DateTime.now();
     DateTime prevDate = DateTime(now.year, now.month - 1);
-    String prevMonthName = DateFormat('MMM').format(prevDate); // ឧ. "Jan"
+    String prevMonthName = DateFormat('MMM').format(prevDate);
 
     return SizedBox(
       height: 200,
@@ -361,11 +465,9 @@ class _WalletScreenState extends State<WalletScreen> {
             const Color(0xFF009E91),
             Icons.account_balance_wallet,
           ),
-
-          // ✅ Card ទី 3: បង្ហាញចំណាយខែមុន
           _buildSingleCard(
             "Expense ($prevMonthName)",
-            lastMonthExpense, // លេខនេះបានមកពី API
+            lastMonthExpense,
             const Color(0xFFEF5350),
             const Color(0xFFD32F2F),
             Icons.calendar_today,
@@ -418,49 +520,80 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, Color bgColor) {
+  Widget _buildNewActionButton(
+    IconData icon,
+    String label,
+    Color bgColor,
+    Color iconColor,
+    bool isDarkMode,
+  ) {
     return Column(
       children: [
         Container(
-          height: 60,
-          width: 60,
+          height: 65,
+          width: 65,
           decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(20),
+            color: isDarkMode ? bgColor.withOpacity(0.15) : bgColor,
+            shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: Colors.black87),
+          child: Icon(icon, color: iconColor, size: 30),
         ),
         const SizedBox(height: 8),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isDarkMode ? Colors.white70 : Colors.black54,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildTransactionItem(TransactionModel transaction) {
-    final isIncome = transaction.amount > 0;
-    final displayAmount = isIncome
-        ? "+ \$${transaction.amount.toStringAsFixed(2)}"
-        : "\$${transaction.amount.toStringAsFixed(2)}";
-    final amountColor = isIncome ? Colors.green : Colors.black87;
-
-    IconData iconData = Icons.shopping_bag;
-    Color iconBgColor = Colors.orange;
-
-    if (isIncome) {
-      iconData = Icons.arrow_downward;
-      iconBgColor = Colors.green;
-    } else if (transaction.category.toLowerCase().contains('top up')) {
-      iconData = Icons.add_card;
-      iconBgColor = Colors.blue;
+  // ✅ 2. Widget សម្រាប់បង្ហាញ Category Item (ថ្មី)
+  Widget _buildCategoryItem(
+    String category,
+    double amount,
+    Color bgColor,
+    Color titleColor,
+    Color subTitleColor,
+  ) {
+    Map<String, IconData> icons = {
+      "Food": Icons.fastfood,
+      "Travel": Icons.directions_car,
+      "Bills": Icons.receipt,
+      "Shopping": Icons.shopping_bag,
+      "Rent": Icons.home,
+      "Other": Icons.category,
+    };
+    IconData iconData = icons[category] ?? Icons.category;
+    Color iconColor;
+    switch (category) {
+      case "Food":
+        iconColor = Colors.orange;
+        break;
+      case "Travel":
+        iconColor = Colors.blue;
+        break;
+      case "Bills":
+        iconColor = Colors.red;
+        break;
+      case "Shopping":
+        iconColor = Colors.purple;
+        break;
+      case "Rent":
+        iconColor = Colors.teal;
+        break;
+      default:
+        iconColor = Colors.grey;
     }
-
-    String formattedDate = DateFormat('MMM d, h:mm a').format(transaction.date);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: bgColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -473,42 +606,30 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: iconBgColor.withOpacity(0.1),
+              color: iconColor.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(iconData, color: iconBgColor),
+            child: Icon(iconData, color: iconColor),
           ),
           const SizedBox(width: 15),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction.description.isNotEmpty
-                      ? transaction.description
-                      : transaction.category,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  formattedDate,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
+            child: Text(
+              category,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: titleColor,
+              ),
             ),
           ),
           Text(
-            displayAmount,
-            style: TextStyle(
+            "- \$${amount.toStringAsFixed(2)}",
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
-              color: amountColor,
+              color: Colors.redAccent,
             ),
           ),
         ],
