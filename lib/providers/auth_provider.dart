@@ -28,9 +28,9 @@ class AuthProvider with ChangeNotifier {
     final userId = prefs.getString('userId');
 
     // Debug prints to verify persistence
-    print("--------- CHECK AUTH STATUS ---------");
-    print("Token found: ${token != null}");
-    print("UserID found: $userId");
+    // print("--------- CHECK AUTH STATUS ---------");
+    // print("Token found: ${token != null}");
+    // print("UserID found: $userId");
 
     if (token != null && userId != null) {
       _isAuthenticated = true;
@@ -40,7 +40,7 @@ class AuthProvider with ChangeNotifier {
           _user = User.fromJson(responseData['user']);
         }
       } catch (e) {
-        print("Sync failed: $e");
+        // print("Sync failed: $e");
       }
       notifyListeners();
     }
@@ -104,7 +104,7 @@ class AuthProvider with ChangeNotifier {
           }
         } catch (e) {
           // If profile fetch fails, fall back to basic login data
-          print("Profile fetch error during login: $e");
+          // print("Profile fetch error during login: $e");
           if (responseData.containsKey('user')) {
             _user = User.fromJson(responseData['user']);
           }

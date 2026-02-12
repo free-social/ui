@@ -178,7 +178,7 @@ class AuthService {
   }
 
   void _handleError(dynamic e, String defaultMessage) {
-    print('Error: $e');
+    // print('Error: $e');
     String errorMessage = defaultMessage;
     if (e is DioException) {
       if (e.response?.data != null) {

@@ -169,7 +169,7 @@ class ExpenseService {
       }
       return totalExpense; // នឹង return លេខអវិជ្ជមាន (ឧ. -500.00)
     } catch (e) {
-      print("Error fetching monthly expense: $e");
+      // print("Error fetching monthly expense: $e");
       return 0.0;
     }
   }
@@ -208,7 +208,7 @@ class ExpenseService {
       }
       return total;
     } catch (e) {
-      print("Error calculating daily total: $e");
+      // print("Error calculating daily total: $e");
       return 0.0;
     }
   }
