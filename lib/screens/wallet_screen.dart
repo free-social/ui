@@ -617,10 +617,12 @@ class _WalletScreenState extends State<WalletScreen>
         backgroundColor: backgroundColor,
         body: Consumer<WalletProvider>(
           builder: (context, walletProvider, child) {
-            // Handle loading state
+            // Handle loading state - Show skeleton
             if (walletProvider.isLoading && walletProvider.walletData == null) {
-              return const Center(
-                child: CircularProgressIndicator(color: Color(0xFF00BFA5)),
+              return _buildSkeletonLoading(
+                backgroundColor,
+                cardBackgroundColor,
+                isDarkMode,
               );
             }
 
@@ -910,6 +912,157 @@ class _WalletScreenState extends State<WalletScreen>
           ),
         ],
       ),
+    );
+  }
+
+  // Skeleton Loading Widget
+  Widget _buildSkeletonLoading(
+    Color backgroundColor,
+    Color cardBackgroundColor,
+    bool isDarkMode,
+  ) {
+    final shimmerBaseColor = isDarkMode ? Colors.grey[850]! : Colors.grey[300]!;
+    final shimmerHighlightColor = isDarkMode
+        ? Colors.grey[800]!
+        : Colors.grey[100]!;
+
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          // Title skeleton
+          Container(
+            width: 120,
+            height: 24,
+            decoration: BoxDecoration(
+              color: shimmerBaseColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Card skeleton with shimmer effect
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.3, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) {
+              return Opacity(opacity: value, child: child);
+            },
+            onEnd: () {
+              // Loop animation
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted) setState(() {});
+              });
+            },
+            child: Container(
+              height: 180,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    shimmerBaseColor,
+                    shimmerHighlightColor,
+                    shimmerBaseColor,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(25),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    width: 160,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 30),
+
+          // Buttons skeleton
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(
+              color: cardBackgroundColor,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: isDarkMode
+                      ? Colors.black.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildSkeletonButton(shimmerBaseColor),
+                Container(width: 1, height: 50, color: shimmerBaseColor),
+                _buildSkeletonButton(shimmerBaseColor),
+                Container(width: 1, height: 50, color: shimmerBaseColor),
+                _buildSkeletonButton(shimmerBaseColor),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonButton(Color shimmerColor) {
+    return Column(
+      children: [
+        Container(
+          height: 65,
+          width: 65,
+          decoration: BoxDecoration(
+            color: shimmerColor,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 70,
+          height: 12,
+          decoration: BoxDecoration(
+            color: shimmerColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ],
     );
   }
 
