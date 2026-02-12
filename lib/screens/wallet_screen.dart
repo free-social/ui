@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/wallet_provider.dart';
-import '../../providers/expense_provider.dart';
 import '../../utils/snackbar_helper.dart';
 
 class WalletScreen extends StatefulWidget {
