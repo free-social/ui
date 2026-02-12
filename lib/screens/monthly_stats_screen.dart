@@ -15,7 +15,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
   bool _isDailyView = true;
   DateTime _currentDate = DateTime.now();
 
-  final Color kPrimaryColor = const Color(0xFF00BFA5); 
+  final Color kPrimaryColor = const Color(0xFF00BFA5);
 
   @override
   void initState() {
@@ -26,11 +26,14 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
   // ✅ Changed to return Future for RefreshIndicator
   Future<void> _fetchData() async {
     final provider = Provider.of<ExpenseProvider>(context, listen: false);
-    
+
     if (_isDailyView) {
-      await provider.fetchDailyExpenses(_currentDate); 
+      await provider.fetchDailyExpenses(_currentDate);
     } else {
-      await provider.fetchMonthlyExpenses(_currentDate.month, _currentDate.year);
+      await provider.fetchMonthlyExpenses(
+        _currentDate.month,
+        _currentDate.year,
+      );
     }
   }
 
@@ -58,29 +61,42 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     final Color textColor = isDark ? Colors.white : Colors.black;
     final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey;
-    final Color cardColor = theme.cardColor; 
-    final Color progressBgColor = isDark ? Colors.grey[800]! : const Color(0xFFF2F4F7);
+    final Color cardColor = theme.cardColor;
+    final Color progressBgColor = isDark
+        ? Colors.grey[800]!
+        : const Color(0xFFF2F4F7);
     final Color scaffoldBg = theme.scaffoldBackgroundColor;
 
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: scaffoldBg, 
+        backgroundColor: scaffoldBg,
         title: Text(
           "Spending Summary",
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
         centerTitle: true,
       ),
       body: Consumer<ExpenseProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading) return const Center(child: CircularProgressIndicator());
+          if (provider.isLoading) {
+            return _buildSkeletonLoading(
+              cardColor,
+              textColor,
+              subTextColor,
+              isDark,
+            );
+          }
 
-          final dynamic rawData = _isDailyView 
-              ? provider.dailySummary 
+          final dynamic rawData = _isDailyView
+              ? provider.dailySummary
               : provider.monthlySummary;
 
           List<dynamic> rawTransactions = [];
@@ -90,24 +106,31 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
 
           Map<String, double> categoryTotals = {};
           double totalSpent = 0.0;
-          
+
           for (var tx in rawTransactions) {
             final double amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
-            final String category = tx['category']?.toString().toLowerCase() ?? 'other';
-            
+            final String category =
+                tx['category']?.toString().toLowerCase() ?? 'other';
+
             if (amount > 0) {
               totalSpent += amount;
-              categoryTotals[category] = (categoryTotals[category] ?? 0) + amount;
+              categoryTotals[category] =
+                  (categoryTotals[category] ?? 0) + amount;
             }
           }
 
           List<Map<String, dynamic>> uiList = categoryTotals.entries
-              .map((e) => {
-                'category': e.key, 
-                'amount': e.value,
-                'color': _getCategoryColor(e.key),
-              }).toList();
-          uiList.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+              .map(
+                (e) => {
+                  'category': e.key,
+                  'amount': e.value,
+                  'color': _getCategoryColor(e.key),
+                },
+              )
+              .toList();
+          uiList.sort(
+            (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
+          );
 
           // ✅ Wrapped in RefreshIndicator
           return RefreshIndicator(
@@ -118,13 +141,13 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                 _buildToggleBar(cardColor, textColor),
                 _buildDateSelector(textColor),
                 const SizedBox(height: 20),
-                
+
                 _buildDynamicRing(uiList, totalSpent, textColor, subTextColor),
-                
+
                 const SizedBox(height: 40),
                 _buildCategoryHeader(textColor),
-                
-                // ✅ Using Expanded with LayoutBuilder to handle empty states 
+
+                // ✅ Using Expanded with LayoutBuilder to handle empty states
                 // while keeping pull-to-refresh working
                 Expanded(
                   child: uiList.isEmpty
@@ -134,7 +157,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                             SizedBox(
                               height: 200, // Space to push empty state down
                               child: _buildEmptyState(subTextColor),
-                            )
+                            ),
                           ],
                         )
                       : ListView.builder(
@@ -144,13 +167,13 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                           itemBuilder: (context, index) {
                             final item = uiList[index];
                             return _buildStatRow(
-                              item['category'], 
-                              item['amount'], 
-                              totalSpent, 
+                              item['category'],
+                              item['amount'],
+                              totalSpent,
                               item['color'],
                               textColor,
                               subTextColor,
-                              progressBgColor
+                              progressBgColor,
                             );
                           },
                         ),
@@ -177,8 +200,8 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
-          )
-        ]
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -197,17 +220,17 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         child: Container(
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: isActive ? kPrimaryColor : Colors.transparent, 
-            borderRadius: BorderRadius.circular(22)
+            color: isActive ? kPrimaryColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(22),
           ),
           child: Center(
             child: Text(
-              label, 
+              label,
               style: TextStyle(
-                color: isActive ? Colors.white : Colors.grey, 
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal
-              )
-            )
+                color: isActive ? Colors.white : Colors.grey,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
           ),
         ),
       ),
@@ -227,8 +250,12 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Center(
           child: Text(
-            label, 
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
           ),
         ),
       );
@@ -238,22 +265,31 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          icon: Icon(Icons.chevron_left, color: kPrimaryColor), 
-          onPressed: () => _changeDate(-1)
+          icon: Icon(Icons.chevron_left, color: kPrimaryColor),
+          onPressed: () => _changeDate(-1),
         ),
         Text(
-          label, 
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
         ),
         IconButton(
-          icon: Icon(Icons.chevron_right, color: kPrimaryColor), 
-          onPressed: () => _changeDate(1)
+          icon: Icon(Icons.chevron_right, color: kPrimaryColor),
+          onPressed: () => _changeDate(1),
         ),
       ],
     );
   }
 
-  Widget _buildDynamicRing(List<Map<String, dynamic>> categories, double total, Color mainText, Color subText) {
+  Widget _buildDynamicRing(
+    List<Map<String, dynamic>> categories,
+    double total,
+    Color mainText,
+    Color subText,
+  ) {
     return SizedBox(
       width: 200,
       height: 180,
@@ -274,11 +310,18 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text("Total Spent", style: TextStyle(color: subText, fontSize: 14)),
+              Text(
+                "Total Spent",
+                style: TextStyle(color: subText, fontSize: 14),
+              ),
               const SizedBox(height: 4),
               Text(
-                "\$${NumberFormat("#,##0").format(total)}", 
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: mainText),
+                "\$${NumberFormat("#,##0").format(total)}",
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: mainText,
+                ),
               ),
             ],
           ),
@@ -287,10 +330,18 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     );
   }
 
-  Widget _buildStatRow(String category, double amount, double total, Color color, Color mainText, Color subText, Color progressBg) {
+  Widget _buildStatRow(
+    String category,
+    double amount,
+    double total,
+    Color color,
+    Color mainText,
+    Color subText,
+    Color progressBg,
+  ) {
     final percentage = total == 0 ? 0.0 : (amount / total);
-    final displayCategory = category.isNotEmpty 
-        ? category[0].toUpperCase() + category.substring(1) 
+    final displayCategory = category.isNotEmpty
+        ? category[0].toUpperCase() + category.substring(1)
         : category;
 
     return Padding(
@@ -300,9 +351,10 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           Row(
             children: [
               Container(
-                width: 45, height: 45,
+                width: 45,
+                height: 45,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1), 
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(_getCategoryIcon(category), color: color, size: 24),
@@ -313,10 +365,17 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      displayCategory, 
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: mainText),
+                      displayCategory,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: mainText,
+                      ),
                     ),
-                    Text(_getCategorySub(category), style: TextStyle(color: subText, fontSize: 12)),
+                    Text(
+                      _getCategorySub(category),
+                      style: TextStyle(color: subText, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -324,10 +383,17 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "\$${NumberFormat("#,##0").format(amount)}", 
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: mainText),
+                    "\$${NumberFormat("#,##0").format(amount)}",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: mainText,
+                    ),
                   ),
-                  Text("${(percentage * 100).toInt()}%", style: TextStyle(color: subText, fontSize: 12)),
+                  Text(
+                    "${(percentage * 100).toInt()}%",
+                    style: TextStyle(color: subText, fontSize: 12),
+                  ),
                 ],
               ),
             ],
@@ -338,7 +404,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
             child: LinearProgressIndicator(
               value: percentage,
               minHeight: 6,
-              backgroundColor: progressBg, 
+              backgroundColor: progressBg,
               color: color,
             ),
           ),
@@ -355,8 +421,8 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           Icon(Icons.pie_chart_outline, size: 60, color: Colors.grey[300]),
           const SizedBox(height: 10),
           Text(
-            _isDailyView ? "No spending today" : "No spending this month", 
-            style: TextStyle(color: textColor)
+            _isDailyView ? "No spending today" : "No spending this month",
+            style: TextStyle(color: textColor),
           ),
         ],
       ),
@@ -369,7 +435,14 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text("Categories", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+          Text(
+            "Categories",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
         ],
       ),
     );
@@ -377,37 +450,240 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
 
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
-      case 'food': return Icons.local_cafe;
-      case 'travel': return Icons.directions_car;
-      case 'shopping': return Icons.shopping_bag;
-      case 'bills': return Icons.receipt_long;
-      case 'rent': return Icons.home;
-      case 'other': return Icons.category;
-      default: return Icons.category;
+      case 'food':
+        return Icons.local_cafe;
+      case 'travel':
+        return Icons.directions_car;
+      case 'shopping':
+        return Icons.shopping_bag;
+      case 'bills':
+        return Icons.receipt_long;
+      case 'rent':
+        return Icons.home;
+      case 'other':
+        return Icons.category;
+      default:
+        return Icons.category;
     }
   }
 
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
-      case 'food': return Colors.teal;
-      case 'travel': return Colors.orange;
-      case 'shopping': return Colors.purple;
-      case 'bills': return const Color(0xFFFF5252);
-      case 'rent': return Colors.indigo;
-      case 'other': return Colors.blueGrey;
-      default: return Colors.blueGrey;
+      case 'food':
+        return Colors.teal;
+      case 'travel':
+        return Colors.orange;
+      case 'shopping':
+        return Colors.purple;
+      case 'bills':
+        return const Color(0xFFFF5252);
+      case 'rent':
+        return Colors.indigo;
+      case 'other':
+        return Colors.blueGrey;
+      default:
+        return Colors.blueGrey;
     }
   }
 
   String _getCategorySub(String category) {
     switch (category.toLowerCase()) {
-      case 'travel': return 'Commute & Trips';
-      case 'food': return 'Groceries & Dining';
-      case 'bills': return 'Utilities & Fees';
-      case 'shopping': return 'Personal Items';
-      case 'rent': return 'Housing & Rent';
-      default: return 'General';
+      case 'travel':
+        return 'Commute & Trips';
+      case 'food':
+        return 'Groceries & Dining';
+      case 'bills':
+        return 'Utilities & Fees';
+      case 'shopping':
+        return 'Personal Items';
+      case 'rent':
+        return 'Housing & Rent';
+      default:
+        return 'General';
     }
+  }
+
+  // Skeleton Loading Widgets
+  Widget _buildSkeletonLoading(
+    Color cardColor,
+    Color textColor,
+    Color subTextColor,
+    bool isDark,
+  ) {
+    final shimmerBaseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
+    final shimmerHighlightColor = isDark
+        ? Colors.grey[700]!
+        : Colors.grey[100]!;
+
+    return Column(
+      children: [
+        // _buildToggleBar(cardColor, textColor), // Assuming these are defined elsewhere or not needed for skeleton
+        // _buildDateSelector(textColor),
+        const SizedBox(height: 20),
+
+        // Ring chart skeleton
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.4, end: 1.0),
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+          builder: (context, value, child) {
+            return Opacity(opacity: value, child: child);
+          },
+          onEnd: () {
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) setState(() {});
+            });
+          },
+          child: Container(
+            width: 200,
+            height: 180,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  shimmerBaseColor,
+                  shimmerHighlightColor,
+                  shimmerBaseColor,
+                ],
+              ),
+            ),
+            child: Center(
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: shimmerBaseColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 100,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: shimmerBaseColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 40),
+        _buildCategoryHeader(textColor),
+
+        // Category list skeleton
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            itemCount: 4,
+            itemBuilder: (context, index) {
+              return _buildSkeletonCategoryRow(
+                shimmerBaseColor,
+                shimmerHighlightColor,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeletonCategoryRow(Color baseColor, Color highlightColor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: baseColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [baseColor, highlightColor, baseColor],
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: 100,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: baseColor.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    width: 70,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: baseColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 40,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: baseColor.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Container(
+              width: double.infinity,
+              height: 6,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [baseColor, highlightColor, baseColor],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -416,7 +692,11 @@ class MultiSegmentPainter extends CustomPainter {
   final double total;
   final double strokeWidth;
 
-  MultiSegmentPainter({required this.categories, required this.total, required this.strokeWidth});
+  MultiSegmentPainter({
+    required this.categories,
+    required this.total,
+    required this.strokeWidth,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -430,14 +710,14 @@ class MultiSegmentPainter extends CustomPainter {
 
     for (var cat in categories) {
       final sweepAngle = (cat['amount'] / total) * 2 * math.pi;
-      
+
       final paint = Paint()
         ..color = cat['color']
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.butt;
 
-      canvas.drawArc(rect, startAngle, sweepAngle, false, paint);      
+      canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
       startAngle += sweepAngle;
     }
   }
