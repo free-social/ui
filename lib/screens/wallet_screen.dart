@@ -575,63 +575,6 @@ class _WalletScreenState extends State<WalletScreen>
     );
   }
 
-  // --- Helper Functions ---
-  // Future<void> _processAddWallet(double amount) async {
-  //   showInfoSnackBar(context, 'Creating wallet...');
-  //   try {
-  //     final walletProvider = context.read<WalletProvider>();
-
-  //     // Only create/add wallet balance, no transaction needed
-  //     await walletProvider.addNewWallet(amount);
-
-  //     if (mounted) showSuccessSnackBar(context, 'Wallet created successfully!');
-  //   } catch (e) {
-  //     if (mounted) showErrorSnackBar(context, 'Failed to create wallet: $e');
-  //   }
-  // }
-
-  Future<void> _processTransaction(
-    double amount,
-    String category,
-    String description, {
-    required bool isAdd,
-  }) async {
-    showInfoSnackBar(context, 'Processing...');
-    try {
-      final walletProvider = context.read<WalletProvider>();
-      final expenseProvider = context.read<ExpenseProvider>();
-
-      // Step 1: Update wallet balance
-      await walletProvider.topUpWallet(isAdd ? amount : -amount);
-
-      // Step 2: Create transaction record
-      try {
-        await expenseProvider.addTransaction(
-          isAdd ? amount : -amount,
-          category,
-          description,
-          DateTime.now(),
-        );
-      } catch (transactionError) {
-        // If transaction creation fails, show warning but don't fail entirely
-        // The wallet balance was already updated successfully
-        if (mounted) {
-          showErrorSnackBar(
-            context,
-            'Wallet updated but transaction record failed: $transactionError',
-          );
-        }
-        return; // Exit early, don't show success
-      }
-
-      // Both operations succeeded
-      if (mounted) showSuccessSnackBar(context, 'Success!');
-    } catch (e) {
-      // Wallet update failed
-      if (mounted) showErrorSnackBar(context, 'Failed to update wallet: $e');
-    }
-  }
-
   Future<void> _processTopUpWallet(double amount, String actionName) async {
     showInfoSnackBar(context, 'Processing...');
     try {
