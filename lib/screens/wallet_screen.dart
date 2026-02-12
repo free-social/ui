@@ -197,7 +197,7 @@ class _WalletScreenState extends State<WalletScreen>
                                     0.0;
                                 if (amount <= 0) return;
                                 Navigator.pop(context);
-                                _processAddWallet(amount);
+                                _processTopUpWallet(amount, "Add Wallet");
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green.shade600,
@@ -576,19 +576,19 @@ class _WalletScreenState extends State<WalletScreen>
   }
 
   // --- Helper Functions ---
-  Future<void> _processAddWallet(double amount) async {
-    showInfoSnackBar(context, 'Creating wallet...');
-    try {
-      final walletProvider = context.read<WalletProvider>();
+  // Future<void> _processAddWallet(double amount) async {
+  //   showInfoSnackBar(context, 'Creating wallet...');
+  //   try {
+  //     final walletProvider = context.read<WalletProvider>();
 
-      // Only create/add wallet balance, no transaction needed
-      await walletProvider.addNewWallet(amount);
+  //     // Only create/add wallet balance, no transaction needed
+  //     await walletProvider.addNewWallet(amount);
 
-      if (mounted) showSuccessSnackBar(context, 'Wallet created successfully!');
-    } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Failed to create wallet: $e');
-    }
-  }
+  //     if (mounted) showSuccessSnackBar(context, 'Wallet created successfully!');
+  //   } catch (e) {
+  //     if (mounted) showErrorSnackBar(context, 'Failed to create wallet: $e');
+  //   }
+  // }
 
   Future<void> _processTransaction(
     double amount,
@@ -629,6 +629,16 @@ class _WalletScreenState extends State<WalletScreen>
     } catch (e) {
       // Wallet update failed
       if (mounted) showErrorSnackBar(context, 'Failed to update wallet: $e');
+    }
+  }
+
+  Future<void> _processTopUpWallet(double amount, String actionName) async {
+    showInfoSnackBar(context, 'Processing...');
+    try {
+      await context.read<WalletProvider>().topUpWallet(amount);
+      if (mounted) showSuccessSnackBar(context, '$actionName Successful!');
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, 'Error: $e');
     }
   }
 

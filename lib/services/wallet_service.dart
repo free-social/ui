@@ -73,16 +73,6 @@ class WalletService {
     }
   }
 
-  Future<void> addNewWallet(double amount) async{
-    try {
-      await _apiService.client.post(
-        '/wallet',
-        data: {"balance": amount},
-      );
-    } catch (e) {
-      throw Exception('Create failed: $e');
-    }
-  }
 
   // add on also patch in api
   Future<void> topUpWallet(double amount) async {
