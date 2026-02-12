@@ -291,8 +291,8 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     Color subText,
   ) {
     return SizedBox(
-      width: 200,
-      height: 180,
+      width: 180,
+      height: 160,
       child: Stack(
         alignment: Alignment.center,
         children: [
