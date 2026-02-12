@@ -11,12 +11,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Notifications
-  await NotificationService.initialize();
-  await NotificationService.requestPermissions();
-  await NotificationService.scheduleDailyNotification();
+  try {
+    await NotificationService.initialize();
+    await NotificationService.requestPermissions();
+    await NotificationService.scheduleDailyNotification();
 
-  // Check if we should show notification (fallback for OPPO)
-  await NotificationService.checkAndShowIfNeeded();
+    // Check if we should show notification (fallback for OPPO)
+    await NotificationService.checkAndShowIfNeeded();
+  } catch (e) {
+    // Ignore notification errors - app should still work without notifications
+    print('⚠️ Notification setup failed: $e');
+  }
 
   // Initialize AuthProvider
   final authProvider = AuthProvider();

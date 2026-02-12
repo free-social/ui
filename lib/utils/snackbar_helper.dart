@@ -7,7 +7,8 @@ void showTopSnackBar(
   Color? backgroundColor,
   Duration duration = const Duration(seconds: 3),
 }) {
-  final overlay = Overlay.of(context);
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) return; // Exit if overlay not ready
   final topPadding = MediaQuery.of(context).padding.top;
 
   late OverlayEntry overlayEntry;

@@ -79,7 +79,11 @@ class NotificationService {
 
   // ✅ Schedule daily notification with dynamic content
   static Future<void> scheduleDailyNotification() async {
-    await _notifications.cancelAll();
+    try {
+      await _notifications.cancelAll();
+    } catch (e) {
+      // Ignore cancelAll errors on some Android devices
+    }
 
     final now = tz.TZDateTime.now(tz.local);
 
@@ -297,7 +301,11 @@ class NotificationService {
 
   // Schedule a test notification for 1 minute from now
   static Future<void> scheduleTestNotificationIn1Minute() async {
-    await _notifications.cancelAll();
+    try {
+      await _notifications.cancelAll();
+    } catch (e) {
+      // Ignore cancelAll errors on some Android devices
+    }
 
     final now = tz.TZDateTime.now(tz.local);
     final scheduledDate = now.add(const Duration(minutes: 1));
@@ -371,8 +379,12 @@ class NotificationService {
 
   // Cancel all notifications
   static Future<void> cancelAllNotifications() async {
-    await _notifications.cancelAll();
-    print('🚫 All notifications cancelled');
+    try {
+      await _notifications.cancelAll();
+      print('🚫 All notifications cancelled');
+    } catch (e) {
+      print('⚠️  Could not cancel notifications: $e');
+    }
   }
 
   // Check if notifications are enabled

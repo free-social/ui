@@ -49,6 +49,5 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-  # ✅ DON'T FORGET TO REGISTER ASSETS
   assets:
     - assets/images/logo.png
