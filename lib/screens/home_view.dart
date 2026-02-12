@@ -245,10 +245,9 @@ class _HomeViewState extends State<HomeView> {
                         color: kPrimaryColor,
                         backgroundColor: cardColor,
                         child: provider.isLoading && provider.currentPage == 1
-                            ? Center(
-                                child: CircularProgressIndicator(
-                                  color: kPrimaryColor,
-                                ),
+                            ? _buildSkeletonList(
+                                cardColor,
+                                Theme.of(context).brightness == Brightness.dark,
                               )
                             : ListView.builder(
                                 // ✅ 3. AlwaysScrollableScrollPhysics ensures you can pull
@@ -458,5 +457,94 @@ class _HomeViewState extends State<HomeView> {
       default:
         return Colors.blueGrey;
     }
+  }
+
+  // Skeleton Loading Widgets
+  Widget _buildSkeletonList(Color cardColor, bool isDark) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      itemCount: 5, // Show 5 skeleton items
+      itemBuilder: (context, index) {
+        return _buildSkeletonTransactionCard(cardColor, isDark);
+      },
+    );
+  }
+
+  Widget _buildSkeletonTransactionCard(Color cardColor, bool isDark) {
+    final shimmerBaseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
+    final shimmerHighlightColor = isDark
+        ? Colors.grey[700]!
+        : Colors.grey[100]!;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.4, end: 1.0),
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+          builder: (context, value, child) {
+            return Opacity(opacity: value, child: child);
+          },
+          onEnd: () {
+            // Loop animation
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) setState(() {});
+            });
+          },
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: shimmerBaseColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        title: Container(
+          width: double.infinity,
+          height: 16,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                shimmerBaseColor,
+                shimmerHighlightColor,
+                shimmerBaseColor,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        subtitle: Container(
+          width: 100,
+          height: 13,
+          margin: const EdgeInsets.only(top: 6),
+          decoration: BoxDecoration(
+            color: shimmerBaseColor.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        trailing: Container(
+          width: 70,
+          height: 18,
+          decoration: BoxDecoration(
+            color: shimmerBaseColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+    );
   }
 }
