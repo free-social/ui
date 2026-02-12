@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../models/transaction_model.dart';
-import '../../services/wallet_service.dart';
-import '../../services/expense_service.dart';
+import '../../providers/wallet_provider.dart';
+import '../../utils/snackbar_helper.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -11,190 +11,576 @@ class WalletScreen extends StatefulWidget {
   State<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen> {
-  late Future<List<dynamic>> _dataFuture;
-
-  final WalletService _walletService = WalletService();
-  final ExpenseService _expenseService = ExpenseService();
+class _WalletScreenState extends State<WalletScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late PageController _pageController; // For card swipe animation
 
   @override
   void initState() {
     super.initState();
-    _refreshData();
-  }
 
-  Future<void> _refreshData() async {
-    DateTime now = DateTime.now();
-    int prevMonth = now.month - 1;
-    int prevYear = now.year;
+    // Initialize page controller for card carousel
+    _pageController = PageController(viewportFraction: 1);
 
-    if (prevMonth == 0) {
-      prevMonth = 12;
-      prevYear = now.year - 1;
-    }
+    // Initialize animation controller
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
 
-    setState(() {
-      _dataFuture = Future.wait([
-        _walletService.fetchWalletData(),
-        _expenseService.getMonthlyExpenseTotal(prevMonth, prevYear),
-      ]);
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+
+    // Fetch wallet data when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<WalletProvider>().fetchWalletData();
+      _animationController.forward(); // Start animation
     });
   }
 
-  // 🟢 1. Add Wallet
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  // 🟢 1. Add Wallet - Modern Dialog
   void _showAddWalletDialog(BuildContext context) {
     final TextEditingController amountController = TextEditingController();
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Add Wallet"),
-          content: TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              hintText: "Enter amount",
-              prefixText: "\$ ",
-              border: OutlineInputBorder(),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Gradient Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.green.shade400, Colors.teal.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.add_circle,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text(
+                        "Add to Wallet",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Enter Amount",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode
+                              ? Colors.white70
+                              : Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: amountController,
+                        keyboardType: TextInputType.number,
+                        autofocus: true,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: "0.00",
+                          prefixIcon: Icon(
+                            Icons.attach_money,
+                            color: Colors.green.shade600,
+                          ),
+                          filled: true,
+                          fillColor: isDarkMode
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.all(20),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                "Cancel",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDarkMode
+                                      ? Colors.white70
+                                      : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                final amount =
+                                    double.tryParse(amountController.text) ??
+                                    0.0;
+                                if (amount <= 0) return;
+                                Navigator.pop(context);
+                                _processTopUpWallet(amount, "Add Wallet");
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                "Add",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final amount = double.tryParse(amountController.text) ?? 0.0;
-                if (amount <= 0) return;
-                Navigator.pop(context);
-                _processTransaction(
-                  amount,
-                  "Add Wallet",
-                  "Wallet Deposit",
-                  isAdd: true,
-                );
-              },
-              child: const Text("Confirm"),
-            ),
-          ],
         );
       },
     );
   }
 
-  // 🔴 2. Renew Wallet
+  // 🔴 2. Renew Wallet - Modern Dialog
   void _showRenewWalletDialog(BuildContext context) {
     final TextEditingController amountController = TextEditingController();
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Renew Wallet"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Set a new total balance.",
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  hintText: "New Balance",
-                  prefixText: "\$ ",
-                  border: OutlineInputBorder(),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Gradient Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.amber.shade400, Colors.orange.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.sync_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text(
+                        "Renew Wallet",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Set New Balance",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode
+                              ? Colors.white70
+                              : Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "This will replace your current balance",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: amountController,
+                        keyboardType: TextInputType.number,
+                        autofocus: true,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: "0.00",
+                          prefixIcon: Icon(
+                            Icons.attach_money,
+                            color: Colors.orange.shade600,
+                          ),
+                          filled: true,
+                          fillColor: isDarkMode
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.all(20),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                "Cancel",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDarkMode
+                                      ? Colors.white70
+                                      : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                final amount = double.tryParse(
+                                  amountController.text,
+                                );
+                                if (amount == null || amount < 0) return;
+                                Navigator.pop(context);
+                                _processUpdateWallet(amount, "Renew Wallet");
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                "Update",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              onPressed: () async {
-                final amount = double.tryParse(amountController.text);
-                if (amount == null || amount < 0) return;
-                Navigator.pop(context);
-                _processUpdateWallet(amount, "Renew Wallet");
-              },
-              child: const Text(
-                "Update",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
         );
       },
     );
   }
 
-  // ⚪ 3. Reset Wallet
+  // ⚪ 3. Reset Wallet - Modern Dialog
   void _showResetWalletDialog(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Reset Wallet"),
-          content: const Text("Reset balance to \$0.00?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () async {
-                Navigator.pop(context);
-                _processUpdateWallet(0.0, "Reset Wallet");
-              },
-              child: const Text("Reset", style: TextStyle(color: Colors.white)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Gradient Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.red.shade400, Colors.pink.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text(
+                        "Reset Wallet",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.red.shade600,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                "This will reset your wallet balance to \$0.00",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.red.shade900,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                "Cancel",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDarkMode
+                                      ? Colors.white70
+                                      : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                Navigator.pop(context);
+                                _processUpdateWallet(0.0, "Reset Wallet");
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                "Reset",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
   }
 
-  // --- Helper Functions ---
-  Future<void> _processTransaction(
-    double amount,
-    String category,
-    String description, {
-    required bool isAdd,
-  }) async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Processing...")));
+  Future<void> _processTopUpWallet(double amount, String actionName) async {
+    showInfoSnackBar(context, 'Processing...');
     try {
-      await _walletService.topUpWallet(isAdd ? amount : -amount);
-      await _expenseService.createTransaction(
-        TransactionModel(
-          id: "",
-          amount: isAdd ? amount : -amount,
-          category: category,
-          description: description,
-          date: DateTime.now(),
-        ),
-      );
-      await _refreshData();
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Success!"),
-            backgroundColor: Colors.green,
-          ),
-        );
+      await context.read<WalletProvider>().topUpWallet(amount);
+      if (mounted) showSuccessSnackBar(context, '$actionName Successful!');
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) showErrorSnackBar(context, 'Error: $e');
     }
   }
 
@@ -202,42 +588,13 @@ class _WalletScreenState extends State<WalletScreen> {
     double newBalance,
     String actionName,
   ) async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Updating...")));
+    showInfoSnackBar(context, 'Updating...');
     try {
-      await _walletService.updateWalletBalance(newBalance);
-      await _refreshData();
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("$actionName Successful!"),
-            backgroundColor: Colors.green,
-          ),
-        );
+      await context.read<WalletProvider>().updateWalletBalance(newBalance);
+      if (mounted) showSuccessSnackBar(context, '$actionName Successful!');
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) showErrorSnackBar(context, 'Error: $e');
     }
-  }
-
-  // ✅ 1. Function គណនាលុយសរុបតាម Category (ថ្មី)
-  Map<String, double> _calculateCategoryTotals(
-    List<TransactionModel> transactions,
-  ) {
-    Map<String, double> totals = {};
-    for (var tx in transactions) {
-      if (tx.amount < 0) {
-        String cat = tx.category.isNotEmpty
-            ? tx.category[0].toUpperCase() +
-                  tx.category.substring(1).toLowerCase()
-            : "Other";
-        totals[cat] = (totals[cat] ?? 0) + tx.amount.abs();
-      }
-    }
-    return totals;
   }
 
   @override
@@ -257,179 +614,148 @@ class _WalletScreenState extends State<WalletScreen> {
     return SafeArea(
       child: Scaffold(
         backgroundColor: backgroundColor,
-        body: RefreshIndicator(
-          onRefresh: _refreshData,
-          color: const Color(0xFF00BFA5),
-          child: FutureBuilder<List<dynamic>>(
-            future: _dataFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: Color(0xFF00BFA5)));
-              } else if (snapshot.hasData) {
-                final walletData = snapshot.data![0] as WalletData;
-                final lastMonthExpense = snapshot.data![1] as double;
-                final transactions = walletData.transactions;
-                double calcBalance = 0;
-                for (var tx in transactions) calcBalance += tx.amount;
-                final walletModel = walletData.walletBalance;
+        body: Consumer<WalletProvider>(
+          builder: (context, walletProvider, child) {
+            // Handle loading state - Show skeleton
+            if (walletProvider.isLoading && walletProvider.walletData == null) {
+              return _buildSkeletonLoading(
+                backgroundColor,
+                cardBackgroundColor,
+                isDarkMode,
+              );
+            }
 
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          "My Wallet",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: primaryTextColor,
+            // Handle error state
+            if (walletProvider.error != null &&
+                walletProvider.walletData == null) {
+              return Center(
+                child: Text(
+                  'Error: ${walletProvider.error}',
+                  style: TextStyle(color: primaryTextColor),
+                ),
+              );
+            }
+
+            // Handle no data
+            if (walletProvider.walletData == null) {
+              return Center(
+                child: Text(
+                  'No Data',
+                  style: TextStyle(color: primaryTextColor),
+                ),
+              );
+            }
+
+            // Extract data from provider
+            final walletData = walletProvider.walletData!;
+            final lastMonthExpense = walletProvider.lastMonthExpense;
+            final transactions = walletData.transactions;
+            double calcBalance = 0;
+            for (var tx in transactions) calcBalance += tx.amount;
+            final walletModel = walletData.walletBalance;
+
+            return RefreshIndicator(
+              onRefresh: () => walletProvider.refreshData(),
+              color: const Color(0xFF00BFA5),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      Text(
+                        "My Wallet",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Animated wallet cards
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: _buildTopCardsSection(
+                            calcBalance,
+                            walletModel.balance,
+                            lastMonthExpense,
                           ),
                         ),
-                        const SizedBox(height: 20),
+                      ),
 
-                        _buildTopCardsSection(
-                          calcBalance,
-                          walletModel.balance,
-                          lastMonthExpense,
+                      const SizedBox(height: 30),
+
+                      // Button Container
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        decoration: BoxDecoration(
+                          color: cardBackgroundColor,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDarkMode
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.grey.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
-
-                        const SizedBox(height: 30),
-
-                        // Button Container
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          decoration: BoxDecoration(
-                            color: cardBackgroundColor,
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: isDarkMode
-                                    ? Colors.black.withOpacity(0.3)
-                                    : Colors.grey.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              GestureDetector(
-                                onTap: () => _showAddWalletDialog(context),
-                                child: _buildNewActionButton(
-                                  Icons.add,
-                                  "Add Wallet",
-                                  const Color(0xFFE0F7F5),
-                                  const Color(0xFF00C4B4),
-                                  isDarkMode,
-                                ),
-                              ),
-                              Container(
-                                width: 1,
-                                height: 50,
-                                color: secondaryTextColor.withOpacity(0.2),
-                              ),
-                              GestureDetector(
-                                onTap: () => _showRenewWalletDialog(context),
-                                child: _buildNewActionButton(
-                                  Icons.sync,
-                                  "Renew Wallet",
-                                  const Color(0xFFFFEBEE),
-                                  const Color(0xFFEF5350),
-                                  isDarkMode,
-                                ),
-                              ),
-                              Container(
-                                width: 1,
-                                height: 50,
-                                color: secondaryTextColor.withOpacity(0.2),
-                              ),
-                              GestureDetector(
-                                onTap: () => _showResetWalletDialog(context),
-                                child: _buildNewActionButton(
-                                  Icons.refresh,
-                                  "Reset Wallet",
-                                  const Color(0xFFE8EAF6),
-                                  const Color(0xFF3F51B5),
-                                  isDarkMode,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        // ✅ Title ថ្មី: Expenses by Category
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            Text(
-                              "Expenses by Category",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: primaryTextColor,
+                            GestureDetector(
+                              onTap: () => _showAddWalletDialog(context),
+                              child: _buildNewActionButton(
+                                Icons.add,
+                                "Add Wallet",
+                                const Color(0xFFE0F7F5),
+                                const Color(0xFF00C4B4),
+                                isDarkMode,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 50,
+                              color: secondaryTextColor.withOpacity(0.2),
+                            ),
+                            GestureDetector(
+                              onTap: () => _showRenewWalletDialog(context),
+                              child: _buildNewActionButton(
+                                Icons.sync,
+                                "Renew Wallet",
+                                const Color(0xFFFFEBEE),
+                                const Color(0xFFEF5350),
+                                isDarkMode,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 50,
+                              color: secondaryTextColor.withOpacity(0.2),
+                            ),
+                            GestureDetector(
+                              onTap: () => _showResetWalletDialog(context),
+                              child: _buildNewActionButton(
+                                Icons.refresh,
+                                "Reset Wallet",
+                                const Color(0xFFE8EAF6),
+                                const Color(0xFF3F51B5),
+                                isDarkMode,
                               ),
                             ),
                           ],
                         ),
-
-                        const SizedBox(height: 10),
-
-                        // ✅ List ថ្មី: បង្ហាញ Category Summary
-                        Builder(
-                          builder: (context) {
-                            final categoryTotals = _calculateCategoryTotals(
-                              transactions,
-                            );
-                            final categories = categoryTotals.keys.toList();
-
-                            if (categoryTotals.isEmpty) {
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 20),
-                                child: Text(
-                                  "No expenses yet.",
-                                  style: TextStyle(color: secondaryTextColor),
-                                ),
-                              );
-                            }
-
-                            return ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: categories.length,
-                              itemBuilder: (context, index) {
-                                String category = categories[index];
-                                double amount = categoryTotals[category]!;
-
-                                return _buildCategoryItem(
-                                  category,
-                                  amount,
-                                  cardBackgroundColor,
-                                  primaryTextColor,
-                                  secondaryTextColor,
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 50),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              }
-              return Center(
-                child: Text(
-                  "No Data",
-                  style: TextStyle(color: primaryTextColor),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -446,34 +772,67 @@ class _WalletScreenState extends State<WalletScreen> {
     DateTime prevDate = DateTime(now.year, now.month - 1);
     String prevMonthName = DateFormat('MMM').format(prevDate);
 
-    return SizedBox(
-      height: 200,
-      child: PageView(
-        controller: PageController(viewportFraction: 0.92),
-        padEnds: false,
-        children: [
-          _buildSingleCard(
-            "Transaction Net",
-            historyBalance,
-            const Color(0xFF42A5F5),
-            const Color(0xFF1976D2),
-            Icons.history,
-          ),
-          _buildSingleCard(
-            "Total Wallet",
-            realWalletBalance,
-            const Color(0xFF00C4B4),
-            const Color(0xFF009E91),
-            Icons.account_balance_wallet,
-          ),
-          _buildSingleCard(
-            "Expense ($prevMonthName)",
-            lastMonthExpense,
-            const Color(0xFFEF5350),
-            const Color(0xFFD32F2F),
-            Icons.calendar_today,
-          ),
+    final cards = [
+      {
+        "title": "Transaction Net",
+        "amount": historyBalance,
+        "icon": Icons.history,
+        "colors": [
+          Colors.blue.shade400,
+          Colors.blue.shade600,
+          Colors.blue.shade800.withOpacity(0.9),
         ],
+      },
+      {
+        "title": "Total Wallet",
+        "amount": realWalletBalance,
+        "icon": Icons.account_balance_wallet,
+        "colors": [
+          Colors.teal.shade400,
+          Colors.teal.shade600,
+          Colors.teal.shade800.withOpacity(0.9),
+        ],
+      },
+      {
+        "title": "Expense ($prevMonthName)",
+        "amount": lastMonthExpense,
+        "icon": Icons.calendar_today,
+        "colors": [
+          Colors.red.shade400,
+          Colors.red.shade600,
+          Colors.red.shade800.withOpacity(0.9),
+        ],
+      },
+    ];
+
+    return SizedBox(
+      height: 200, // Increased height to accommodate scale
+      width: double.infinity,
+      child: PageView.builder(
+        controller: _pageController,
+        itemCount: cards.length,
+        itemBuilder: (context, index) {
+          return AnimatedBuilder(
+            animation: _pageController,
+            builder: (context, child) {
+              double value = 1.0;
+              if (_pageController.position.haveDimensions) {
+                value = _pageController.page! - index;
+                value = (1 - (value.abs() * 0.3)).clamp(0.8, 1.0);
+              }
+
+              return Center(
+                child: Transform.scale(scale: value, child: child),
+              );
+            },
+            child: _buildSingleCard(
+              cards[index]["title"] as String,
+              cards[index]["amount"] as double,
+              cards[index]["icon"] as IconData,
+              cards[index]["colors"] as List<Color>,
+            ),
+          );
+        },
       ),
     );
   }
@@ -481,21 +840,27 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildSingleCard(
     String title,
     double amount,
-    Color c1,
-    Color c2,
     IconData icon,
+    List<Color> gradientColors, // Keeping this if you want to override per card
   ) {
+    // --- OPTION 1: "Aurora" (Teal -> Purple -> Pink) ---
+    // Rich, modern, and very colorful
+    const List<Color> activeGradient = [
+      Color(0xFF0093E9),
+      Color(0xFF80D0C7),
+      Color(0xFF8A2BE2),
+    ];
+
     return Container(
-      margin: const EdgeInsets.only(right: 15),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [c1, c2],
+          colors: activeGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(25),
       ),
-      padding: const EdgeInsets.all(25),
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -503,8 +868,29 @@ class _WalletScreenState extends State<WalletScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: Colors.white70)),
-              Icon(icon, color: Colors.white),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(0, 1),
+                      blurRadius: 2,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
             ],
           ),
           Text(
@@ -513,11 +899,169 @@ class _WalletScreenState extends State<WalletScreen> {
               color: Colors.white,
               fontSize: 32,
               fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+              shadows: [
+                Shadow(
+                  offset: Offset(0, 2),
+                  blurRadius: 4,
+                  color: Colors.black26,
+                ),
+              ],
             ),
           ),
-          const Text("Tap for detail", style: TextStyle(color: Colors.white54)),
         ],
       ),
+    );
+  }
+
+  // Skeleton Loading Widget
+  Widget _buildSkeletonLoading(
+    Color backgroundColor,
+    Color cardBackgroundColor,
+    bool isDarkMode,
+  ) {
+    final shimmerBaseColor = isDarkMode ? Colors.grey[850]! : Colors.grey[300]!;
+    final shimmerHighlightColor = isDarkMode
+        ? Colors.grey[800]!
+        : Colors.grey[100]!;
+
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          // Title skeleton
+          Container(
+            width: 120,
+            height: 24,
+            decoration: BoxDecoration(
+              color: shimmerBaseColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Card skeleton with shimmer effect
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.3, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) {
+              return Opacity(opacity: value, child: child);
+            },
+            onEnd: () {
+              // Loop animation
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted) setState(() {});
+              });
+            },
+            child: Container(
+              height: 180,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    shimmerBaseColor,
+                    shimmerHighlightColor,
+                    shimmerBaseColor,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(25),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    width: 160,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 30),
+
+          // Buttons skeleton
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(
+              color: cardBackgroundColor,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: isDarkMode
+                      ? Colors.black.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildSkeletonButton(shimmerBaseColor),
+                Container(width: 1, height: 50, color: shimmerBaseColor),
+                _buildSkeletonButton(shimmerBaseColor),
+                Container(width: 1, height: 50, color: shimmerBaseColor),
+                _buildSkeletonButton(shimmerBaseColor),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonButton(Color shimmerColor) {
+    return Column(
+      children: [
+        Container(
+          height: 65,
+          width: 65,
+          decoration: BoxDecoration(
+            color: shimmerColor,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 70,
+          height: 12,
+          decoration: BoxDecoration(
+            color: shimmerColor,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ],
     );
   }
 
@@ -549,92 +1093,6 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  // ✅ 2. Widget សម្រាប់បង្ហាញ Category Item (ថ្មី)
-  Widget _buildCategoryItem(
-    String category,
-    double amount,
-    Color bgColor,
-    Color titleColor,
-    Color subTitleColor,
-  ) {
-    Map<String, IconData> icons = {
-      "Food": Icons.fastfood,
-      "Travel": Icons.directions_car,
-      "Bills": Icons.receipt,
-      "Shopping": Icons.shopping_bag,
-      "Rent": Icons.home,
-      "Other": Icons.category,
-    };
-    IconData iconData = icons[category] ?? Icons.category;
-    Color iconColor;
-    switch (category) {
-      case "Food":
-        iconColor = Colors.orange;
-        break;
-      case "Travel":
-        iconColor = Colors.blue;
-        break;
-      case "Bills":
-        iconColor = Colors.red;
-        break;
-      case "Shopping":
-        iconColor = Colors.purple;
-        break;
-      case "Rent":
-        iconColor = Colors.teal;
-        break;
-      default:
-        iconColor = Colors.grey;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(iconData, color: iconColor),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Text(
-              category,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: titleColor,
-              ),
-            ),
-          ),
-          Text(
-            "- \$${amount.toStringAsFixed(2)}",
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: Colors.redAccent,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

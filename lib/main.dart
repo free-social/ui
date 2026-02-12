@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/expense_provider.dart';
+import 'providers/wallet_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
@@ -10,12 +11,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Notifications
-  await NotificationService.initialize();
-  await NotificationService.requestPermissions();
-  await NotificationService.scheduleDailyNotification();
+  try {
+    await NotificationService.initialize();
+    await NotificationService.requestPermissions();
+    await NotificationService.scheduleDailyNotification();
 
-  // Check if we should show notification (fallback for OPPO)
-  await NotificationService.checkAndShowIfNeeded();
+    // Check if we should show notification (fallback for OPPO)
+    await NotificationService.checkAndShowIfNeeded();
+  } catch (e) {
+    // Ignore notification errors - app should still work without notifications
+    print('⚠️ Notification setup failed: $e');
+  }
 
   // Initialize AuthProvider
   final authProvider = AuthProvider();
@@ -26,6 +32,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => WalletProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const MyApp(),
@@ -67,6 +74,10 @@ class MyApp extends StatelessWidget {
               bodyLarge: TextStyle(color: Colors.black87),
               bodyMedium: TextStyle(color: Colors.black87),
             ),
+            snackBarTheme: const SnackBarThemeData(
+              behavior: SnackBarBehavior.floating,
+              elevation: 8,
+            ),
           ),
 
           // Dark Theme
@@ -88,6 +99,10 @@ class MyApp extends StatelessWidget {
             textTheme: const TextTheme(
               bodyLarge: TextStyle(color: Colors.white),
               bodyMedium: TextStyle(color: Colors.white),
+            ),
+            snackBarTheme: const SnackBarThemeData(
+              behavior: SnackBarBehavior.floating,
+              elevation: 8,
             ),
           ),
 

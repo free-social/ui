@@ -9,8 +9,8 @@ class AuthService {
   final ApiService _apiService;
 
   // ✅ Constructor Injection
-  AuthService({ApiService? apiService}) 
-      : _apiService = apiService ?? ApiService();
+  AuthService({ApiService? apiService})
+    : _apiService = apiService ?? ApiService();
 
   // --- NEW: UPDATE USERNAME (PUT) ---
   // Route: {{expense_url}}/auth/:id
@@ -99,26 +99,30 @@ class AuthService {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
+      // 0️⃣ Clear old token + userId before login
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+      await prefs.remove('userId');
+
+      // ✅ Clear in-memory cached user data if you have any
+      // Example: UserController.instance.clearUserData();
+      // Otherwise, homepage might show old or empty data
+
+      // 1️⃣ Make login request
       final response = await _apiService.client.post(
         '/auth/login',
         data: {"email": email, "password": password},
       );
 
-      // 1. Get the data
       final data = response.data;
       final token = data['token'];
 
-      // ✅ 2. Extract the User ID (Handles both 'id' and '_id')
-      // Based on your Postman, it is inside 'user' -> 'id'
+      // 2️⃣ Extract User ID
       final userId = data['user']['id'] ?? data['user']['_id'];
 
-      // 3. Save BOTH to SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', token);
-
-      if (userId != null) {
-        await prefs.setString('userId', userId); // 👈 THIS WAS MISSING
-      }
+      // 3️⃣ Save new token + userId to SharedPreferences
+      if (token != null) await prefs.setString('token', token);
+      if (userId != null) await prefs.setString('userId', userId);
 
       return data;
     } catch (e) {
@@ -136,8 +140,7 @@ class AuthService {
 
       // Ensure your backend route is correct
       final url = '$cleanBaseUrl/auth/google';
-      const callbackUrlScheme =
-          'spendwise'; 
+      const callbackUrlScheme = 'spendwise';
 
       final result = await FlutterWebAuth2.authenticate(
         url: url,
@@ -175,7 +178,7 @@ class AuthService {
   }
 
   void _handleError(dynamic e, String defaultMessage) {
-    print('Error: $e');
+    // print('Error: $e');
     String errorMessage = defaultMessage;
     if (e is DioException) {
       if (e.response?.data != null) {

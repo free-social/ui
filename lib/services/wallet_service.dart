@@ -64,21 +64,19 @@ class WalletService {
     }
   }
 
-  // ✅ 1. Function ទាញយក Wallet Balance (កែ Error: _getWalletBalanceFromApi isn't defined)
   Future<WalletBalanceModel> _getWalletBalanceFromApi() async {
     try {
       final response = await _apiService.client.get('/wallet');
       return WalletBalanceModel.fromJson(response.data);
     } catch (e) {
-      // បើមិនទាន់មាន Wallet, return 0
       return WalletBalanceModel(id: '', balance: 0.0, userId: '');
     }
   }
 
-  // ✅ 2. Function សម្រាប់ Top Up (កែ Error: topUpWallet isn't defined)
+
+  // add on also patch in api
   Future<void> topUpWallet(double amount) async {
     try {
-      // amount វិជ្ជមាន = បូកចូល, អវិជ្ជមាន = ដកចេញ
       await _apiService.client.patch(
         '/wallet/adjust',
         data: {"amount": amount},
@@ -87,6 +85,8 @@ class WalletService {
       throw Exception('Top Up failed: $e');
     }
   }
+
+  // renew using put
   Future<void> updateWalletBalance(double newBalance) async {
     try {
       await _apiService.client.put(

@@ -6,6 +6,7 @@ import '../services/notification_service.dart';
 import 'update_user_profile.dart';
 import 'login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/snackbar_helper.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -41,11 +42,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         await NotificationService.scheduleDailyNotification();
         setState(() => _notificationsEnabled = true);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Daily notifications enabled at 11:50 PM'),
-            ),
-          );
+          showInfoSnackBar(context, 'Daily notifications enabled at 11:50 PM');
         }
       }
     } else {
@@ -53,9 +50,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       await NotificationService.cancelAllNotifications();
       setState(() => _notificationsEnabled = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Daily notifications disabled')),
-        );
+        showInfoSnackBar(context, 'Daily notifications disabled');
       }
     }
   }
