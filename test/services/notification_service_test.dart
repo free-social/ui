@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:spendwise/services/notification_service.dart'; // Used in tests
+// import 'package:spendwise/services/notification_service.dart'; // Used in tests
 
 void main() {
   setUp(() {
@@ -29,7 +29,7 @@ void main() {
         // We can't directly test this without mocking DateTime, but we can verify the logic
 
         final currentMinutes = now.hour * 60 + now.minute;
-        final targetMinutes = 23 * 60 + 40; // 23:40 = 1420 minutes
+        const targetMinutes = 23 * 60 + 40; // 23:40 = 1420 minutes
         final isPastTargetTime = currentMinutes >= targetMinutes;
 
         // This should be false for most test runs (unless run after 23:40)
@@ -41,18 +41,18 @@ void main() {
 
     test('time calculation logic works correctly', () {
       // Test the time comparison logic
-      final targetHour = 23;
-      final targetMinute = 40;
-      final targetMinutes = targetHour * 60 + targetMinute;
+      const targetHour = 23;
+      const targetMinute = 40;
+      const targetMinutes = targetHour * 60 + targetMinute;
 
       expect(targetMinutes, 1420); // 23 * 60 + 40 = 1420
 
       // Morning time (e.g., 9:00 AM = 540 minutes)
-      final morningMinutes = 9 * 60 + 0;
+      const morningMinutes = 9 * 60 + 0;
       expect(morningMinutes < targetMinutes, true);
 
       // Evening time after target (e.g., 23:45 = 1425 minutes)
-      final eveningMinutes = 23 * 60 + 45;
+      const eveningMinutes = 23 * 60 + 45;
       expect(eveningMinutes >= targetMinutes, true);
     });
 
@@ -132,15 +132,15 @@ void main() {
     });
 
     test('time comparison edge case - exactly at target time', () {
-      final targetHour = 23;
-      final targetMinute = 40;
-      final targetMinutes = targetHour * 60 + targetMinute;
+      const targetHour = 23;
+      const targetMinute = 40;
+      const targetMinutes = targetHour * 60 + targetMinute;
 
-      final currentHour = 23;
-      final currentMinute = 40;
-      final currentMinutes = currentHour * 60 + currentMinute;
+      const currentHour = 23;
+      const currentMinute = 40;
+      const currentMinutes = currentHour * 60 + currentMinute;
 
-      final isPastTargetTime = currentMinutes >= targetMinutes;
+      const isPastTargetTime = currentMinutes >= targetMinutes;
 
       // At exactly 23:40, should be past target time (>= condition)
       expect(isPastTargetTime, true);

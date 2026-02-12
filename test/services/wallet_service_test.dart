@@ -7,7 +7,7 @@ import 'package:spendwise/services/wallet_service.dart';
 import 'package:spendwise/services/api_service.dart';
 import 'package:spendwise/services/auth_service.dart';
 import 'package:spendwise/services/expense_service.dart';
-import 'package:spendwise/models/transaction_model.dart';
+// import 'package:spendwise/models/transaction_model.dart';
 
 // Generate mocks
 @GenerateMocks([ApiService, AuthService, ExpenseService, Dio])
