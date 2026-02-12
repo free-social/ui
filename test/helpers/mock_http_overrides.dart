@@ -79,9 +79,6 @@ class MockHttpClientRequest implements HttpClientRequest {
   void writeCharCode(int charCode) {}
 
   @override
-  void writeLn([Object? obj = ""]) {}
-
-  @override
   Encoding get encoding => const Utf8Codec();
 
   @override
