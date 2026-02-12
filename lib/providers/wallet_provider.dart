@@ -56,6 +56,18 @@ class WalletProvider with ChangeNotifier {
     }
   }
 
+  /// Create a new wallet with initial balance
+  Future<void> addNewWallet(double amount) async {
+    try {
+      await _walletService.addNewWallet(amount);
+      await fetchWalletData(); // Refresh data
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   /// Top up wallet (positive amount) or deduct (negative amount)
   Future<void> topUpWallet(double amount) async {
     try {

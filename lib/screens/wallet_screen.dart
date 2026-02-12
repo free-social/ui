@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../models/transaction_model.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../utils/snackbar_helper.dart';
@@ -198,12 +197,7 @@ class _WalletScreenState extends State<WalletScreen>
                                     0.0;
                                 if (amount <= 0) return;
                                 Navigator.pop(context);
-                                _processTransaction(
-                                  amount,
-                                  "Add Wallet",
-                                  "Wallet Deposit",
-                                  isAdd: true,
-                                );
+                                _processAddWallet(amount);
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green.shade600,
@@ -582,6 +576,20 @@ class _WalletScreenState extends State<WalletScreen>
   }
 
   // --- Helper Functions ---
+  Future<void> _processAddWallet(double amount) async {
+    showInfoSnackBar(context, 'Creating wallet...');
+    try {
+      final walletProvider = context.read<WalletProvider>();
+
+      // Only create/add wallet balance, no transaction needed
+      await walletProvider.addNewWallet(amount);
+
+      if (mounted) showSuccessSnackBar(context, 'Wallet created successfully!');
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, 'Failed to create wallet: $e');
+    }
+  }
+
   Future<void> _processTransaction(
     double amount,
     String category,
@@ -593,17 +601,34 @@ class _WalletScreenState extends State<WalletScreen>
       final walletProvider = context.read<WalletProvider>();
       final expenseProvider = context.read<ExpenseProvider>();
 
+      // Step 1: Update wallet balance
       await walletProvider.topUpWallet(isAdd ? amount : -amount);
-      await expenseProvider.addTransaction(
-        isAdd ? amount : -amount,
-        category,
-        description,
-        DateTime.now(),
-      );
 
+      // Step 2: Create transaction record
+      try {
+        await expenseProvider.addTransaction(
+          isAdd ? amount : -amount,
+          category,
+          description,
+          DateTime.now(),
+        );
+      } catch (transactionError) {
+        // If transaction creation fails, show warning but don't fail entirely
+        // The wallet balance was already updated successfully
+        if (mounted) {
+          showErrorSnackBar(
+            context,
+            'Wallet updated but transaction record failed: $transactionError',
+          );
+        }
+        return; // Exit early, don't show success
+      }
+
+      // Both operations succeeded
       if (mounted) showSuccessSnackBar(context, 'Success!');
     } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Error: $e');
+      // Wallet update failed
+      if (mounted) showErrorSnackBar(context, 'Failed to update wallet: $e');
     }
   }
 
@@ -965,5 +990,4 @@ class _WalletScreenState extends State<WalletScreen>
       ],
     );
   }
-
 }
