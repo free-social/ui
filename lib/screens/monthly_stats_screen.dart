@@ -255,8 +255,8 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
 
   Widget _buildDynamicRing(List<Map<String, dynamic>> categories, double total, Color mainText, Color subText) {
     return SizedBox(
-      width: 220,
-      height: 220,
+      width: 200,
+      height: 180,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -370,7 +370,6 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text("Categories", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-          Text("See all", style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold)),
         ],
       ),
     );

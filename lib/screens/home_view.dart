@@ -153,19 +153,8 @@ class _HomeViewState extends State<HomeView> {
                         _buildNotificationIcon(cardColor, isDark),
                       ],
                     ),
-                    const SizedBox(height: 25),
-                    Text(
-                      DateFormat(
-                        'EEEE, MMM d',
-                      ).format(DateTime.now()).toUpperCase(),
-                      style: TextStyle(
-                        color: secondaryTextColor,
-                        letterSpacing: 1.2,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
+              
+                    const SizedBox(height: 20),
                     Text(
                       "\$${displayTotal.toStringAsFixed(2)}",
                       style: TextStyle(
