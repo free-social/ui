@@ -208,7 +208,7 @@ class ExpenseService {
       }
       return total;
     } catch (e) {
-      // print("Error calculating daily total: $e");
+      print("Error calculating daily total: $e");
       return 0.0;
     }
   }
