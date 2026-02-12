@@ -98,62 +98,56 @@ class _HomeViewState extends State<HomeView> {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: cardColor, width: 2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: cardColor, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
-                              child: CircleAvatar(
-                                radius: 22,
-                                backgroundColor: Colors.grey[200],
-                                backgroundImage:
-                                    (user?.avatar != null &&
-                                        user!.avatar.isNotEmpty)
-                                    ? NetworkImage(user.avatar)
-                                    : const NetworkImage(
-                                            "https://i.pravatar.cc/150?img=12",
-                                          )
-                                          as ImageProvider,
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundColor: Colors.grey[200],
+                            backgroundImage:
+                                (user?.avatar != null &&
+                                    user!.avatar.isNotEmpty)
+                                ? NetworkImage(user.avatar)
+                                : const NetworkImage(
+                                        "https://i.pravatar.cc/150?img=12",
+                                      )
+                                      as ImageProvider,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Welcome back",
+                              style: TextStyle(
+                                color: secondaryTextColor,
+                                fontSize: 12,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Welcome back",
-                                  style: TextStyle(
-                                    color: secondaryTextColor,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  user?.username ?? "User",
-                                  style: TextStyle(
-                                    color: primaryTextColor,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              user?.username ?? "User",
+                              style: TextStyle(
+                                color: primaryTextColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ],
                         ),
-                        _buildNotificationIcon(cardColor, isDark),
                       ],
                     ),
-              
+
                     const SizedBox(height: 20),
                     Text(
                       "\$${displayTotal.toStringAsFixed(2)}",
@@ -315,27 +309,6 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationIcon(Color bgColor, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.0 : 0.05),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Icon(
-        Icons.notifications_none,
-        size: 24,
-        color: isDark ? Colors.white : Colors.black,
       ),
     );
   }
