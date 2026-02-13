@@ -320,91 +320,76 @@ class _HomeViewState extends State<HomeView> {
     Color titleColor,
     Color subColor,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: _getCategoryColor(transaction.category).withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            _getCategoryIcon(transaction.category),
-            color: _getCategoryColor(transaction.category),
-            size: 24,
-          ),
-        ),
-        title: Text(
-          transaction.description.isNotEmpty
-              ? transaction.description
-              : _capitalize(transaction.category),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: titleColor,
-          ),
-        ),
-        subtitle: Text(
-          DateFormat('MMM d, y').format(transaction.date),
-          style: TextStyle(color: subColor, fontSize: 13),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "\$${transaction.amount.toStringAsFixed(2)}",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: titleColor,
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Delete Button
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.delete_outline_rounded,
-                  size: 20,
-                  color: Colors.red.shade600,
-                ),
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(),
-                onPressed: () async {
-                  final confirm = await _showDeleteConfirmation(context);
-                  if (confirm == true && mounted) {
-                    Provider.of<ExpenseProvider>(
-                      context,
-                      listen: false,
-                    ).deleteTransaction(transaction.id);
-                  }
-                },
-              ),
+    return Dismissible(
+      key: Key(transaction.id),
+      direction: DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        return await _showDeleteConfirmation(context);
+      },
+      onDismissed: (direction) {
+        Provider.of<ExpenseProvider>(
+          context,
+          listen: false,
+        ).deleteTransaction(transaction.id);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TransactionFormScreen(transaction: transaction),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 8,
+          ),
+          leading: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: _getCategoryColor(transaction.category).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getCategoryIcon(transaction.category),
+              color: _getCategoryColor(transaction.category),
+              size: 24,
+            ),
+          ),
+          title: Text(
+            transaction.description.isNotEmpty
+                ? transaction.description
+                : _capitalize(transaction.category),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: titleColor,
+            ),
+          ),
+          subtitle: Text(
+            DateFormat('MMM d, y').format(transaction.date),
+            style: TextStyle(color: subColor, fontSize: 13),
+          ),
+          trailing: Text(
+            "\$${transaction.amount.toStringAsFixed(2)}",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: titleColor,
+            ),
+          ),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TransactionFormScreen(transaction: transaction),
+            ),
           ),
         ),
       ),
