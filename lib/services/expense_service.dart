@@ -143,7 +143,7 @@ class ExpenseService {
   }
   // ... (កូដចាស់) ...
 
-  // ✅ Function ថ្មី៖ ទាញយកចំណាយសរុបប្រចាំខែ (តាមខែ និងឆ្នាំ)
+  // ✅ Get monthly expense total from backend (already calculated)
   Future<double> getMonthlyExpenseTotal(int month, int year) async {
     try {
       final response = await _apiService.client.get(
@@ -151,62 +151,36 @@ class ExpenseService {
         queryParameters: {'month': month, 'year': year},
       );
 
-      List<dynamic> data = [];
-      if (response.data is Map && response.data.containsKey('docs')) {
-        data = response.data['docs'];
-      } else if (response.data is List) {
-        data = response.data;
+      // Extract totalSpent from backend response
+      final responseData = response.data;
+
+      if (responseData == null || responseData['data'] == null) {
+        return 0.0;
       }
 
-      double totalExpense = 0;
-      for (var json in data) {
-        // បម្លែងទៅជា Model ដើម្បីងាយស្រួលប្រើ
-        final tx = TransactionModel.fromJson(json);
-        // បូកតែលេខអវិជ្ជមាន (Expense)
-        if (tx.amount < 0) {
-          totalExpense += tx.amount;
-        }
-      }
-      return totalExpense; // នឹង return លេខអវិជ្ជមាន (ឧ. -500.00)
+      final data = responseData['data'];
+      final totalSpent = (data['totalSpent'] as num?)?.toDouble() ?? 0.0;
+
+      return totalSpent.abs(); // Return positive value for display
     } catch (e) {
       // print("Error fetching monthly expense: $e");
       return 0.0;
     }
   }
 
-  // ✅ Function ថ្មី៖ ទាញយកចំណាយសរុបប្រចាំថ្ងៃ (សម្រាប់ Notification)
+  // ✅ Get daily expense total from backend (already calculated)
   Future<double> getDailyTotal({DateTime? date}) async {
     try {
-      // 1. Get daily transactions
       final dailyData = await getDailyExpenses(date: date);
 
-      List<dynamic> transactions = [];
-      // Handle different response structures
-      if (dailyData is Map) {
-        if (dailyData.containsKey('transactions')) {
-          transactions = dailyData['transactions'];
-        } else if (dailyData.containsKey('docs')) {
-          transactions = dailyData['docs'];
-        }
-      } else if (dailyData is List) {
-        transactions = dailyData;
+      // Extract totalSpent from backend response
+      if (dailyData is Map && dailyData.containsKey('data')) {
+        final data = dailyData['data'];
+        final totalSpent = (data['totalSpent'] as num?)?.toDouble() ?? 0.0;
+        return totalSpent.abs(); // Return positive value for display
       }
 
-      // 2. Calculate Total
-      double total = 0.0;
-      for (var json in transactions) {
-        final tx = TransactionModel.fromJson(json);
-        // Assuming we want the absolute sum of expenses (usually negative in db)
-        if (tx.amount < 0) {
-          total += tx.amount.abs();
-        } else {
-          // If your logic treats expenses as positive, just add.
-          // Based on monthly logic above which checks < 0, likely expenses are negative.
-          // Notification usually wants "You spent $50", so we want positive magnitude.
-          // Let's stick to absolute value of negative amounts for safely.
-        }
-      }
-      return total;
+      return 0.0;
     } catch (e) {
       print("Error calculating daily total: $e");
       return 0.0;
