@@ -126,51 +126,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     }
   }
 
-  Future<void> _handleDelete() async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Delete Expense"),
-        content: const Text(
-          "Are you sure you want to remove this transaction?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              "Delete",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      await Provider.of<ExpenseProvider>(
-        context,
-        listen: false,
-      ).deleteTransaction(widget.transaction!.id);
-      if (mounted) {
-        Navigator.pop(context);
-        showSuccessSnackBar(context, 'Transaction deleted');
-      }
-    } catch (e) {
-      if (mounted) {
-        showErrorSnackBar(context, 'Failed to delete: $e');
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   // --- BUILD ---
 
   @override
@@ -206,13 +161,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
           ), // ✅ Dynamic
         ),
         centerTitle: true,
-        actions: [
-          if (isEditing)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: _isLoading ? null : _handleDelete,
-            ),
-        ],
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
