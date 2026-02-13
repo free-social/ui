@@ -61,7 +61,6 @@ class ExpenseService {
   // 3. GET DAILY
   Future<dynamic> getDailyExpenses({DateTime? date}) async {
     try {
-      // If date is provided, format it. Otherwise, send nothing (backend assumes today)
       String? formattedDate;
       if (date != null) {
         formattedDate =
