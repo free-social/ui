@@ -4,8 +4,6 @@ import '../services/expense_service.dart';
 import '../services/notification_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
-  // final ExpenseService _expenseService = ExpenseService();
-
   final ExpenseService _expenseService;
   ExpenseProvider({ExpenseService? expenseService})
     : _expenseService = expenseService ?? ExpenseService();
@@ -20,7 +18,7 @@ class ExpenseProvider with ChangeNotifier {
   int _currentLimit = 100;
   String? _currentCategory;
 
-  // ✅ NEW: Track Sort State
+  // Track Sort State
   String _currentSortBy = 'date';
   String _currentSortOrder = 'desc';
 
@@ -64,7 +62,7 @@ class ExpenseProvider with ChangeNotifier {
         sortOrder: _currentSortOrder,
       );
 
-      // ✅ PAGINATION LOGIC:
+      // PAGINATION LOGIC:
       if (_currentPage == 1) {
         _transactions = newData; // Replace list (New Filter or Refresh)
       } else {
@@ -85,8 +83,7 @@ class ExpenseProvider with ChangeNotifier {
     fetchTransactions(page: 1, category: 'All');
   }
 
-  // ... (Keep addTransaction, updateTransaction, deleteTransaction, fetchMonthly, fetchDaily exactly as they were) ...
-  // 2. Add Transaction
+  // Add Transaction
   Future<void> addTransaction(
     double amount,
     String category,
@@ -111,7 +108,7 @@ class ExpenseProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
-      // ✅ Update notification
+      // Update notification
       NotificationService.scheduleDailyNotification();
     }
   }
@@ -124,7 +121,7 @@ class ExpenseProvider with ChangeNotifier {
     try {
       await _expenseService.updateTransaction(id, updates);
       await fetchTransactions();
-      // ✅ Update notification
+      // Update notification
       NotificationService.scheduleDailyNotification();
     } catch (e) {
       debugPrint('Error updating transaction: $e');
@@ -138,7 +135,7 @@ class ExpenseProvider with ChangeNotifier {
       await _expenseService.deleteTransaction(id);
       _transactions.removeWhere((t) => t.id == id);
       notifyListeners();
-      // ✅ Update notification
+      // Update notification
       NotificationService.scheduleDailyNotification();
     } catch (e) {
       debugPrint('Error deleting transaction: $e');

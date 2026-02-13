@@ -24,8 +24,6 @@ class ApiService {
         },
 
         onError: (DioException e, handler) async {
-          // print("API Error: ${e.response?.statusCode}");
-
           // Check for no internet connection
           if (e.type == DioExceptionType.connectionTimeout ||
               e.type == DioExceptionType.receiveTimeout ||

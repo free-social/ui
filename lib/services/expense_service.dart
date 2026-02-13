@@ -3,10 +3,9 @@ import 'api_service.dart';
 import 'wallet_service.dart';
 
 class ExpenseService {
-  // final ApiService _apiService = ApiService();
   final ApiService _apiService;
 
-  // ✅ Constructor Injection
+  // Constructor Injection
   ExpenseService({ApiService? apiService})
     : _apiService = apiService ?? ApiService();
 
@@ -98,7 +97,7 @@ class ExpenseService {
         }
       }
 
-      // ✅ IMPROVED: Use the model's toJson() since we fixed it to include 'date'
+      // Use the model's toJson() since we fixed it to include 'date'
       final response = await _apiService.client.post(
         '/transactions',
         data: transaction.toJson(),
@@ -141,9 +140,8 @@ class ExpenseService {
       throw Exception('Failed to delete transaction: $e');
     }
   }
-  // ... (កូដចាស់) ...
 
-  // ✅ Get monthly expense total from backend (already calculated)
+  // Get monthly expense total from backend (already calculated)
   Future<double> getMonthlyExpenseTotal(int month, int year) async {
     try {
       final response = await _apiService.client.get(
@@ -163,12 +161,11 @@ class ExpenseService {
 
       return totalSpent.abs(); // Return positive value for display
     } catch (e) {
-      // print("Error fetching monthly expense: $e");
       return 0.0;
     }
   }
 
-  // ✅ Get daily expense total from backend (already calculated)
+  // Get daily expense total from backend (already calculated)
   Future<double> getDailyTotal({DateTime? date}) async {
     try {
       final dailyData = await getDailyExpenses(date: date);
@@ -182,7 +179,6 @@ class ExpenseService {
 
       return 0.0;
     } catch (e) {
-      print("Error calculating daily total: $e");
       return 0.0;
     }
   }

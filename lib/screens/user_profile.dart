@@ -226,14 +226,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 iconColor: Colors.green,
                 title: "Security",
                 textColor: textColor,
-                trailing: Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: subTextColor,
-                ),
-                onTap: () {
-                  // Security Page
-                },
               ),
             ]),
             const SizedBox(height: 24),

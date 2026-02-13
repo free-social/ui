@@ -34,13 +34,8 @@ class NotificationService {
 
     await _notifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // print('👆 Notification tapped: ${details.payload}');
-      },
+      onDidReceiveNotificationResponse: (details) {},
     );
-
-    // print('✅ Notification service initialized');
-    // print('🌍 Timezone set to: Asia/Phnom_Penh (Cambodia - UTC+7)');
   }
 
   // Request notification permissions
@@ -52,10 +47,7 @@ class NotificationService {
 
     if (androidPlugin != null) {
       final granted = await androidPlugin.requestNotificationsPermission();
-      final exactAlarmGranted = await androidPlugin
-          .requestExactAlarmsPermission();
-      print('🔔 Notification permission: $granted');
-      print('⏰ Exact alarm permission: $exactAlarmGranted');
+      await androidPlugin.requestExactAlarmsPermission();
       return granted ?? false;
     }
 
@@ -70,14 +62,13 @@ class NotificationService {
         badge: true,
         sound: true,
       );
-      // print('🔔 Notification permission: $granted');
       return granted ?? false;
     }
 
     return true;
   }
 
-  // ✅ Schedule daily notification with dynamic content
+  // Schedule daily notification with dynamic content
   static Future<void> scheduleDailyNotification() async {
     try {
       await _notifications.cancelAll();
@@ -117,16 +108,10 @@ class NotificationService {
         final formattedTotal = total.toStringAsFixed(2);
         body = 'Your total spending today is \$$formattedTotal';
       } catch (e) {
-        // print('Error fetching total for notification: $e');
         // Fallback to generic
         body = 'Time to check your spending for today!';
       }
     }
-
-    // print('⏰ Current time: $now');
-    // print('📅 Scheduled for: $scheduledDate');
-    // print('📝 Body: $body');
-    // print('⏳ In ${scheduledDate.difference(now).inMinutes} minutes');
 
     const androidDetails = AndroidNotificationDetails(
       'daily_spending_channel',
@@ -167,15 +152,13 @@ class NotificationService {
       matchDateTimeComponents: DateTimeComponents.time,
     );
 
-    // print('✅ Notification scheduled for $targetHour:$targetMinute daily');
-
     // Store scheduled time for in-app check
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('notification_hour', targetHour);
     await prefs.setInt('notification_minute', targetMinute);
   }
 
-  // ✅ Check if we should show notification (fallback for OPPO devices)
+  // Check if we should show notification (fallback for OPPO devices)
   static Future<void> checkAndShowIfNeeded() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -194,19 +177,11 @@ class NotificationService {
       final targetMinutes = targetHour * 60 + targetMinute;
       final isPastTargetTime = currentMinutes >= targetMinutes;
 
-      // print('🔍 FALLBACK CHECK:');
-      // print(
       //   '   Current time: ${now.hour}:${now.minute} (${currentMinutes} min)',
       // );
-      // print('   Target time: $targetHour:$targetMinute (${targetMinutes} min)');
-      // print('   Is past target: $isPastTargetTime');
-      // print('   Last shown: $lastShownDate');
-      // print('   Today: $todayString');
 
       // Show if past target time and not shown today
       if (isPastTargetTime && lastShownDate != todayString) {
-        // print('✅ TRIGGERING FALLBACK NOTIFICATION');
-
         // Fetch daily total
         String body = 'Time to check your spending for today!';
         try {
@@ -245,21 +220,15 @@ class NotificationService {
         );
 
         await prefs.setString('last_notification_date', todayString);
-        // print('✅ Fallback notification shown!');
       } else {
-        // print(
         //   '⏭️  Fallback not needed (already shown or not past target time)',
         // );
       }
-    } catch (e) {
-      // print('❌ Error in fallback check: $e');
-    }
+    } catch (e) {}
   }
 
   // Show immediate notification with daily total
   static Future<void> showTestNotification() async {
-    // print('🔔 Showing notification NOW...');
-
     // Fetch daily total
     String body = 'Time to check your spending for today!';
     try {
@@ -267,9 +236,7 @@ class NotificationService {
       final total = await expenseService.getDailyTotal();
       final formattedTotal = total.toStringAsFixed(2);
       body = 'Your total spending today is \$$formattedTotal';
-    } catch (e) {
-      // print('Error fetching total: $e');
-    }
+    } catch (e) {}
 
     const androidDetails = AndroidNotificationDetails(
       'daily_spending_channel',
@@ -320,14 +287,6 @@ class NotificationService {
     } catch (e) {
       print('Error fetching total: $e');
     }
-
-    // print('==========================================');
-    // print('🔔 SCHEDULING TEST NOTIFICATION');
-    // print('⏰ Current time: $now');
-    // print('📅 Scheduled for: $scheduledDate');
-    // print('📝 Body: $body');
-    // print('⏳ Will fire in: ${scheduledDate.difference(now).inSeconds} seconds');
-    // print('==========================================');
 
     const androidDetails = AndroidNotificationDetails(
       'daily_spending_channel',
