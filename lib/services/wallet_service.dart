@@ -47,9 +47,9 @@ class WalletService {
           limit: 10,
           sortBy: 'date',
           sortOrder: 'desc',
-        ), // index 1
-        _getWalletBalanceFromApi(), // index 2 (Function នេះត្រូវបានបង្កើតខាងក្រោម)
-        _expenseService.getMonthlyExpenseTotal(prevMonth, prevYear), // index 3
+        ), 
+        _getWalletBalanceFromApi(),
+        _expenseService.getMonthlyExpenseTotal(prevMonth, prevYear), 
       ]);
 
       return WalletData(
