@@ -14,12 +14,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController emailController = TextEditingController(
-    text: "p@gmail.com",
-  );
-  final TextEditingController passController = TextEditingController(
-    text: "123!Pp",
-  );
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
   final Color kPrimaryColor = const Color(0xFF00BFA5);
@@ -239,7 +235,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ... (Keep _buildLabel and _buildTextField same as before) ...
   Widget _buildLabel(String text, Color color) {
     return Align(
       alignment: Alignment.centerLeft,
@@ -291,7 +286,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ... (Keep _handleLogin same as before) ...
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);

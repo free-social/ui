@@ -84,7 +84,7 @@ class ExpenseService {
     TransactionModel transaction,
   ) async {
     try {
-      // ✅ Check wallet balance BEFORE creating expense (negative amount)
+      // Check wallet balance BEFORE creating expense (negative amount)
       if (transaction.amount < 0) {
         final walletService = WalletService();
         final walletData = await walletService.fetchWalletData();
