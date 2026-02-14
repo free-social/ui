@@ -250,7 +250,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             ), // ✅ Dynamic
             const SizedBox(width: 10),
             Text(
-              DateFormat('MMMM d, yyyy').format(_selectedDate),
+              DateFormat('MMMM d, yyyy • h:mm a').format(_selectedDate),
               style: TextStyle(
                 color: textColor,
                 fontWeight: FontWeight.bold,

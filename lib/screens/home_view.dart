@@ -374,7 +374,7 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           subtitle: Text(
-            DateFormat('MMM d, y').format(transaction.date),
+            DateFormat('MMM d, y • h:mm a').format(transaction.date),
             style: TextStyle(color: subColor, fontSize: 13),
           ),
           trailing: Text(

@@ -21,11 +21,11 @@ class TransactionModel {
       category: json['category'] ?? 'General',
       description: json['description'] ?? '',
       // ✅ FIX: Read 'date' first, then 'createdAt', then fallback to now()
-      date: json['date'] != null 
-          ? DateTime.parse(json['date']) 
-          : (json['createdAt'] != null 
-              ? DateTime.parse(json['createdAt']) 
-              : DateTime.now()), 
+      date: json['date'] != null
+          ? DateTime.parse(json['date']).toLocal()
+          : (json['createdAt'] != null
+                ? DateTime.parse(json['createdAt']).toLocal()
+                : DateTime.now()),
     );
   }
 
@@ -34,8 +34,8 @@ class TransactionModel {
       'amount': amount,
       'category': category,
       'description': description,
-      // ✅ FIX: Send the specific date to backend
-      'date': date.toIso8601String(), 
+      // ✅ FIX: Send the specific date to backend as UTC
+      'date': date.toUtc().toIso8601String(),
     };
   }
 }
