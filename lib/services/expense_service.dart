@@ -173,7 +173,7 @@ class ExpenseService {
       if (dailyData is Map && dailyData.containsKey('data')) {
         final data = dailyData['data'];
         final totalSpent = (data['totalSpent'] as num?)?.toDouble() ?? 0.0;
-        return totalSpent.abs(); // Return positive value for display
+        return totalSpent.abs(); 
       }
 
       return 0.0;
