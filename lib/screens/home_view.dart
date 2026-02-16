@@ -98,62 +98,56 @@ class _HomeViewState extends State<HomeView> {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: cardColor, width: 2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: cardColor, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
-                              child: CircleAvatar(
-                                radius: 22,
-                                backgroundColor: Colors.grey[200],
-                                backgroundImage:
-                                    (user?.avatar != null &&
-                                        user!.avatar.isNotEmpty)
-                                    ? NetworkImage(user.avatar)
-                                    : const NetworkImage(
-                                            "https://i.pravatar.cc/150?img=12",
-                                          )
-                                          as ImageProvider,
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundColor: Colors.grey[200],
+                            backgroundImage:
+                                (user?.avatar != null &&
+                                    user!.avatar.isNotEmpty)
+                                ? NetworkImage(user.avatar)
+                                : const NetworkImage(
+                                        "https://i.pravatar.cc/150?img=12",
+                                      )
+                                      as ImageProvider,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Welcome back",
+                              style: TextStyle(
+                                color: secondaryTextColor,
+                                fontSize: 12,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Welcome back",
-                                  style: TextStyle(
-                                    color: secondaryTextColor,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  user?.username ?? "User",
-                                  style: TextStyle(
-                                    color: primaryTextColor,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              user?.username ?? "User",
+                              style: TextStyle(
+                                color: primaryTextColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ],
                         ),
-                        _buildNotificationIcon(cardColor, isDark),
                       ],
                     ),
-              
+
                     const SizedBox(height: 20),
                     Text(
                       "\$${displayTotal.toStringAsFixed(2)}",
@@ -319,27 +313,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildNotificationIcon(Color bgColor, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.0 : 0.05),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Icon(
-        Icons.notifications_none,
-        size: 24,
-        color: isDark ? Colors.white : Colors.black,
-      ),
-    );
-  }
-
   Widget _buildTransactionCard(
     BuildContext context,
     TransactionModel transaction,
@@ -347,60 +320,196 @@ class _HomeViewState extends State<HomeView> {
     Color titleColor,
     Color subColor,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: _getCategoryColor(transaction.category).withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            _getCategoryIcon(transaction.category),
-            color: _getCategoryColor(transaction.category),
-            size: 24,
-          ),
-        ),
-        title: Text(
-          transaction.description.isNotEmpty
-              ? transaction.description
-              : _capitalize(transaction.category),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: titleColor,
-          ),
-        ),
-        subtitle: Text(
-          DateFormat('MMM d, y').format(transaction.date),
-          style: TextStyle(color: subColor, fontSize: 13),
-        ),
-        trailing: Text(
-          "\$${transaction.amount.toStringAsFixed(2)}",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: titleColor,
-          ),
-        ),
-        onTap: () => Navigator.push(
+    return Dismissible(
+      key: Key(transaction.id),
+      direction: DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        return await _showDeleteConfirmation(context);
+      },
+      onDismissed: (direction) {
+        Provider.of<ExpenseProvider>(
           context,
-          MaterialPageRoute(
-            builder: (_) => TransactionFormScreen(transaction: transaction),
+          listen: false,
+        ).deleteTransaction(transaction.id);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 8,
+          ),
+          leading: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: _getCategoryColor(transaction.category).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getCategoryIcon(transaction.category),
+              color: _getCategoryColor(transaction.category),
+              size: 24,
+            ),
+          ),
+          title: Text(
+            transaction.description.isNotEmpty
+                ? transaction.description
+                : _capitalize(transaction.category),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: titleColor,
+            ),
+          ),
+          subtitle: Text(
+            DateFormat('MMM d, y • h:mm a').format(transaction.date),
+            style: TextStyle(color: subColor, fontSize: 13),
+          ),
+          trailing: Text(
+            "\$${transaction.amount.toStringAsFixed(2)}",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: titleColor,
+            ),
+          ),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TransactionFormScreen(transaction: transaction),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _showDeleteConfirmation(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: isDark
+                ? null
+                : LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Colors.white, Colors.red.shade50.withOpacity(0.3)],
+                  ),
+            color: isDark ? const Color(0xFF1E1E1E) : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 48,
+                  color: Colors.red.shade400,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              Text(
+                'Delete Transaction?',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Content
+              Text(
+                'Are you sure you want to delete this transaction? This action cannot be undone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Buttons
+              Row(
+                children: [
+                  // Cancel Button
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Delete Button
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade400,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Delete',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

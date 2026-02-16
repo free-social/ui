@@ -99,16 +99,12 @@ class AuthService {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      // 0️⃣ Clear old token + userId before login
+      // Clear old token + userId before login
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('token');
       await prefs.remove('userId');
 
-      // ✅ Clear in-memory cached user data if you have any
-      // Example: UserController.instance.clearUserData();
-      // Otherwise, homepage might show old or empty data
-
-      // 1️⃣ Make login request
+      // Make login request
       final response = await _apiService.client.post(
         '/auth/login',
         data: {"email": email, "password": password},
@@ -117,10 +113,10 @@ class AuthService {
       final data = response.data;
       final token = data['token'];
 
-      // 2️⃣ Extract User ID
+      // Extract User ID
       final userId = data['user']['id'] ?? data['user']['_id'];
 
-      // 3️⃣ Save new token + userId to SharedPreferences
+      // Save new token + userId to SharedPreferences
       if (token != null) await prefs.setString('token', token);
       if (userId != null) await prefs.setString('userId', userId);
 
@@ -147,7 +143,7 @@ class AuthService {
         callbackUrlScheme: callbackUrlScheme,
       );
 
-      // ✅ 1. Parse BOTH Token and User ID from the URL
+      // Parse token and user ID from the URL
       final queryParams = Uri.parse(result).queryParameters;
       final token = queryParams['token'];
 
@@ -157,7 +153,7 @@ class AuthService {
 
       if (token == null) throw Exception('No token found in Google callback');
 
-      // ✅ 2. Save BOTH to SharedPreferences
+      // Save token and userId to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', token);
 
@@ -178,7 +174,6 @@ class AuthService {
   }
 
   void _handleError(dynamic e, String defaultMessage) {
-    // print('Error: $e');
     String errorMessage = defaultMessage;
     if (e is DioException) {
       if (e.response?.data != null) {

@@ -41,16 +41,15 @@ class WalletService {
         prevYear = now.year - 1;
       }
 
-      // ហៅ API ៤ ព្រមគ្នា
       final results = await Future.wait([
         _authService.getProfile(userId), // index 0
         _expenseService.getAllTransactions(
           limit: 10,
           sortBy: 'date',
           sortOrder: 'desc',
-        ), // index 1
-        _getWalletBalanceFromApi(), // index 2 (Function នេះត្រូវបានបង្កើតខាងក្រោម)
-        _expenseService.getMonthlyExpenseTotal(prevMonth, prevYear), // index 3
+        ), 
+        _getWalletBalanceFromApi(),
+        _expenseService.getMonthlyExpenseTotal(prevMonth, prevYear), 
       ]);
 
       return WalletData(
