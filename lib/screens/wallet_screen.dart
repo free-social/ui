@@ -17,6 +17,7 @@ class _WalletScreenState extends State<WalletScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late PageController _pageController; // For card swipe animation
+  bool _isListView = false; // Toggle between PageView and ListView
 
   @override
   void initState() {
@@ -663,13 +664,50 @@ class _WalletScreenState extends State<WalletScreen>
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
                     children: [
-                      Text(
-                        "My Wallet",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: primaryTextColor,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const SizedBox(width: 48), // For balance
+                          Text(
+                            "My Wallet",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: primaryTextColor,
+                            ),
+                          ),
+                          // View Toggle Button
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isListView = !_isListView;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: cardBackgroundColor,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isDarkMode
+                                        ? Colors.black.withOpacity(0.3)
+                                        : Colors.grey.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                _isListView
+                                    ? Icons.view_carousel
+                                    : Icons.view_list,
+                                color: const Color(0xFF00BFA5),
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 20),
 
@@ -678,11 +716,17 @@ class _WalletScreenState extends State<WalletScreen>
                         opacity: _fadeAnimation,
                         child: SlideTransition(
                           position: _slideAnimation,
-                          child: _buildTopCardsSection(
-                            calcBalance,
-                            walletModel.balance,
-                            lastMonthExpense,
-                          ),
+                          child: _isListView
+                              ? _buildCardListView(
+                                  calcBalance,
+                                  walletModel.balance,
+                                  lastMonthExpense,
+                                )
+                              : _buildTopCardsSection(
+                                  calcBalance,
+                                  walletModel.balance,
+                                  lastMonthExpense,
+                                ),
                         ),
                       ),
 
@@ -834,6 +878,64 @@ class _WalletScreenState extends State<WalletScreen>
           );
         },
       ),
+    );
+  }
+
+  // List View for Cards
+  Widget _buildCardListView(
+    double historyBalance,
+    double realWalletBalance,
+    double lastMonthExpense,
+  ) {
+    DateTime now = DateTime.now();
+    DateTime prevDate = DateTime(now.year, now.month - 1);
+    String prevMonthName = DateFormat('MMM').format(prevDate);
+
+    final cards = [
+      {
+        "title": "Transaction Net",
+        "amount": historyBalance,
+        "icon": Icons.history,
+        "colors": [
+          Colors.blue.shade400,
+          Colors.blue.shade600,
+          Colors.blue.shade800.withOpacity(0.9),
+        ],
+      },
+      {
+        "title": "Total Wallet",
+        "amount": realWalletBalance,
+        "icon": Icons.account_balance_wallet,
+        "colors": [
+          Colors.teal.shade400,
+          Colors.teal.shade600,
+          Colors.teal.shade800.withOpacity(0.9),
+        ],
+      },
+      {
+        "title": "Expense ($prevMonthName)",
+        "amount": lastMonthExpense,
+        "icon": Icons.calendar_today,
+        "colors": [
+          Colors.red.shade400,
+          Colors.red.shade600,
+          Colors.red.shade800.withOpacity(0.9),
+        ],
+      },
+    ];
+
+    return Column(
+      children: cards.map((card) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _buildSingleCard(
+            card["title"] as String,
+            card["amount"] as double,
+            card["icon"] as IconData,
+            card["colors"] as List<Color>,
+          ),
+        );
+      }).toList(),
     );
   }
 

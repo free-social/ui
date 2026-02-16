@@ -34,7 +34,6 @@ class TransactionModel {
       'amount': amount,
       'category': category,
       'description': description,
-      // ✅ FIX: Send the specific date to backend as UTC
       'date': date.toUtc().toIso8601String(),
     };
   }
