@@ -5,23 +5,9 @@ import 'providers/expense_provider.dart';
 import 'providers/wallet_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
-import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Notifications
-  try {
-    await NotificationService.initialize();
-    await NotificationService.requestPermissions();
-    await NotificationService.scheduleDailyNotification();
-
-    // Check if we should show notification (fallback for OPPO)
-    await NotificationService.checkAndShowIfNeeded();
-  } catch (e) {
-    // Ignore notification errors - app should still work without notifications
-    print('⚠️ Notification setup failed: $e');
-  }
 
   // Initialize AuthProvider
   final authProvider = AuthProvider();

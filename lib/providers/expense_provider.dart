@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/transaction_model.dart';
 import '../services/expense_service.dart';
-import '../services/notification_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   final ExpenseService _expenseService;
@@ -108,8 +107,6 @@ class ExpenseProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
-      // Update notification
-      NotificationService.scheduleDailyNotification();
     }
   }
 
@@ -121,8 +118,6 @@ class ExpenseProvider with ChangeNotifier {
     try {
       await _expenseService.updateTransaction(id, updates);
       await fetchTransactions();
-      // Update notification
-      NotificationService.scheduleDailyNotification();
     } catch (e) {
       debugPrint('Error updating transaction: $e');
       rethrow;
@@ -135,8 +130,6 @@ class ExpenseProvider with ChangeNotifier {
       await _expenseService.deleteTransaction(id);
       _transactions.removeWhere((t) => t.id == id);
       notifyListeners();
-      // Update notification
-      NotificationService.scheduleDailyNotification();
     } catch (e) {
       debugPrint('Error deleting transaction: $e');
       rethrow;
