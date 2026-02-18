@@ -1,10 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/services.dart';
 import 'dart:io';
 import '../helpers/mock_http_overrides.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:spendwise/providers/expense_provider.dart';
@@ -20,16 +17,6 @@ void main() {
 
   setUpAll(() {
     HttpOverrides.global = MockHttpOverrides();
-    tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('America/Detroit'));
-
-    const MethodChannel channel = MethodChannel(
-      'dexterous.com/flutter/local_notifications',
-    );
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          return null;
-        });
   });
 
   late ExpenseProvider provider;

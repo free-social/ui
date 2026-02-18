@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
-import '../services/notification_service.dart';
+
 import 'update_user_profile.dart';
 import 'login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../utils/snackbar_helper.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -16,44 +15,8 @@ class UserProfileScreen extends StatefulWidget {
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
-  bool _notificationsEnabled = true;
-
   final Color kPrimaryColor = const Color(0xFF00BFA5);
   final Color kRedColor = const Color(0xFFFF5252);
-
-  @override
-  void initState() {
-    super.initState();
-    _checkNotificationStatus();
-  }
-
-  Future<void> _checkNotificationStatus() async {
-    final isEnabled = await NotificationService.areNotificationsEnabled();
-    setState(() {
-      _notificationsEnabled = isEnabled;
-    });
-  }
-
-  Future<void> _toggleNotifications(bool value) async {
-    if (value) {
-      // Enable notifications
-      final granted = await NotificationService.requestPermissions();
-      if (granted) {
-        await NotificationService.scheduleDailyNotification();
-        setState(() => _notificationsEnabled = true);
-        if (mounted) {
-          showInfoSnackBar(context, 'Daily notifications enabled at 11:50 PM');
-        }
-      }
-    } else {
-      // Disable notifications
-      await NotificationService.cancelAllNotifications();
-      setState(() => _notificationsEnabled = false);
-      if (mounted) {
-        showInfoSnackBar(context, 'Daily notifications disabled');
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,18 +141,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             // 2. PREFERENCES SECTION
             _buildSectionHeader("PREFERENCES"),
             _buildContainerGroup(context, [
-              _buildListTile(
-                icon: Icons.notifications_none,
-                iconColor: Colors.teal,
-                title: "Enable Notifications",
-                textColor: textColor,
-                trailing: Switch.adaptive(
-                  value: _notificationsEnabled,
-                  activeColor: kPrimaryColor,
-                  onChanged: _toggleNotifications,
-                ),
-              ),
-              _buildDivider(context),
               _buildListTile(
                 icon: Icons.dark_mode_outlined,
                 iconColor: isDark ? Colors.white : Colors.blueGrey,
