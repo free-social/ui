@@ -104,7 +104,7 @@ void main() {
 
       // Assert
       expect(find.byIcon(Icons.edit), findsOneWidget);
-      expect(find.byIcon(Icons.delete), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline_rounded), findsWidgets);
     });
 
     testWidgets('delete button shows confirmation dialog', (
@@ -114,18 +114,20 @@ void main() {
       await tester.pumpWidget(createWidgetUnderTest(testTransaction));
 
       // Act - tap delete button
-      await tester.tap(find.byIcon(Icons.delete));
+      await tester.tap(find.byIcon(Icons.delete_outline_rounded).first);
       await tester.pumpAndSettle();
 
       // Assert
-      expect(find.text('Delete?'), findsOneWidget);
+      expect(find.text('Delete Transaction?'), findsOneWidget);
       expect(
-        find.text('Are you sure you want to remove this transaction?'),
+        find.text(
+          'Are you sure you want to delete this transaction? This action cannot be undone.',
+        ),
         findsOneWidget,
       );
       expect(find.text('Cancel'), findsOneWidget);
       // Only one Delete text widget (in the dialog) - the icon button is separate
-      expect(find.widgetWithText(TextButton, 'Delete'), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Delete'), findsOneWidget);
     });
 
     testWidgets('delete confirmation dialog Cancel button dismisses dialog', (
@@ -133,7 +135,7 @@ void main() {
     ) async {
       // Arrange
       await tester.pumpWidget(createWidgetUnderTest(testTransaction));
-      await tester.tap(find.byIcon(Icons.delete));
+      await tester.tap(find.byIcon(Icons.delete_outline_rounded).first);
       await tester.pumpAndSettle();
 
       // Act - tap Cancel
@@ -141,7 +143,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Assert - dialog should be dismissed
-      expect(find.text('Delete?'), findsNothing);
+      expect(find.text('Delete Transaction?'), findsNothing);
       verifyNever(mockExpenseProvider.deleteTransaction(any));
     });
 
@@ -150,11 +152,11 @@ void main() {
     ) async {
       // Arrange
       await tester.pumpWidget(createWidgetUnderTest(testTransaction));
-      await tester.tap(find.byIcon(Icons.delete));
+      await tester.tap(find.byIcon(Icons.delete_outline_rounded).first);
       await tester.pumpAndSettle();
 
       // Act - tap Delete in dialog
-      final deleteButton = find.widgetWithText(TextButton, 'Delete');
+      final deleteButton = find.widgetWithText(ElevatedButton, 'Delete');
       await tester.tap(deleteButton);
       await tester.pumpAndSettle();
       // Pump extra to handle snackbar timer
