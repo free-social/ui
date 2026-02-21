@@ -5,7 +5,7 @@ Spendwise is a Flutter mobile app for personal finance management, including aut
 ### 1. Functionality & Code Quality (10 pts)
 - Works without errors:
   - `flutter test` passes (`108` tests passed).
-  - `flutter analyze` reports no compile-time errors.
+  - `flutter analyze` reports no issues.
 - Good architecture:
   - Clear layered design: `screens -> providers -> services -> models`.
   - `Provider` state management with dependency injection in providers/services.
@@ -111,6 +111,45 @@ test/
 
 This keeps code modular, easier to test, and easier to maintain.
 
+## Privacy & Policy Summary
+This section documents how the current app code handles user data.
+
+### Data Collected
+- Account data: username, email, password (for register/login requests).
+- Authentication/session data: auth token and user ID.
+- Profile data: username and avatar image.
+- Finance data: transactions, categories, amounts, dates, wallet balance, and summary values.
+- Support action: opening an email intent to contact support.
+
+### How Data Is Used
+- Authenticate users (email/password and Google login flow).
+- Keep users signed in and attach auth token to API requests.
+- Display and update profile information.
+- Create, read, update, and delete transactions.
+- Calculate and display daily/monthly stats and wallet views.
+
+### Storage & Processing
+- Local storage (device): `SharedPreferences` stores `token`, `userId`, and theme preference.
+- Remote processing: app sends/receives data through backend API at:
+  - `https://api-00fb.onrender.com/api/v1`
+- Authorization header is attached automatically to protected API requests.
+- On `401`, local auth/session data is cleared.
+
+### Third-Party Services / Integrations
+- Google OAuth flow via `flutter_web_auth_2` (`/auth/google` callback scheme: `spendwise`).
+- Image upload support via `image_picker` + multipart upload.
+- External link launching via `url_launcher` (support email).
+
+### User Controls
+- Users can logout (clears local session data).
+- Users can update username and avatar.
+- Users can create/edit/delete transactions and adjust wallet values.
+
+### Security Notes
+- Network access requires internet permission.
+- Session token is persisted locally for login continuity.
+- For production hardening, consider secure storage for auth tokens and legal review of this policy text.
+
 ## Testing Documentation
 Total test files: `14`
 Test categories:
@@ -135,8 +174,9 @@ Test categories:
   - `test/widget_test.dart`
 
 Last verification:
+- Full scan date: `February 21, 2026`
 - `flutter test`: all tests passed (`108`)
-- `flutter analyze`: no compiler errors (info-level lint findings remain)
+- `flutter analyze`: no issues found
 
 <!-- TEST_CASE_TABLE_START -->
 ## Full Test Case Table (All 108 Cases)
