@@ -119,11 +119,17 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     } catch (e) {
       debugPrint("Full Error: $e");
       if (mounted) {
-        showErrorSnackBar(context, 'Error: $e');
+        showErrorSnackBar(context, _formatErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _formatErrorMessage(Object error) {
+    const prefix = 'Exception: ';
+    final text = error.toString();
+    return text.startsWith(prefix) ? text.substring(prefix.length) : text;
   }
 
   // --- BUILD ---
