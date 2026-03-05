@@ -1,6 +1,6 @@
 import '../models/transaction_model.dart';
+import 'package:dio/dio.dart';
 import 'api_service.dart';
-import 'wallet_service.dart';
 
 class ExpenseService {
   final ApiService _apiService;
@@ -82,31 +82,78 @@ class ExpenseService {
     TransactionModel transaction,
   ) async {
     try {
-      // Check wallet balance BEFORE creating expense (negative amount)
-      if (transaction.amount < 0) {
-        final walletService = WalletService();
-        final walletData = await walletService.fetchWalletData();
-        final currentBalance = walletData.walletBalance.balance;
+      // Expense form submits a positive amount. Use absolute value to support
+      // both positive/negative payload conventions safely.
+      final currentBalance = await _fetchCurrentBalance();
+      final expenseAmount = transaction.amount.abs();
 
-        // Expense amount is negative, so we check if absolute value exceeds balance
-        if (transaction.amount.abs() > currentBalance) {
-          throw Exception(
-            'Insufficient balance. Current balance: \$${currentBalance.toStringAsFixed(2)}',
-          );
-        }
+      if (expenseAmount > currentBalance) {
+        throw Exception(
+          'Insufficient balance. Current balance: \$${currentBalance.toStringAsFixed(2)}',
+        );
       }
 
-      // Use the model's toJson() since we fixed it to include 'date'
       final response = await _apiService.client.post(
         '/transactions',
         data: transaction.toJson(),
       );
 
-      // Return the created object from server (useful for getting the real ID)
       return TransactionModel.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(
+        _extractApiErrorMessage(e, fallback: 'Failed to create transaction'),
+      );
+    } on Exception {
+      rethrow;
     } catch (e) {
       throw Exception('Failed to create transaction: $e');
     }
+  }
+
+  Future<double> _fetchCurrentBalance() async {
+    final response = await _apiService.client.get('/wallet');
+    final data = response.data;
+
+    if (data is Map<String, dynamic>) {
+      final balance = data['balance'];
+      if (balance is num) return balance.toDouble();
+      if (balance is String) return double.tryParse(balance) ?? 0.0;
+    }
+
+    return 0.0;
+  }
+
+  String _extractApiErrorMessage(DioException e, {required String fallback}) {
+    final data = e.response?.data;
+
+    if (data is Map<String, dynamic>) {
+      final message = data['message'];
+      if (message is String && message.trim().isNotEmpty) return message;
+
+      final error = data['error'];
+      if (error is String && error.trim().isNotEmpty) return error;
+
+      final detail = data['detail'];
+      if (detail is String && detail.trim().isNotEmpty) return detail;
+
+      final errors = data['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        final first = errors.first;
+        if (first is String && first.trim().isNotEmpty) return first;
+        if (first is Map<String, dynamic>) {
+          final firstMessage = first['message'];
+          if (firstMessage is String && firstMessage.trim().isNotEmpty) {
+            return firstMessage;
+          }
+        }
+      }
+    }
+
+    if (data is String && data.trim().isNotEmpty) {
+      return data;
+    }
+
+    return fallback;
   }
 
   // 5. UPDATE
@@ -173,7 +220,7 @@ class ExpenseService {
       if (dailyData is Map && dailyData.containsKey('data')) {
         final data = dailyData['data'];
         final totalSpent = (data['totalSpent'] as num?)?.toDouble() ?? 0.0;
-        return totalSpent.abs(); 
+        return totalSpent.abs();
       }
 
       return 0.0;
