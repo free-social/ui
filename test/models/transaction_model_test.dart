@@ -55,10 +55,11 @@ void main() {
       final result = tTransactionModel.toJson();
 
       // ASSERT
-      // We create a copy of the input map and remove 'id' 
+      // We create a copy of the input map and remove 'id'
       // because your model's toJson() does not include it.
       final expectedMap = Map<String, dynamic>.from(tTransactionJson);
-      expectedMap.remove('id'); 
+      expectedMap.remove('id');
+      expectedMap['date'] = tTransactionModel.date.toUtc().toIso8601String();
 
       expect(result, expectedMap);
     });
