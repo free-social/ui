@@ -181,6 +181,8 @@ class AuthService {
         if (responseData is Map && responseData.containsKey('error')) {
           errorMessage = responseData['error'];
         }
+      } else if (e.message != null && e.message!.trim().isNotEmpty) {
+        errorMessage = e.message!;
       }
     }
     throw Exception(errorMessage);

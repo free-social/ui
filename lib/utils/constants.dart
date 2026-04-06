@@ -7,5 +7,5 @@ class ApiConstants {
 
   // 2. Production
   // static const String baseUrl = 'https://expenses-api-j638.onrender.com/api/v1';
-  static const String baseUrl = 'https://api-00fb.onrender.com/api/v1';
+  static const String baseUrl = 'https://walletvps.duckdns.org/api/v1';
 }

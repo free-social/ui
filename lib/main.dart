@@ -4,6 +4,8 @@ import 'providers/auth_provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/wallet_provider.dart';
 import 'providers/theme_provider.dart';
+import 'screens/login_screen.dart';
+import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
@@ -39,6 +41,11 @@ class MyApp extends StatelessWidget {
           navigatorKey: navigatorKey,
           title: 'Spendwise',
           debugShowCheckedModeBanner: false,
+          routes: {
+            '/login': (_) => const LoginScreen(),
+            '/main': (_) => const MainScreen(),
+            '/splash': (_) => const SplashScreen(),
+          },
 
           // Light Theme
           theme: ThemeData(
@@ -100,5 +107,4 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
-// Test 
+// Test

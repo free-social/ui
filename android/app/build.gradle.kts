@@ -14,6 +14,11 @@ if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(fis)
     }
 }
+val hasReleaseKeystore =
+    keystorePropertiesFile.exists() &&
+        listOf("keyAlias", "keyPassword", "storeFile", "storePassword").all { key ->
+            (keystoreProperties[key] as String?)?.isNotBlank() == true
+        }
 
 android {
     namespace = "com.spendwise.expenses"
@@ -31,11 +36,13 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String?
+        if (hasReleaseKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+                storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
+                storePassword = keystoreProperties["storePassword"] as String?
+            }
         }
     }
 
@@ -49,7 +56,15 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            // Allow local release APK installs even when the private keystore
+            // is not present in the repo. Production builds should provide
+            // android/key.properties so the real release key is used.
+            signingConfig =
+                if (hasReleaseKeystore) {
+                    signingConfigs.getByName("release")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
             // Optional: enable shrinking later
             // isMinifyEnabled = true
             // isShrinkResources = true
