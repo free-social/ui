@@ -39,6 +39,15 @@ class AuthService {
   ) async {
     try {
       String fileName = imageFile.path.split('/').last;
+      String extension = fileName.split('.').last.toLowerCase();
+      String subtype = 'jpeg'; // Default to jpeg for jpg/jpeg
+      if (extension == 'png') {
+        subtype = 'png';
+      } else if (extension == 'gif') {
+        subtype = 'gif';
+      } else if (extension == 'webp') {
+        subtype = 'webp';
+      }
 
       // Prepare Multipart data matching your Postman 'avatars' key
       FormData formData = FormData.fromMap({
@@ -47,7 +56,7 @@ class AuthService {
           filename: fileName,
           contentType: MediaType(
             "image",
-            "jpg",
+            subtype,
           ), // Adjust based on your file type
         ),
       });
