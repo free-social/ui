@@ -136,14 +136,15 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                           radius: 65,
                           backgroundColor: Colors.grey[200],
                           backgroundImage: _imageFile != null
-                              ? FileImage(_imageFile!)
+                              ? FileImage(_imageFile!) as ImageProvider?
                               : (user?.avatar != null &&
-                                    user!.avatar.isNotEmpty)
-                              ? NetworkImage(user.avatar)
-                              : const NetworkImage(
-                                      "https://i.pravatar.cc/150?img=12",
-                                    )
-                                    as ImageProvider,
+                                      user!.avatar.isNotEmpty)
+                                  ? NetworkImage(user.avatar) as ImageProvider?
+                                  : null,
+                          child: (_imageFile == null &&
+                                  (user?.avatar == null || user!.avatar.isEmpty))
+                              ? const Icon(Icons.person, size: 80, color: Colors.grey)
+                              : null,
                         ),
                       ),
                       GestureDetector(

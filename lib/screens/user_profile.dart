@@ -86,12 +86,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 Colors.grey[200]!, // ✅ Force non-null
                             backgroundImage:
                                 (user?.avatar != null &&
-                                    user!.avatar.isNotEmpty)
-                                ? NetworkImage(user.avatar)
-                                : const NetworkImage(
-                                        "https://i.pravatar.cc/150?img=12",
-                                      )
-                                      as ImageProvider,
+                                        user!.avatar.isNotEmpty)
+                                    ? NetworkImage(user.avatar) as ImageProvider?
+                                    : null,
+                            child: (user?.avatar == null || user!.avatar.isEmpty)
+                                ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                                : null,
                           ),
                         ),
                         Positioned(

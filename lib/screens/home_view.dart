@@ -116,12 +116,12 @@ class _HomeViewState extends State<HomeView> {
                             backgroundColor: Colors.grey[200],
                             backgroundImage:
                                 (user?.avatar != null &&
-                                    user!.avatar.isNotEmpty)
-                                ? NetworkImage(user.avatar)
-                                : const NetworkImage(
-                                        "https://i.pravatar.cc/150?img=12",
-                                      )
-                                      as ImageProvider,
+                                        user!.avatar.isNotEmpty)
+                                    ? NetworkImage(user.avatar) as ImageProvider?
+                                    : null,
+                            child: (user?.avatar == null || user!.avatar.isEmpty)
+                                ? const Icon(Icons.person, size: 28, color: Colors.grey)
+                                : null,
                           ),
                         ),
                         const SizedBox(width: 12),
