@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 
 import 'update_user_profile.dart';
+import 'change_password_screen.dart';
 import 'login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -86,11 +87,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 Colors.grey[200]!, // ✅ Force non-null
                             backgroundImage:
                                 (user?.avatar != null &&
-                                        user!.avatar.isNotEmpty)
-                                    ? NetworkImage(user.avatar) as ImageProvider?
-                                    : null,
-                            child: (user?.avatar == null || user!.avatar.isEmpty)
-                                ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                                    user!.avatar.isNotEmpty)
+                                ? NetworkImage(user.avatar) as ImageProvider?
+                                : null,
+                            child:
+                                (user?.avatar == null || user!.avatar.isEmpty)
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: Colors.grey,
+                                  )
                                 : null,
                           ),
                         ),
@@ -175,8 +181,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               _buildListTile(
                 icon: Icons.lock_outline,
                 iconColor: Colors.green,
-                title: "Security",
+                title: "Update password",
                 textColor: textColor,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ChangePasswordScreen(),
+                  ),
+                ),
               ),
             ]),
             const SizedBox(height: 24),

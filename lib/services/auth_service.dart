@@ -106,6 +106,60 @@ class AuthService {
     }
   }
 
+  Future<String> forgotPassword(String email) async {
+    try {
+      final response = await _apiService.client.post(
+        '/auth/forgot-password',
+        data: {"email": email},
+      );
+
+      return response.data['message'] as String;
+    } catch (e) {
+      _handleError(e, 'Failed to request password reset');
+      return '';
+    }
+  }
+
+  Future<String> resetPassword(
+    String email,
+    String otp,
+    String password,
+  ) async {
+    try {
+      final response = await _apiService.client.post(
+        '/auth/reset-password',
+        data: {"email": email, "otp": otp, "password": password},
+      );
+
+      return response.data['message'] as String;
+    } catch (e) {
+      _handleError(e, 'Failed to reset password');
+      return '';
+    }
+  }
+
+  Future<String> updatePassword(
+    String userId,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    try {
+      final response = await _apiService.client.patch(
+        '/auth/$userId/password',
+        data: {"currentPassword": currentPassword, "newPassword": newPassword},
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+      await prefs.remove('userId');
+
+      return response.data['message'] as String;
+    } catch (e) {
+      _handleError(e, 'Failed to update password');
+      return '';
+    }
+  }
+
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       // Clear old token + userId before login

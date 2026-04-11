@@ -123,6 +123,49 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<String> forgotPassword(String email) async {
+    _setLoading(true);
+    try {
+      return await _authService.forgotPassword(email);
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<String> resetPassword(
+    String email,
+    String otp,
+    String password,
+  ) async {
+    _setLoading(true);
+    try {
+      return await _authService.resetPassword(email, otp, password);
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<String> updatePassword(
+    String userId,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    _setLoading(true);
+    try {
+      final message = await _authService.updatePassword(
+        userId,
+        currentPassword,
+        newPassword,
+      );
+      _user = null;
+      _isAuthenticated = false;
+      notifyListeners();
+      return message;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> googleLogin() async {
     _setLoading(true);
     try {

@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
 import 'main_screen.dart';
+import 'forgot_password_screen.dart';
 import '../utils/snackbar_helper.dart';
+import '../utils/validation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,8 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
                 Text(
-                  "Welcome Back",
+                  "Spendwise",
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
@@ -63,12 +66,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  "Sign in to manage your expenses",
-                  style: TextStyle(color: subTextColor, fontSize: 16),
-                ),
-                const SizedBox(height: 40),
-
+                // Text(
+                //   "Sign in to manage your expenses",
+                //   style: TextStyle(color: subTextColor, fontSize: 16),
+                // ),
+                const SizedBox(height: 10),
                 _buildLabel("Email Address", textColor),
                 _buildTextField(
                   emailController,
@@ -106,7 +108,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   iconColor,
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 8),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ForgotPasswordScreen(),
+                            ),
+                          ),
+                    child: Text(
+                      "Forgot password?",
+                      style: TextStyle(
+                        color: kPrimaryColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
 
                 // --- MANUAL LOGIN BUTTON ---
                 SizedBox(
@@ -266,6 +291,10 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: obscure,
+      validator: icon == Icons.email_outlined
+          ? ValidationUtils.validateEmail
+          : (value) =>
+                value == null || value.isEmpty ? 'Password is required' : null,
       style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
       decoration: InputDecoration(
         hintText: hint,
@@ -294,11 +323,12 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         listen: false,
       ).login(emailController.text.trim(), passController.text);
-      if (mounted)
+      if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const MainScreen()),
         );
+      }
     } catch (e) {
       if (mounted) showErrorSnackBar(context, e.toString());
     } finally {
