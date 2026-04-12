@@ -6,6 +6,7 @@ void showTopSnackBar(
   String message, {
   Color? backgroundColor,
   Duration duration = const Duration(seconds: 3),
+  double topOffset = 10,
 }) {
   final overlay = Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return; // Exit if overlay not ready
@@ -18,6 +19,7 @@ void showTopSnackBar(
       message: message,
       backgroundColor: backgroundColor ?? Colors.grey.shade800,
       topPadding: topPadding,
+      topOffset: topOffset,
       onDismiss: () => overlayEntry.remove(),
     ),
   );
@@ -33,18 +35,45 @@ void showTopSnackBar(
 }
 
 /// Success message at top (green)
-void showSuccessSnackBar(BuildContext context, String message) {
-  showTopSnackBar(context, message, backgroundColor: Colors.green);
+void showSuccessSnackBar(
+  BuildContext context,
+  String message, {
+  double topOffset = 10,
+}) {
+  showTopSnackBar(
+    context,
+    message,
+    backgroundColor: Colors.green,
+    topOffset: topOffset,
+  );
 }
 
 /// Error message at top (red)
-void showErrorSnackBar(BuildContext context, String message) {
-  showTopSnackBar(context, message, backgroundColor: Colors.red);
+void showErrorSnackBar(
+  BuildContext context,
+  String message, {
+  double topOffset = 10,
+}) {
+  showTopSnackBar(
+    context,
+    message,
+    backgroundColor: Colors.red,
+    topOffset: topOffset,
+  );
 }
 
 /// Info message at top (blue)
-void showInfoSnackBar(BuildContext context, String message) {
-  showTopSnackBar(context, message, backgroundColor: Colors.blue);
+void showInfoSnackBar(
+  BuildContext context,
+  String message, {
+  double topOffset = 10,
+}) {
+  showTopSnackBar(
+    context,
+    message,
+    backgroundColor: Colors.blue,
+    topOffset: topOffset,
+  );
 }
 
 /// Custom notification widget that slides from top
@@ -52,6 +81,7 @@ class TopNotification extends StatefulWidget {
   final String message;
   final Color backgroundColor;
   final double topPadding;
+  final double topOffset;
   final VoidCallback onDismiss;
 
   const TopNotification({
@@ -59,6 +89,7 @@ class TopNotification extends StatefulWidget {
     required this.message,
     required this.backgroundColor,
     required this.topPadding,
+    required this.topOffset,
     required this.onDismiss,
   });
 
@@ -96,7 +127,7 @@ class _TopNotificationState extends State<TopNotification>
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: widget.topPadding + 10,
+      top: widget.topPadding + widget.topOffset,
       left: 10,
       right: 10,
       child: SlideTransition(
@@ -110,7 +141,7 @@ class _TopNotificationState extends State<TopNotification>
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),

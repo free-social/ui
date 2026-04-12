@@ -5,6 +5,7 @@ import '../providers/theme_provider.dart';
 
 import 'update_user_profile.dart';
 import 'change_password_screen.dart';
+import 'chat_screen.dart';
 import 'login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -175,6 +176,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     color: subTextColor,
                     fontWeight: FontWeight.w600,
                   ),
+                ),
+              ),
+              _buildDivider(context),
+              _buildListTile(
+                icon: Icons.chat_bubble_outline,
+                iconColor: Colors.teal,
+                title: "Chat",
+                textColor: textColor,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatScreen()),
                 ),
               ),
               _buildDivider(context),
