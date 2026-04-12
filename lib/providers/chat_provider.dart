@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/chat_models.dart';
 import '../services/chat_service.dart';
+import '../services/chat_socket_service.dart';
 
 class ChatProvider with ChangeNotifier {
   final ChatService _chatService;
+  final ChatSocketService _chatSocketService;
 
-  ChatProvider({ChatService? chatService})
-    : _chatService = chatService ?? ChatService();
+  ChatProvider({ChatService? chatService, ChatSocketService? chatSocketService})
+    : _chatService = chatService ?? ChatService(),
+      _chatSocketService = chatSocketService ?? ChatSocketService() {
+    _chatSocketService.configure(onMessage: _handleIncomingMessage);
+  }
 
   bool _isLoading = false;
   bool _isSendingMessage = false;
@@ -92,6 +97,9 @@ class ChatProvider with ChangeNotifier {
       final requestMap = results[1] as Map<String, List<FriendRequestModel>>;
       _receivedRequests = requestMap['received'] ?? [];
       _sentRequests = requestMap['sent'] ?? [];
+      await _chatSocketService.syncConversationSubscriptions(
+        _conversations.map((conversation) => conversation.id),
+      );
 
       if (forceSearchRefresh || _searchQuery.trim().isNotEmpty) {
         _searchResults = results[2] as List<ChatUser>;
@@ -168,6 +176,12 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      await _chatSocketService.syncConversationSubscriptions(
+        {
+          ..._conversations.map((conversation) => conversation.id),
+          conversationId,
+        },
+      );
       _messages = await _chatService.getMessages(conversationId);
     } finally {
       _isLoading = false;
@@ -192,7 +206,12 @@ class ChatProvider with ChangeNotifier {
         conversationId,
         content,
       );
-      _messages = [..._messages, sentMessage];
+      _upsertMessage(sentMessage);
+      _upsertConversationPreview(
+        conversationId,
+        sentMessage.content,
+        sentMessage.createdAt,
+      );
       try {
         await loadInbox(forceSearchRefresh: true);
       } catch (_) {
@@ -203,5 +222,75 @@ class ChatProvider with ChangeNotifier {
       _isSendingMessage = false;
       notifyListeners();
     }
+  }
+
+  void _handleIncomingMessage(ChatMessageModel message) {
+    _upsertConversationPreview(
+      message.conversationId,
+      message.content,
+      message.createdAt,
+    );
+
+    if (_activeConversationId == message.conversationId) {
+      final previousLength = _messages.length;
+      _upsertMessage(message);
+      if (_messages.length != previousLength ||
+          _messages.any((item) => item.id == message.id)) {
+        notifyListeners();
+      }
+      return;
+    }
+
+    notifyListeners();
+  }
+
+  void _upsertMessage(ChatMessageModel message) {
+    final existingIndex = _messages.indexWhere((item) => item.id == message.id);
+    if (existingIndex >= 0) {
+      final updatedMessages = [..._messages];
+      updatedMessages[existingIndex] = message;
+      _messages = updatedMessages;
+      return;
+    }
+
+    _messages = [..._messages, message]
+      ..sort((a, b) {
+        final left = a.createdAt?.millisecondsSinceEpoch ?? 0;
+        final right = b.createdAt?.millisecondsSinceEpoch ?? 0;
+        return left.compareTo(right);
+      });
+  }
+
+  void _upsertConversationPreview(
+    String conversationId,
+    String content,
+    DateTime? timestamp,
+  ) {
+    final existingIndex = _conversations.indexWhere(
+      (conversation) => conversation.id == conversationId,
+    );
+    if (existingIndex < 0) {
+      return;
+    }
+
+    final existingConversation = _conversations[existingIndex];
+    final updatedConversation = ChatConversation(
+      id: existingConversation.id,
+      friend: existingConversation.friend,
+      lastMessage: content,
+      lastMessageAt: timestamp ?? existingConversation.lastMessageAt,
+      updatedAt: timestamp ?? existingConversation.updatedAt,
+    );
+
+    final updatedConversations = [..._conversations];
+    updatedConversations.removeAt(existingIndex);
+    updatedConversations.insert(0, updatedConversation);
+    _conversations = updatedConversations;
+  }
+
+  @override
+  void dispose() {
+    _chatSocketService.disconnect();
+    super.dispose();
   }
 }

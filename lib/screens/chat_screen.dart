@@ -233,7 +233,7 @@ class _ChatScreenState extends State<ChatScreen> {
         : pendingSent
         ? (isDark ? const Color(0xFF4A3612) : const Color(0xFFFFF3D6))
         : pendingReceived
-        ? (isDark ? const Color(0xFF11332F) : const Color(0xFFE7F8F4))
+        ? (isDark ? const Color(0xFF11332F) : const Color.fromARGB(255, 95, 132, 123))
         : kPrimaryColor;
     final actionTextColor = alreadyAdded
         ? kPrimaryColor
@@ -330,12 +330,50 @@ class _ChatScreenState extends State<ChatScreen> {
           }
 
           if (pendingReceived) {
-            if (!context.mounted) return;
-            showInfoSnackBar(
-              context,
-              'This user already sent you a request',
-              topOffset: _chatSnackTopOffset,
-            );
+            final requestId = user.requestId.isNotEmpty
+                ? user.requestId
+                : _findReceivedRequestId(chatProvider, user.id);
+
+            if (requestId.isEmpty) {
+              await chatProvider.refreshRelationshipState();
+              if (!context.mounted) return;
+              showErrorSnackBar(
+                context,
+                'Pending request not found. Refresh and try again.',
+                topOffset: _chatSnackTopOffset,
+              );
+              return;
+            }
+
+            final action = await _showRespondToRequestSheet(context, user);
+            if (!context.mounted || action == null) return;
+
+            try {
+              if (action == 'accepted') {
+                await chatProvider.acceptFriendRequest(requestId);
+                if (!context.mounted) return;
+                showSuccessSnackBar(
+                  context,
+                  'Friend request accepted',
+                  topOffset: _chatSnackTopOffset,
+                );
+              } else if (action == 'rejected') {
+                await chatProvider.rejectFriendRequest(requestId);
+                if (!context.mounted) return;
+                showInfoSnackBar(
+                  context,
+                  'Friend request dismissed',
+                  topOffset: _chatSnackTopOffset,
+                );
+              }
+            } catch (e) {
+              if (!context.mounted) return;
+              showErrorSnackBar(
+                context,
+                e.toString().replaceFirst('Exception: ', ''),
+                topOffset: _chatSnackTopOffset,
+              );
+            }
             return;
           }
 
@@ -837,6 +875,99 @@ class _ChatScreenState extends State<ChatScreen> {
                 iconColor: const Color(0xFFE05555),
                 textColor: textColor,
                 onTap: () => Navigator.pop(sheetContext, 'remove'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _findReceivedRequestId(ChatProvider chatProvider, String userId) {
+    for (final request in chatProvider.receivedRequests) {
+      if (request.sender.id == userId) {
+        return request.id;
+      }
+    }
+    return '';
+  }
+
+  Future<String?> _showRespondToRequestSheet(
+    BuildContext context,
+    ChatUser user,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[700]!;
+
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 18),
+              _buildProfileAvatar(
+                avatarUrl: user.avatar,
+                radius: 32,
+                cardColor: theme.cardColor,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                user.username.isNotEmpty ? user.username : user.email,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Respond to this friend request',
+                style: TextStyle(color: subTextColor, fontSize: 13),
+              ),
+              const SizedBox(height: 18),
+              _buildSheetAction(
+                context: sheetContext,
+                label: 'Accept',
+                subtitle: 'Add this user to your friends list',
+                backgroundColor: isDark
+                    ? const Color(0xFF11332F)
+                    : const Color(0xFFE7F8F4),
+                icon: Icons.check_circle_outline,
+                iconColor: kPrimaryColor,
+                textColor: textColor,
+                onTap: () => Navigator.pop(sheetContext, 'accepted'),
+              ),
+              const SizedBox(height: 12),
+              _buildSheetAction(
+                context: sheetContext,
+                label: 'Dismiss',
+                subtitle: 'Reject this pending request',
+                backgroundColor: isDark
+                    ? const Color(0xFF242424)
+                    : const Color(0xFFF2F4F7),
+                icon: Icons.close,
+                iconColor: kNeutralActionColor,
+                textColor: textColor,
+                onTap: () => Navigator.pop(sheetContext, 'rejected'),
               ),
             ],
           ),

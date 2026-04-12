@@ -8,4 +8,9 @@ class ApiConstants {
   // 2. Production
   // static const String baseUrl = 'https://expenses-api-j638.onrender.com/api/v1';
   static const String baseUrl = 'https://walletvps.duckdns.org/api/v1';
+
+  static String get socketUrl {
+    final uri = Uri.parse(baseUrl);
+    return uri.replace(path: '', query: null, fragment: null).toString();
+  }
 }

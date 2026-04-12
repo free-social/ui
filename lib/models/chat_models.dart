@@ -50,6 +50,12 @@ class ChatUser {
   }
 }
 
+DateTime? _parseLocalDateTime(dynamic value) {
+  if (value == null) return null;
+  final parsed = DateTime.tryParse(value.toString());
+  return parsed?.toLocal();
+}
+
 class FriendRequestActionResult {
   final String message;
   final ChatConversation? conversation;
@@ -100,10 +106,8 @@ class FriendRequestActionResult {
         id: conversationData['_id'] ?? '',
         friend: friend,
         lastMessage: conversationData['lastMessage'] ?? '',
-        lastMessageAt: DateTime.tryParse(
-          conversationData['lastMessageAt'] ?? '',
-        ),
-        updatedAt: DateTime.tryParse(conversationData['updatedAt'] ?? ''),
+        lastMessageAt: _parseLocalDateTime(conversationData['lastMessageAt']),
+        updatedAt: _parseLocalDateTime(conversationData['updatedAt']),
       );
     }
 
@@ -151,8 +155,8 @@ class FriendRequestModel {
         (json['receiver'] as Map<String, dynamic>?) ?? const {},
       ),
       status: json['status'] ?? '',
-      createdAt: DateTime.tryParse(json['createdAt'] ?? ''),
-      updatedAt: DateTime.tryParse(json['updatedAt'] ?? ''),
+      createdAt: _parseLocalDateTime(json['createdAt']),
+      updatedAt: _parseLocalDateTime(json['updatedAt']),
     );
   }
 }
@@ -179,8 +183,8 @@ class ChatConversation {
         (json['friend'] as Map<String, dynamic>?) ?? const {},
       ),
       lastMessage: json['lastMessage'] ?? '',
-      lastMessageAt: DateTime.tryParse(json['lastMessageAt'] ?? ''),
-      updatedAt: DateTime.tryParse(json['updatedAt'] ?? ''),
+      lastMessageAt: _parseLocalDateTime(json['lastMessageAt']),
+      updatedAt: _parseLocalDateTime(json['updatedAt']),
     );
   }
 }
@@ -207,7 +211,7 @@ class ChatMessageModel {
       conversationId: json['conversation'] ?? '',
       sender: ChatUser.fromJson(senderData),
       content: json['content'] ?? '',
-      createdAt: DateTime.tryParse(json['createdAt'] ?? ''),
+      createdAt: _parseLocalDateTime(json['createdAt']),
     );
   }
 }

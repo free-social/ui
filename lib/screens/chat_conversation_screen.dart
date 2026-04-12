@@ -20,6 +20,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   final ScrollController _scrollController = ScrollController();
   final Color kPrimaryColor = const Color(0xFF00BFA5);
   static const double _chatSnackTopOffset = 18;
+  int _lastRenderedMessageCount = 0;
 
   @override
   void initState() {
@@ -123,6 +124,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       ),
       body: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
+          if (chatProvider.messages.length != _lastRenderedMessageCount) {
+            _lastRenderedMessageCount = chatProvider.messages.length;
+            _scrollToBottom();
+          }
+
           return Column(
             children: [
               Expanded(
