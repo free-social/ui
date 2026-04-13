@@ -7,7 +7,7 @@ import '../theme/app_spacing.dart';
 class AuthScreenShell extends StatelessWidget {
   final String eyebrow;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final List<Widget> children;
   final Widget footer;
 
@@ -15,7 +15,7 @@ class AuthScreenShell extends StatelessWidget {
     super.key,
     required this.eyebrow,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.children,
     required this.footer,
   });
@@ -91,8 +91,10 @@ class AuthScreenShell extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(title, style: theme.textTheme.displaySmall),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(subtitle, style: theme.textTheme.bodyLarge),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Text(subtitle!, style: theme.textTheme.bodyLarge),
+                  ],
                   const SizedBox(height: AppSpacing.xl),
                   Container(
                     width: double.infinity,
@@ -110,10 +112,7 @@ class AuthScreenShell extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  Align(
-                    alignment: Alignment.center,
-                    child: footer,
-                  ),
+                  Align(alignment: Alignment.center, child: footer),
                 ],
               ),
             ),

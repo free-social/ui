@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../providers/expense_provider.dart';
-import '../providers/auth_provider.dart';
+import 'package:provider/provider.dart';
+
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_radii.dart';
+import '../core/theme/app_spacing.dart';
 import '../models/transaction_model.dart';
+import '../providers/auth_provider.dart';
+import '../providers/expense_provider.dart';
 import 'transaction_form_screen.dart';
 
 class HomeView extends StatefulWidget {
@@ -14,7 +18,15 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  final Color kPrimaryColor = const Color(0xFF00BFA5);
+  static const List<String> _filters = [
+    'All',
+    'Food',
+    'Travel',
+    'Shopping',
+    'Bills',
+    'Other',
+  ];
+
   final ScrollController _scrollController = ScrollController();
   String _selectedFilter = 'All';
 
@@ -22,12 +34,12 @@ class _HomeViewState extends State<HomeView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchTransactions(reset: true);
+      _fetchTransactions(category: _selectedFilter);
     });
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200) {
+          _scrollController.position.maxScrollExtent - 240) {
         _loadMore();
       }
     });
@@ -39,32 +51,26 @@ class _HomeViewState extends State<HomeView> {
     super.dispose();
   }
 
-  // ✅ 1. NEW: Future method for Pull-to-Refresh
   Future<void> _onRefresh() async {
-    final provider = Provider.of<ExpenseProvider>(context, listen: false);
-    // We await this so the spinner stays until data is loaded
-    await provider.fetchTransactions(
-      page: 1,
-      category: _selectedFilter,
-      sortBy: 'amount',
-      sortOrder: 'desc',
-    );
+    await context.read<ExpenseProvider>().fetchTransactions(
+          page: 1,
+          category: _selectedFilter,
+          sortBy: 'amount',
+          sortOrder: 'desc',
+        );
   }
 
-  void _fetchTransactions({required bool reset, String? category}) {
-    final provider = Provider.of<ExpenseProvider>(context, listen: false);
-    final catToSend = category ?? _selectedFilter;
-
-    provider.fetchTransactions(
-      page: 1,
-      category: catToSend,
-      sortBy: 'amount',
-      sortOrder: 'desc',
-    );
+  void _fetchTransactions({required String category}) {
+    context.read<ExpenseProvider>().fetchTransactions(
+          page: 1,
+          category: category,
+          sortBy: 'amount',
+          sortOrder: 'desc',
+        );
   }
 
   void _loadMore() {
-    final provider = Provider.of<ExpenseProvider>(context, listen: false);
+    final provider = context.read<ExpenseProvider>();
     if (!provider.isLoading) {
       provider.fetchTransactions(page: provider.currentPage + 1);
     }
@@ -72,323 +78,402 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final user = context.watch<AuthProvider>().user;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = Theme.of(context).cardColor;
-    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1D1D1D);
-    final secondaryTextColor = isDark
-        ? Colors.grey[400]!
-        : const Color(0xFFAAAAAA);
+    return Consumer<ExpenseProvider>(
+      builder: (context, provider, child) {
+        final transactions = provider.transactions;
+        final total = transactions.fold<double>(
+          0,
+          (sum, item) => sum + item.amount,
+        );
 
-    return SafeArea(
-      child: Consumer<ExpenseProvider>(
-        builder: (context, provider, child) {
-          final displayTotal = provider.transactions.fold(
-            0.0,
-            (sum, item) => sum + item.amount,
-          );
-
-          return Column(
-            children: [
-              // --- HEADER SECTION ---
-              Container(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
-                child: Column(
-                  children: [
-                    Row(
+        return SafeArea(
+          child: RefreshIndicator(
+            onRefresh: _onRefresh,
+            color: scheme.primary,
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: cardColor, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: 22,
-                            backgroundColor: Colors.grey[200],
-                            backgroundImage:
-                                (user?.avatar != null &&
-                                        user!.avatar.isNotEmpty)
-                                    ? NetworkImage(user.avatar) as ImageProvider?
-                                    : null,
-                            child: (user?.avatar == null || user!.avatar.isEmpty)
-                                ? const Icon(Icons.person, size: 28, color: Colors.grey)
-                                : null,
+                        _HomeHeader(
+                          userName: (user?.username.trim().isNotEmpty ?? false)
+                              ? user!.username
+                              : 'User',
+                          avatarUrl: user?.avatar,
+                          total: total,
+                          selectedFilter: _selectedFilter,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text(
+                          'Categories',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(
+                          height: 42,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _filters.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: AppSpacing.sm),
+                            itemBuilder: (context, index) {
+                              final filter = _filters[index];
+                              final isSelected = filter == _selectedFilter;
+                              return FilterChip(
+                                selected: isSelected,
+                                onSelected: (_) {
+                                  setState(() => _selectedFilter = filter);
+                                  _fetchTransactions(category: filter);
+                                },
+                                label: Text(filter),
+                                showCheckmark: false,
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? scheme.primary
+                                      : theme.dividerColor,
+                                ),
+                                backgroundColor: scheme.surface,
+                                selectedColor:
+                                    scheme.primary.withValues(alpha: 0.14),
+                                labelStyle:
+                                    theme.textTheme.bodyMedium?.copyWith(
+                                  color: isSelected
+                                      ? scheme.primary
+                                      : scheme.onSurface,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.pill,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: AppSpacing.xl),
+                        Row(
                           children: [
                             Text(
-                              "Welcome back",
-                              style: TextStyle(
-                                color: secondaryTextColor,
-                                fontSize: 12,
-                              ),
+                              'Recent activity',
+                              style: theme.textTheme.titleLarge,
                             ),
-                            Text(
-                              user?.username ?? "User",
-                              style: TextStyle(
-                                color: primaryTextColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.sm,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.pill,
+                                ),
+                              ),
+                              child: Text(
+                                '${transactions.length} items',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ],
                         ),
+                        const SizedBox(height: AppSpacing.md),
                       ],
                     ),
-
-                    const SizedBox(height: 20),
-                    Text(
-                      "\$${displayTotal.toStringAsFixed(2)}",
-                      style: TextStyle(
-                        color: kPrimaryColor,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    Text(
-                      _selectedFilter == 'All'
-                          ? "Total recently"
-                          : "Total for $_selectedFilter",
-                      style: TextStyle(color: secondaryTextColor, fontSize: 14),
-                    ),
-                  ],
+                  ),
                 ),
+                if (provider.isLoading && provider.currentPage == 1)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                    ),
+                    sliver: SliverList.builder(
+                      itemCount: 5,
+                      itemBuilder: (_, __) => const _TransactionSkeleton(),
+                    ),
+                  )
+                else if (transactions.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _EmptyTransactionsState(
+                      selectedFilter: _selectedFilter,
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      0,
+                      AppSpacing.xl,
+                      120,
+                    ),
+                    sliver: SliverList.builder(
+                      itemCount: transactions.length + (provider.isLoading ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= transactions.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(AppSpacing.xl),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
+                        final transaction = transactions[index];
+                        return _TransactionCard(
+                          transaction: transaction,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TransactionFormScreen(
+                                  transaction: transaction,
+                                ),
+                              ),
+                            );
+                          },
+                          onDelete: () => context
+                              .read<ExpenseProvider>()
+                              .deleteTransaction(transaction.id),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  final String userName;
+  final String? avatarUrl;
+  final double total;
+  final String selectedFilter;
+
+  const _HomeHeader({
+    required this.userName,
+    required this.avatarUrl,
+    required this.total,
+    required this.selectedFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            scheme.primary,
+            AppColors.accent,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary.withValues(alpha: 0.24),
+            blurRadius: 30,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                backgroundImage: (avatarUrl != null && avatarUrl!.isNotEmpty)
+                    ? NetworkImage(avatarUrl!)
+                    : null,
+                child: (avatarUrl == null || avatarUrl!.isEmpty)
+                    ? const Icon(Icons.person_rounded, color: Colors.white)
+                    : null,
               ),
-
-              const SizedBox(height: 10),
-
-              // --- FILTER BAR ---
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  children: [
-                    _buildFilterChip('All', isDark),
-                    _buildFilterChip('Food', isDark),
-                    _buildFilterChip('Travel', isDark),
-                    _buildFilterChip('Shopping', isDark),
-                    _buildFilterChip('Bills', isDark),
-                    _buildFilterChip('Other', isDark),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // --- TRANSACTION LIST (Infinite Scroll + Refresh) ---
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Recent Transactions",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: primaryTextColor,
-                            ),
-                          ),
-                          Text(
-                            "${provider.transactions.length}",
-                            style: TextStyle(
-                              color: secondaryTextColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      'Welcome back',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.84),
                       ),
                     ),
-
-                    Expanded(
-                      // ✅ 2. Wrapped in RefreshIndicator
-                      child: RefreshIndicator(
-                        onRefresh: _onRefresh,
-                        color: kPrimaryColor,
-                        backgroundColor: cardColor,
-                        child: provider.isLoading && provider.currentPage == 1
-                            ? _buildSkeletonList(
-                                cardColor,
-                                Theme.of(context).brightness == Brightness.dark,
-                              )
-                            : ListView.builder(
-                                // ✅ 3. AlwaysScrollableScrollPhysics ensures you can pull
-                                // to refresh even if the list is short/empty
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                controller: _scrollController,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                ),
-                                itemCount: provider.transactions.length + 1,
-                                itemBuilder: (context, index) {
-                                  if (index == provider.transactions.length) {
-                                    return provider.isLoading
-                                        ? Padding(
-                                            padding: const EdgeInsets.all(20),
-                                            child: Center(
-                                              child: CircularProgressIndicator(
-                                                color: kPrimaryColor,
-                                              ),
-                                            ),
-                                          )
-                                        : const SizedBox(height: 80);
-                                  }
-
-                                  return _buildTransactionCard(
-                                    context,
-                                    provider.transactions[index],
-                                    cardColor,
-                                    primaryTextColor,
-                                    secondaryTextColor,
-                                  );
-                                },
-                              ),
+                    Text(
+                      userName,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
                       ),
                     ),
                   ],
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+                child: Text(
+                  DateFormat('MMM d').format(DateTime.now()),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ],
-          );
-        },
-      ),
-    );
-  }
-
-  // --- UI HELPERS ---
-
-  Widget _buildFilterChip(String label, bool isDark) {
-    final bool isSelected =
-        _selectedFilter.toLowerCase() == label.toLowerCase();
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: GestureDetector(
-        onTap: () {
-          setState(() => _selectedFilter = label);
-          _fetchTransactions(reset: true, category: label);
-        },
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? kPrimaryColor
-                : (isDark ? Colors.grey[800] : Colors.grey[200]),
-            borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected
-                  ? Colors.white
-                  : (isDark ? Colors.grey[400] : Colors.black54),
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
+          const SizedBox(height: AppSpacing.xl),
+          Text(
+            '\$${total.toStringAsFixed(2)}',
+            style: theme.textTheme.displaySmall?.copyWith(
+              color: Colors.white,
             ),
           ),
-        ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            selectedFilter == 'All'
+                ? 'Total transactions'
+                : 'Total for $selectedFilter',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildTransactionCard(
-    BuildContext context,
-    TransactionModel transaction,
-    Color cardColor,
-    Color titleColor,
-    Color subColor,
-  ) {
+class _TransactionCard extends StatelessWidget {
+  final TransactionModel transaction;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _TransactionCard({
+    required this.transaction,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final categoryColor = _categoryColor(transaction.category);
+
     return Dismissible(
       key: Key(transaction.id),
-      direction: DismissDirection.startToEnd,
-      confirmDismiss: (direction) async {
-        return await _showDeleteConfirmation(context);
-      },
-      onDismissed: (direction) {
-        Provider.of<ExpenseProvider>(
-          context,
-          listen: false,
-        ).deleteTransaction(transaction.id);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _showDeleteConfirmation(context),
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          color: AppColors.danger,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
         ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 8,
-          ),
-          leading: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: _getCategoryColor(transaction.category).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _getCategoryIcon(transaction.category),
-              color: _getCategoryColor(transaction.category),
-              size: 24,
-            ),
-          ),
-          title: Text(
-            transaction.description.isNotEmpty
-                ? transaction.description
-                : _capitalize(transaction.category),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: titleColor,
-            ),
-          ),
-          subtitle: Text(
-            DateFormat('MMM d, y • h:mm a').format(transaction.date),
-            style: TextStyle(color: subColor, fontSize: 13),
-          ),
-          trailing: Text(
-            "\$${transaction.amount.toStringAsFixed(2)}",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: titleColor,
-            ),
-          ),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TransactionFormScreen(transaction: transaction),
+        alignment: Alignment.centerRight,
+        child: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+      ),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: categoryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    _categoryIcon(transaction.category),
+                    color: categoryColor,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        transaction.description.isNotEmpty
+                            ? transaction.description
+                            : _capitalize(transaction.category),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        DateFormat('MMM d, y • h:mm a').format(transaction.date),
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '\$${transaction.amount.toStringAsFixed(2)}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      _capitalize(transaction.category),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: categoryColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -397,117 +482,159 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<bool?> _showDeleteConfirmation(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
 
     return showDialog<bool>(
       context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+        ),
+        title: Text(
+          'Delete transaction?',
+          style: theme.textTheme.titleLarge,
+        ),
+        content: Text(
+          'This will permanently remove the transaction from your history.',
+          style: theme.textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TransactionSkeleton extends StatelessWidget {
+  const _TransactionSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: theme.dividerColor.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            const Expanded(
+              child: Column(
+                children: [
+                  _SkeletonBar(widthFactor: 0.72),
+                  SizedBox(height: AppSpacing.sm),
+                  _SkeletonBar(widthFactor: 0.45, height: 12),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            const _SkeletonBar(widthFactor: 0.18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonBar extends StatelessWidget {
+  final double widthFactor;
+  final double height;
+
+  const _SkeletonBar({
+    required this.widthFactor,
+    this.height = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FractionallySizedBox(
+        widthFactor: widthFactor,
         child: Container(
-          padding: const EdgeInsets.all(24),
+          height: height,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: isDark
-                ? null
-                : LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Colors.white, Colors.red.shade50.withOpacity(0.3)],
-                  ),
-            color: isDark ? const Color(0xFF1E1E1E) : null,
+            color: theme.dividerColor.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyTransactionsState extends StatelessWidget {
+  final String selectedFilter;
+
+  const _EmptyTransactionsState({
+    required this.selectedFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Icon
               Container(
-                padding: const EdgeInsets.all(16),
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 child: Icon(
-                  Icons.delete_outline_rounded,
-                  size: 48,
-                  color: Colors.red.shade400,
+                  Icons.receipt_long_rounded,
+                  color: scheme.primary,
+                  size: 34,
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // Title
+              const SizedBox(height: AppSpacing.lg),
               Text(
-                'Delete Transaction?',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
+                'No transactions yet',
+                style: theme.textTheme.titleLarge,
               ),
-              const SizedBox(height: 12),
-
-              // Content
+              const SizedBox(height: AppSpacing.sm),
               Text(
-                'Are you sure you want to delete this transaction? This action cannot be undone.',
+                selectedFilter == 'All'
+                    ? 'Start by adding your first expense.'
+                    : 'No transactions found for $selectedFilter.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Buttons
-              Row(
-                children: [
-                  // Cancel Button
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: BorderSide(
-                          color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.grey[300] : Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Delete Button
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade400,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Delete',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                style: theme.textTheme.bodyMedium,
               ),
             ],
           ),
@@ -515,134 +642,45 @@ class _HomeViewState extends State<HomeView> {
       ),
     );
   }
+}
 
-  String _capitalize(String s) =>
-      s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s;
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.local_cafe;
-      case 'travel':
-        return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'bills':
-        return Icons.receipt_long;
-      case 'rent':
-        return Icons.home;
-      case 'other':
-        return Icons.category;
-      default:
-        return Icons.category;
-    }
+IconData _categoryIcon(String category) {
+  switch (category.toLowerCase()) {
+    case 'food':
+      return Icons.restaurant_outlined;
+    case 'travel':
+      return Icons.directions_car_outlined;
+    case 'shopping':
+      return Icons.shopping_bag_outlined;
+    case 'bills':
+      return Icons.receipt_long_outlined;
+    case 'rent':
+      return Icons.home_outlined;
+    default:
+      return Icons.category_outlined;
   }
+}
 
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Colors.teal;
-      case 'travel':
-        return Colors.orange;
-      case 'shopping':
-        return Colors.purple;
-      case 'bills':
-        return const Color(0xFFFF5252);
-      case 'rent':
-        return Colors.indigo;
-      case 'other':
-        return Colors.blueGrey;
-      default:
-        return Colors.blueGrey;
-    }
+Color _categoryColor(String category) {
+  switch (category.toLowerCase()) {
+    case 'food':
+      return const Color(0xFF1C9C76);
+    case 'travel':
+      return const Color(0xFFE29E2B);
+    case 'shopping':
+      return const Color(0xFF8D63D2);
+    case 'bills':
+      return AppColors.danger;
+    case 'rent':
+      return const Color(0xFF4B6ED6);
+    default:
+      return const Color(0xFF607D8B);
   }
+}
 
-  // Skeleton Loading Widgets
-  Widget _buildSkeletonList(Color cardColor, bool isDark) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      itemCount: 5, // Show 5 skeleton items
-      itemBuilder: (context, index) {
-        return _buildSkeletonTransactionCard(cardColor, isDark);
-      },
-    );
+String _capitalize(String value) {
+  if (value.isEmpty) {
+    return value;
   }
-
-  Widget _buildSkeletonTransactionCard(Color cardColor, bool isDark) {
-    final shimmerBaseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
-    final shimmerHighlightColor = isDark
-        ? Colors.grey[700]!
-        : Colors.grey[100]!;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.4, end: 1.0),
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOut,
-          builder: (context, value, child) {
-            return Opacity(opacity: value, child: child);
-          },
-          onEnd: () {
-            // Loop animation
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) setState(() {});
-            });
-          },
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: shimmerBaseColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-        title: Container(
-          width: double.infinity,
-          height: 16,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                shimmerBaseColor,
-                shimmerHighlightColor,
-                shimmerBaseColor,
-              ],
-            ),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        subtitle: Container(
-          width: 100,
-          height: 13,
-          margin: const EdgeInsets.only(top: 6),
-          decoration: BoxDecoration(
-            color: shimmerBaseColor.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        trailing: Container(
-          width: 70,
-          height: 18,
-          decoration: BoxDecoration(
-            color: shimmerBaseColor,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-      ),
-    );
-  }
+  return value[0].toUpperCase() + value.substring(1);
 }

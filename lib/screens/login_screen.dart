@@ -40,9 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return AuthScreenShell(
       eyebrow: 'Welcome back',
-      title: 'Sign in and pick up where you left off.',
-      subtitle:
-          'Your wallet, expenses, and chat should feel like one polished product.',
+      title: 'Sign in',
       footer: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

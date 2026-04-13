@@ -39,9 +39,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return AuthScreenShell(
       eyebrow: 'Create account',
-      title: 'Start with a cleaner financial workspace.',
-      subtitle:
-          'We are standardizing the experience around calm layouts, clear actions, and less clutter.',
+      title: 'Financial workspace.',
       footer: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

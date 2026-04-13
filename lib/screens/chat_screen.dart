@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_radii.dart';
+import '../core/theme/app_spacing.dart';
+import '../core/widgets/section_card.dart';
 import '../models/chat_models.dart';
 import '../providers/chat_provider.dart';
 import '../utils/snackbar_helper.dart';
@@ -15,8 +20,6 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final Color kPrimaryColor = const Color(0xFF00BFA5);
-  final Color kNeutralActionColor = const Color(0xFF64748B);
   static const double _chatSnackTopOffset = kToolbarHeight;
 
   @override
@@ -36,89 +39,113 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[700]!;
-    final headerAccent = isDark
-        ? const Color(0xFF11332F)
-        : const Color(0xFFE7F8F4);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        elevation: 0,
-        title: Text(
-          'Chats',
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Messages')),
       body: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
           return RefreshIndicator(
-            color: kPrimaryColor,
             onRefresh: () => chatProvider.loadInbox(forceSearchRefresh: true),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                _buildSearchCard(
-                  context,
-                  chatProvider,
-                  textColor,
-                  subTextColor,
-                  headerAccent,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                      AppSpacing.xl,
+                      AppSpacing.xl,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Chat',
+                          style: theme.textTheme.displaySmall?.copyWith(
+                            fontSize: 32,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Keep up with friends',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildSearchPanel(context, chatProvider),
+                        if (chatProvider.receivedRequests.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildSectionHeader(
+                            context,
+                            'Friend requests',
+                            '${chatProvider.receivedRequests.length} waiting',
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          SectionCard(
+                            children: chatProvider.receivedRequests
+                                .map(
+                                  (request) =>
+                                      _buildRequestCard(context, request),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildSectionHeader(
+                          context,
+                          'Conversations',
+                          chatProvider.conversations.isEmpty
+                              ? 'Start one by adding a friend'
+                              : '${chatProvider.conversations.length} active',
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        if (chatProvider.isLoading &&
+                            chatProvider.conversations.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (chatProvider.conversations.isEmpty)
+                          _buildEmptyState(
+                            context,
+                            title: 'No conversations yet',
+                            subtitle: 'No Chat',
+                          )
+                        else
+                          SectionCard(
+                            children: chatProvider.conversations
+                                .map(
+                                  (conversation) => _buildConversationRow(
+                                    context,
+                                    conversation,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (chatProvider.sentRequests.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildSectionHeader(
+                            context,
+                            'Pending sent requests',
+                            'Waiting for a reply',
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          SectionCard(
+                            children: chatProvider.sentRequests
+                                .map(
+                                  (request) =>
+                                      _buildSentRequestRow(context, request),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                        const SizedBox(height: 120),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 22),
-                if (chatProvider.receivedRequests.isNotEmpty) ...[
-                  _buildSectionTitle('Friend Requests', textColor),
-                  const SizedBox(height: 10),
-                  ...chatProvider.receivedRequests.map(
-                    (request) => _buildRequestCard(
-                      context,
-                      request,
-                      textColor,
-                      subTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                _buildSectionTitle('Conversations', textColor),
-                const SizedBox(height: 10),
-                if (chatProvider.isLoading &&
-                    chatProvider.conversations.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (chatProvider.conversations.isEmpty)
-                  _buildEmptyState(
-                    context,
-                    title: 'No conversations yet',
-                    subtitle:
-                        'Search for a user and send a friend request to start chatting.',
-                  )
-                else
-                  ...chatProvider.conversations.map(
-                    (conversation) => _buildConversationCard(
-                      context,
-                      conversation,
-                      textColor,
-                      subTextColor,
-                    ),
-                  ),
-                if (chatProvider.sentRequests.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  _buildSectionTitle('Pending Sent Requests', textColor),
-                  const SizedBox(height: 10),
-                  ...chatProvider.sentRequests.map(
-                    (request) => _buildSentRequestCard(
-                      context,
-                      request,
-                      textColor,
-                      subTextColor,
-                    ),
-                  ),
-                ],
               ],
             ),
           );
@@ -127,76 +154,130 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildSearchCard(
-    BuildContext context,
-    ChatProvider chatProvider,
-    Color textColor,
-    Color subTextColor,
-    Color headerAccent,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildSearchPanel(BuildContext context, ChatProvider chatProvider) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Container(
-      padding: const EdgeInsets.all(18),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: headerAccent,
-        borderRadius: BorderRadius.circular(24),
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Find friends',
-            style: TextStyle(
-              color: isDark ? Colors.white : const Color(0xFF08312A),
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.person_search_rounded, color: scheme.primary),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Find people', style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Search by username or email to add a friend.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Search by username or email',
-            style: TextStyle(
-              color: isDark ? Colors.white70 : const Color(0xFF2E5A55),
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _searchController,
-            onChanged: (value) =>
-                context.read<ChatProvider>().searchUsers(value),
+            onChanged: chatProvider.searchUsers,
             decoration: InputDecoration(
               hintText: 'Search users',
-              prefixIcon: Icon(Icons.search, color: kPrimaryColor),
               filled: true,
-              fillColor: Theme.of(context).cardColor,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: scheme.onSurfaceVariant,
+              ),
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                borderSide: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.9),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                borderSide: BorderSide(color: scheme.primary, width: 1.2),
               ),
             ),
+            style: TextStyle(color: scheme.onSurface),
           ),
           if (chatProvider.searchQuery.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            if (chatProvider.searchResults.isEmpty && !chatProvider.isLoading)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'No users found',
-                  style: TextStyle(color: subTextColor),
-                ),
-              )
-            else
-              ...chatProvider.searchResults.map(
-                (user) => _buildSearchUserTile(
-                  context,
-                  chatProvider,
-                  user,
-                  textColor,
-                  subTextColor,
+            const SizedBox(height: AppSpacing.lg),
+            Container(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.8),
                 ),
               ),
+              child:
+                  chatProvider.isLoading && chatProvider.searchResults.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(AppSpacing.xl),
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2.4),
+                        ),
+                      ),
+                    )
+                  : chatProvider.searchResults.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Text(
+                        'No users found for "${chatProvider.searchQuery}".',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.72),
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children: chatProvider.searchResults
+                          .map(
+                            (user) => _buildSearchUserTile(
+                              context,
+                              chatProvider,
+                              user,
+                            ),
+                          )
+                          .toList(),
+                    ),
+            ),
           ],
         ],
       ),
@@ -207,11 +288,8 @@ class _ChatScreenState extends State<ChatScreen> {
     BuildContext context,
     ChatProvider chatProvider,
     ChatUser user,
-    Color textColor,
-    Color subTextColor,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = Theme.of(context).cardColor;
+    final theme = Theme.of(context);
     final relationshipStatus = user.relationshipStatus;
     final alreadyAdded =
         relationshipStatus == 'friend' || chatProvider.isFriend(user.id);
@@ -221,6 +299,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final pendingReceived =
         relationshipStatus == 'received' ||
         chatProvider.hasPendingReceivedRequest(user.id);
+
     final actionLabel = alreadyAdded
         ? 'Friend'
         : pendingSent
@@ -228,275 +307,288 @@ class _ChatScreenState extends State<ChatScreen> {
         : pendingReceived
         ? 'Respond'
         : 'Add';
-    final actionColor = alreadyAdded
-        ? (isDark ? const Color(0xFF1E3A36) : const Color(0xFFDDF5EF))
+
+    final actionBackground = alreadyAdded
+        ? Colors.white.withValues(alpha: 0.16)
         : pendingSent
-        ? (isDark ? const Color(0xFF4A3612) : const Color(0xFFFFF3D6))
+        ? const Color(0xFFF2C267)
         : pendingReceived
-        ? (isDark
-              ? const Color(0xFF11332F)
-              : const Color.fromARGB(255, 95, 132, 123))
-        : kPrimaryColor;
-    final actionTextColor = alreadyAdded
-        ? kPrimaryColor
-        : pendingSent
-        ? const Color(0xFFB7791F)
+        ? Colors.white
         : Colors.white;
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      visualDensity: const VisualDensity(vertical: -2),
-      leading: _buildProfileAvatar(
-        avatarUrl: user.avatar,
-        radius: 22,
-        cardColor: cardColor,
-      ),
-      title: Text(
-        user.username.isNotEmpty ? user.username : user.email,
-        style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        pendingSent ? 'Request pending' : user.email,
-        style: TextStyle(color: subTextColor),
-      ),
-      trailing: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () async {
-          if (alreadyAdded) {
-            final action = await _showFriendOptionsSheet(context, user);
+    final actionForeground = alreadyAdded
+        ? theme.colorScheme.onSurface
+        : pendingSent
+        ? const Color(0xFF5C3B00)
+        : theme.colorScheme.primary;
 
-            if (!context.mounted) return;
-
-            if (action == 'remove') {
-              final confirmed = await _showRemoveFriendConfirmSheet(
-                context,
-                user,
-              );
-              if (!context.mounted || confirmed != true) {
-                return;
-              }
-              try {
-                await chatProvider.removeFriend(user.id);
-                if (!context.mounted) return;
-                showInfoSnackBar(
-                  context,
-                  'Friend removed successfully',
-                  topOffset: _chatSnackTopOffset,
-                );
-              } catch (e) {
-                if (!context.mounted) return;
-                showErrorSnackBar(
-                  context,
-                  e.toString().replaceFirst('Exception: ', ''),
-                  topOffset: _chatSnackTopOffset,
-                );
-              }
-              return;
-            }
-
-            if (action != 'chat') {
-              return;
-            }
-
-            final conversation =
-                chatProvider.findConversationByUserId(user.id) ??
-                (user.conversationId.isNotEmpty
-                    ? ChatConversation(
-                        id: user.conversationId,
-                        friend: user,
-                        lastMessage: '',
-                        lastMessageAt: null,
-                        updatedAt: null,
-                      )
-                    : null);
-            if (conversation != null && context.mounted) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      ChatConversationScreen(conversation: conversation),
-                ),
-              );
-            }
-            return;
-          }
-
-          if (pendingSent) {
-            if (!context.mounted) return;
-            showInfoSnackBar(
-              context,
-              'Friend request already sent',
-              topOffset: _chatSnackTopOffset,
-            );
-            return;
-          }
-
-          if (pendingReceived) {
-            final requestId = user.requestId.isNotEmpty
-                ? user.requestId
-                : _findReceivedRequestId(chatProvider, user.id);
-
-            if (requestId.isEmpty) {
-              await chatProvider.refreshRelationshipState();
-              if (!context.mounted) return;
-              showErrorSnackBar(
-                context,
-                'Pending request not found. Refresh and try again.',
-                topOffset: _chatSnackTopOffset,
-              );
-              return;
-            }
-
-            final action = await _showRespondToRequestSheet(context, user);
-            if (!context.mounted || action == null) return;
-
-            try {
-              if (action == 'accepted') {
-                await chatProvider.acceptFriendRequest(requestId);
-                if (!context.mounted) return;
-                showSuccessSnackBar(
-                  context,
-                  'Friend request accepted',
-                  topOffset: _chatSnackTopOffset,
-                );
-              } else if (action == 'rejected') {
-                await chatProvider.rejectFriendRequest(requestId);
-                if (!context.mounted) return;
-                showInfoSnackBar(
-                  context,
-                  'Friend request dismissed',
-                  topOffset: _chatSnackTopOffset,
-                );
-              }
-            } catch (e) {
-              if (!context.mounted) return;
-              showErrorSnackBar(
-                context,
-                e.toString().replaceFirst('Exception: ', ''),
-                topOffset: _chatSnackTopOffset,
-              );
-            }
-            return;
-          }
-
-          try {
-            chatProvider.markUserRelationship(
-              user.id,
-              relationshipStatus: 'sent',
-              conversationId: user.conversationId,
-              requestId: user.requestId,
-            );
-
-            final result = await chatProvider.sendFriendRequest(user.id);
-            chatProvider.markUserRelationship(
-              user.id,
-              relationshipStatus: result.relationshipStatus,
-              conversationId: result.conversationId.isNotEmpty
-                  ? result.conversationId
-                  : (result.conversation?.id ?? user.conversationId),
-              requestId: result.requestId.isNotEmpty
-                  ? result.requestId
-                  : user.requestId,
-            );
-            if (!context.mounted) return;
-            if (result.conversation != null) {
-              final conversation = ChatConversation(
-                id: result.conversation!.id,
-                friend: user,
-                lastMessage: result.conversation!.lastMessage,
-                lastMessageAt: result.conversation!.lastMessageAt,
-                updatedAt: result.conversation!.updatedAt,
-              );
-              showSuccessSnackBar(
-                context,
-                result.message.isNotEmpty
-                    ? result.message
-                    : 'Friend added successfully',
-                topOffset: _chatSnackTopOffset,
-              );
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      ChatConversationScreen(conversation: conversation),
-                ),
-              );
-            } else {
-              showSuccessSnackBar(
-                context,
-                result.message.isNotEmpty
-                    ? result.message
-                    : 'Friend request sent',
-                topOffset: _chatSnackTopOffset,
-              );
-            }
-          } catch (e) {
-            chatProvider.markUserRelationship(
-              user.id,
-              relationshipStatus: user.relationshipStatus,
-              conversationId: user.conversationId,
-              requestId: user.requestId,
-            );
-            await chatProvider.refreshRelationshipState();
-            if (!context.mounted) return;
-            showErrorSnackBar(
-              context,
-              e.toString().replaceFirst('Exception: ', ''),
-              topOffset: _chatSnackTopOffset,
-            );
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: actionColor,
-            borderRadius: BorderRadius.circular(14),
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 2,
           ),
-          child: Text(
-            actionLabel,
-            style: TextStyle(
-              color: actionTextColor,
-              fontWeight: FontWeight.w700,
+          leading: _Avatar(
+            avatarUrl: user.avatar,
+            size: 46,
+            backgroundColor: Colors.white.withValues(alpha: 0.12),
+            iconColor: Colors.white,
+          ),
+          title: Text(
+            user.username.isNotEmpty ? user.username : user.email,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            pendingSent ? 'Request pending' : user.email,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.66),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: FilledButton.tonal(
+            onPressed: () => _handleRelationshipAction(
+              context,
+              chatProvider,
+              user,
+              alreadyAdded: alreadyAdded,
+              pendingSent: pendingSent,
+              pendingReceived: pendingReceived,
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: actionBackground,
+              foregroundColor: actionForeground,
+              minimumSize: const Size(88, 40),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: Text(actionLabel),
           ),
         ),
-      ),
+        if (chatProvider.searchResults.last.id != user.id)
+          Divider(
+            height: 1,
+            indent: 76,
+            endIndent: AppSpacing.md,
+            color: theme.dividerColor.withValues(alpha: 0.8),
+          ),
+      ],
     );
   }
 
-  Widget _buildRequestCard(
+  Future<void> _handleRelationshipAction(
     BuildContext context,
-    FriendRequestModel request,
-    Color textColor,
-    Color subTextColor,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = Theme.of(context).cardColor;
-    final sender = request.sender;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    ChatProvider chatProvider,
+    ChatUser user, {
+    required bool alreadyAdded,
+    required bool pendingSent,
+    required bool pendingReceived,
+  }) async {
+    if (alreadyAdded) {
+      final action = await _showFriendOptionsSheet(context, user);
+
+      if (!context.mounted) return;
+
+      if (action == 'remove') {
+        final confirmed = await _showRemoveFriendConfirmSheet(context, user);
+        if (!context.mounted || confirmed != true) {
+          return;
+        }
+        try {
+          await chatProvider.removeFriend(user.id);
+          if (!context.mounted) return;
+          showInfoSnackBar(
+            context,
+            'Friend removed successfully',
+            topOffset: _chatSnackTopOffset,
+          );
+        } catch (e) {
+          if (!context.mounted) return;
+          showErrorSnackBar(
+            context,
+            e.toString().replaceFirst('Exception: ', ''),
+            topOffset: _chatSnackTopOffset,
+          );
+        }
+        return;
+      }
+
+      if (action != 'chat') {
+        return;
+      }
+
+      final conversation =
+          chatProvider.findConversationByUserId(user.id) ??
+          (user.conversationId.isNotEmpty
+              ? ChatConversation(
+                  id: user.conversationId,
+                  friend: user,
+                  lastMessage: '',
+                  lastMessageAt: null,
+                  updatedAt: null,
+                )
+              : null);
+
+      if (conversation != null && context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatConversationScreen(conversation: conversation),
           ),
-        ],
-      ),
+        );
+      }
+      return;
+    }
+
+    if (pendingSent) {
+      if (!context.mounted) return;
+      showInfoSnackBar(
+        context,
+        'Friend request already sent',
+        topOffset: _chatSnackTopOffset,
+      );
+      return;
+    }
+
+    if (pendingReceived) {
+      final requestId = user.requestId.isNotEmpty
+          ? user.requestId
+          : _findReceivedRequestId(chatProvider, user.id);
+
+      if (requestId.isEmpty) {
+        await chatProvider.refreshRelationshipState();
+        if (!context.mounted) return;
+        showErrorSnackBar(
+          context,
+          'Pending request not found. Refresh and try again.',
+          topOffset: _chatSnackTopOffset,
+        );
+        return;
+      }
+
+      final action = await _showRespondToRequestSheet(context, user);
+      if (!context.mounted || action == null) return;
+
+      try {
+        if (action == 'accepted') {
+          await chatProvider.acceptFriendRequest(requestId);
+          if (!context.mounted) return;
+          showSuccessSnackBar(
+            context,
+            'Friend request accepted',
+            topOffset: _chatSnackTopOffset,
+          );
+        } else if (action == 'rejected') {
+          await chatProvider.rejectFriendRequest(requestId);
+          if (!context.mounted) return;
+          showInfoSnackBar(
+            context,
+            'Friend request dismissed',
+            topOffset: _chatSnackTopOffset,
+          );
+        }
+      } catch (e) {
+        if (!context.mounted) return;
+        showErrorSnackBar(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+          topOffset: _chatSnackTopOffset,
+        );
+      }
+      return;
+    }
+
+    try {
+      chatProvider.markUserRelationship(
+        user.id,
+        relationshipStatus: 'sent',
+        conversationId: user.conversationId,
+        requestId: user.requestId,
+      );
+
+      final result = await chatProvider.sendFriendRequest(user.id);
+      chatProvider.markUserRelationship(
+        user.id,
+        relationshipStatus: result.relationshipStatus,
+        conversationId: result.conversationId.isNotEmpty
+            ? result.conversationId
+            : (result.conversation?.id ?? user.conversationId),
+        requestId: result.requestId.isNotEmpty
+            ? result.requestId
+            : user.requestId,
+      );
+
+      if (!context.mounted) return;
+
+      if (result.conversation != null) {
+        final conversation = ChatConversation(
+          id: result.conversation!.id,
+          friend: user,
+          lastMessage: result.conversation!.lastMessage,
+          lastMessageAt: result.conversation!.lastMessageAt,
+          updatedAt: result.conversation!.updatedAt,
+        );
+        showSuccessSnackBar(
+          context,
+          result.message.isNotEmpty
+              ? result.message
+              : 'Friend added successfully',
+          topOffset: _chatSnackTopOffset,
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatConversationScreen(conversation: conversation),
+          ),
+        );
+      } else {
+        showSuccessSnackBar(
+          context,
+          result.message.isNotEmpty ? result.message : 'Friend request sent',
+          topOffset: _chatSnackTopOffset,
+        );
+      }
+    } catch (e) {
+      chatProvider.markUserRelationship(
+        user.id,
+        relationshipStatus: user.relationshipStatus,
+        conversationId: user.conversationId,
+        requestId: user.requestId,
+      );
+      await chatProvider.refreshRelationshipState();
+      if (!context.mounted) return;
+      showErrorSnackBar(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        topOffset: _chatSnackTopOffset,
+      );
+    }
+  }
+
+  Widget _buildRequestCard(BuildContext context, FriendRequestModel request) {
+    final theme = Theme.of(context);
+    final sender = request.sender;
+
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
           Row(
             children: [
-              _buildProfileAvatar(
+              _Avatar(
                 avatarUrl: sender.avatar,
-                radius: 20,
-                cardColor: cardColor,
+                size: 48,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                iconColor: theme.colorScheme.primary,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,51 +597,37 @@ class _ChatScreenState extends State<ChatScreen> {
                       sender.username.isNotEmpty
                           ? sender.username
                           : sender.email,
-                      style: TextStyle(
-                        color: textColor,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: theme.textTheme.titleMedium,
                     ),
-                    Text(
-                      sender.email,
-                      style: TextStyle(color: subTextColor, fontSize: 12),
-                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(sender.email, style: theme.textTheme.bodyMedium),
                   ],
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
+                  horizontal: AppSpacing.sm,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF242424)
-                      : const Color(0xFFF2F4F7),
-                  borderRadius: BorderRadius.circular(12),
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   'Request',
-                  style: TextStyle(
-                    color: subTextColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               Expanded(
-                child: _buildActionButton(
-                  label: 'Later',
-                  backgroundColor: isDark
-                      ? const Color(0xFF242424)
-                      : const Color(0xFFF2F4F7),
-                  textColor: kNeutralActionColor,
-                  onTap: () async {
+                child: OutlinedButton(
+                  onPressed: () async {
                     try {
                       await context.read<ChatProvider>().rejectFriendRequest(
                         request.id,
@@ -569,15 +647,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       );
                     }
                   },
+                  child: const Text('Later'),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: _buildActionButton(
-                  label: 'Accept',
-                  backgroundColor: kPrimaryColor,
-                  textColor: Colors.white,
-                  onTap: () async {
+                child: FilledButton(
+                  onPressed: () async {
                     try {
                       await context.read<ChatProvider>().acceptFriendRequest(
                         request.id,
@@ -597,6 +673,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       );
                     }
                   },
+                  child: const Text('Accept'),
                 ),
               ),
             ],
@@ -606,112 +683,117 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildConversationCard(
+  Widget _buildConversationRow(
     BuildContext context,
     ChatConversation conversation,
-    Color textColor,
-    Color subTextColor,
   ) {
-    final cardColor = Theme.of(context).cardColor;
+    final theme = Theme.of(context);
     final friend = conversation.friend;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
+    final lastMessage = conversation.lastMessage.isNotEmpty
+        ? conversation.lastMessage
+        : 'Start the conversation';
+
+    return ListTile(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatConversationScreen(conversation: conversation),
+          ),
+        );
+      },
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
       ),
-      child: ListTile(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  ChatConversationScreen(conversation: conversation),
-            ),
-          );
-        },
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 10,
-        ),
-        leading: _buildProfileAvatar(
-          avatarUrl: friend.avatar,
-          radius: 24,
-          cardColor: cardColor,
-        ),
-        title: Text(
-          friend.username.isNotEmpty ? friend.username : friend.email,
-          style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          conversation.lastMessage.isNotEmpty
-              ? conversation.lastMessage
-              : 'Start the conversation',
+      leading: _Avatar(
+        avatarUrl: friend.avatar,
+        size: 52,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        iconColor: theme.colorScheme.primary,
+      ),
+      title: Text(
+        friend.username.isNotEmpty ? friend.username : friend.email,
+        style: theme.textTheme.titleMedium,
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          lastMessage,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: subTextColor),
+          style: theme.textTheme.bodyMedium,
         ),
-        trailing: Text(
-          _formatTimestamp(conversation.lastMessageAt),
-          style: TextStyle(color: subTextColor, fontSize: 11),
-        ),
+      ),
+      trailing: Text(
+        _formatTimestamp(conversation.lastMessageAt),
+        style: theme.textTheme.bodyMedium,
       ),
     );
   }
 
-  Widget _buildSentRequestCard(
+  Widget _buildSentRequestRow(
     BuildContext context,
     FriendRequestModel request,
-    Color textColor,
-    Color subTextColor,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = Theme.of(context).cardColor;
+    final theme = Theme.of(context);
     final receiver = request.receiver;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        leading: _buildProfileAvatar(
-          avatarUrl: receiver.avatar,
-          radius: 21,
-          cardColor: cardColor,
+      leading: _Avatar(
+        avatarUrl: receiver.avatar,
+        size: 48,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        iconColor: theme.colorScheme.primary,
+      ),
+      title: Text(
+        receiver.username.isNotEmpty ? receiver.username : receiver.email,
+        style: theme.textTheme.titleMedium,
+      ),
+      subtitle: Text('Pending approval', style: theme.textTheme.bodyMedium),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 6,
         ),
-        title: Text(
-          receiver.username.isNotEmpty ? receiver.username : receiver.email,
-          style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
         ),
-        subtitle: Text(
-          'Pending approval',
-          style: TextStyle(color: subTextColor),
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF242424) : const Color(0xFFF2F4F7),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            'Pending',
-            style: TextStyle(
-              color: subTextColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+        child: Text(
+          'Pending',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, Color color) {
-    return Text(
-      title,
-      style: TextStyle(color: color, fontSize: 17, fontWeight: FontWeight.bold),
+  Widget _buildSectionHeader(
+    BuildContext context,
+    String title,
+    String subtitle,
+  ) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: theme.textTheme.titleLarge),
+              const SizedBox(height: AppSpacing.xs),
+              Text(subtitle, style: theme.textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -721,22 +803,37 @@ class _ChatScreenState extends State<ChatScreen> {
     required String subtitle,
   }) {
     final theme = Theme.of(context);
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         children: [
-          Icon(Icons.chat_bubble_outline, size: 40, color: kPrimaryColor),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.chat_bubble_outline_rounded,
+              color: theme.colorScheme.primary,
+              size: 30,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(title, style: theme.textTheme.titleLarge),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey[600]),
+            style: theme.textTheme.bodyMedium,
           ),
         ],
       ),
@@ -752,152 +849,6 @@ class _ChatScreenState extends State<ChatScreen> {
     return DateFormat('dd MMM').format(value);
   }
 
-  Widget _buildActionButton({
-    required String label,
-    required Color backgroundColor,
-    required Color textColor,
-    required Future<void> Function() onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () async => onTap(),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(color: textColor, fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileAvatar({
-    required String avatarUrl,
-    required double radius,
-    required Color cardColor,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: cardColor, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: CircleAvatar(
-        radius: radius,
-        backgroundColor: const Color(0xFFF5F7FA),
-        child: ClipOval(
-          child: avatarUrl.isNotEmpty
-              ? Image.network(
-                  avatarUrl,
-                  width: radius * 2,
-                  height: radius * 2,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(Icons.person, size: 24, color: Colors.grey),
-                    );
-                  },
-                )
-              : const Center(
-                  child: Icon(Icons.person, size: 24, color: Colors.grey),
-                ),
-        ),
-      ),
-    );
-  }
-
-  Future<String?> _showFriendOptionsSheet(BuildContext context, ChatUser user) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[700]!;
-
-    return showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black12,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              const SizedBox(height: 18),
-              _buildProfileAvatar(
-                avatarUrl: user.avatar,
-                radius: 32,
-                cardColor: theme.cardColor,
-              ),
-              const SizedBox(height: 14),
-              Text(
-                user.username.isNotEmpty ? user.username : user.email,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                user.email,
-                style: TextStyle(color: subTextColor, fontSize: 13),
-              ),
-              const SizedBox(height: 18),
-              _buildSheetAction(
-                context: sheetContext,
-                label: 'Open Chat',
-                subtitle: 'Continue your conversation',
-                backgroundColor: isDark
-                    ? const Color(0xFF11332F)
-                    : const Color(0xFFE7F8F4),
-                icon: Icons.chat_bubble_outline,
-                iconColor: kPrimaryColor,
-                textColor: textColor,
-                onTap: () => Navigator.pop(sheetContext, 'chat'),
-              ),
-              const SizedBox(height: 12),
-              _buildSheetAction(
-                context: sheetContext,
-                label: 'Remove Friend',
-                subtitle: 'Delete this friend connection',
-                backgroundColor: isDark
-                    ? const Color(0xFF2A1717)
-                    : const Color(0xFFFFEBEB),
-                icon: Icons.person_remove_outlined,
-                iconColor: const Color(0xFFE05555),
-                textColor: textColor,
-                onTap: () => Navigator.pop(sheetContext, 'remove'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   String _findReceivedRequestId(ChatProvider chatProvider, String userId) {
     for (final request in chatProvider.receivedRequests) {
       if (request.sender.id == userId) {
@@ -907,87 +858,142 @@ class _ChatScreenState extends State<ChatScreen> {
     return '';
   }
 
-  Future<String?> _showRespondToRequestSheet(
-    BuildContext context,
-    ChatUser user,
-  ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[700]!;
-
+  Future<String?> _showFriendOptionsSheet(BuildContext context, ChatUser user) {
     return showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(28),
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.xl,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black12,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              const SizedBox(height: 18),
-              _buildProfileAvatar(
+              _Avatar(
                 avatarUrl: user.avatar,
-                radius: 32,
-                cardColor: theme.cardColor,
+                size: 72,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                iconColor: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 user.username.isNotEmpty ? user.username : user.email,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(user.email, style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: AppSpacing.lg),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
+                tileColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                leading: Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: const Text('Open chat'),
+                subtitle: const Text('Continue your conversation'),
+                onTap: () => Navigator.pop(context, 'chat'),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Respond to this friend request',
-                style: TextStyle(color: subTextColor, fontSize: 13),
-              ),
-              const SizedBox(height: 18),
-              _buildSheetAction(
-                context: sheetContext,
-                label: 'Accept',
-                subtitle: 'Add this user to your friends list',
-                backgroundColor: isDark
-                    ? const Color(0xFF11332F)
-                    : const Color(0xFFE7F8F4),
-                icon: Icons.check_circle_outline,
-                iconColor: kPrimaryColor,
-                textColor: textColor,
-                onTap: () => Navigator.pop(sheetContext, 'accepted'),
-              ),
-              const SizedBox(height: 12),
-              _buildSheetAction(
-                context: sheetContext,
-                label: 'Dismiss',
-                subtitle: 'Reject this pending request',
-                backgroundColor: isDark
-                    ? const Color(0xFF242424)
-                    : const Color(0xFFF2F4F7),
-                icon: Icons.close,
-                iconColor: kNeutralActionColor,
-                textColor: textColor,
-                onTap: () => Navigator.pop(sheetContext, 'rejected'),
+              const SizedBox(height: AppSpacing.sm),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                tileColor: AppColors.danger.withValues(alpha: 0.08),
+                leading: const Icon(
+                  Icons.person_remove_outlined,
+                  color: AppColors.danger,
+                ),
+                title: const Text('Remove friend'),
+                subtitle: const Text('Delete this friend connection'),
+                onTap: () => Navigator.pop(context, 'remove'),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showRespondToRequestSheet(
+    BuildContext context,
+    ChatUser user,
+  ) {
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Avatar(
+                avatarUrl: user.avatar,
+                size: 72,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                iconColor: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                user.username.isNotEmpty ? user.username : user.email,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Respond to this friend request',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                tileColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                leading: Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: const Text('Accept'),
+                subtitle: const Text('Add this user to your friends list'),
+                onTap: () => Navigator.pop(context, 'accepted'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                tileColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                leading: const Icon(Icons.close_rounded),
+                title: const Text('Dismiss'),
+                subtitle: const Text('Reject this pending request'),
+                onTap: () => Navigator.pop(context, 'rejected'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -995,157 +1001,95 @@ class _ChatScreenState extends State<ChatScreen> {
     BuildContext context,
     ChatUser user,
   ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[700]!;
-
     return showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(28),
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.xl,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 42,
-                height: 4,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black12,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF2A1717)
-                      : const Color(0xFFFFEBEB),
+                  color: AppColors.danger.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.person_remove_outlined,
-                  color: Color(0xFFE05555),
-                  size: 32,
+                  color: AppColors.danger,
+                  size: 34,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'Remove friend?',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 'You will remove ${user.username.isNotEmpty ? user.username : user.email} from your friends list and delete your chat history.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: subTextColor,
-                  fontSize: 13,
-                  height: 1.5,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: AppSpacing.lg),
               Row(
                 children: [
                   Expanded(
-                    child: _buildActionButton(
-                      label: 'Cancel',
-                      backgroundColor: isDark
-                          ? const Color(0xFF242424)
-                          : const Color(0xFFF2F4F7),
-                      textColor: kNeutralActionColor,
-                      onTap: () async => Navigator.pop(sheetContext, false),
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
-                    child: _buildActionButton(
-                      label: 'Remove',
-                      backgroundColor: const Color(0xFFE05555),
-                      textColor: Colors.white,
-                      onTap: () async => Navigator.pop(sheetContext, true),
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.danger,
+                      ),
+                      child: const Text('Remove'),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSheetAction({
-    required BuildContext context,
-    required String label,
-    required String subtitle,
-    required Color backgroundColor,
-    required IconData icon,
-    required Color iconColor,
-    required Color textColor,
-    required VoidCallback onTap,
-  }) {
-    final subTextColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey[400]!
-        : Colors.grey[700]!;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.75),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconColor),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: textColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(color: subTextColor, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: subTextColor),
-          ],
         ),
       ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final String avatarUrl;
+  final double size;
+  final Color backgroundColor;
+  final Color iconColor;
+
+  const _Avatar({
+    required this.avatarUrl,
+    required this.size,
+    required this.backgroundColor,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: backgroundColor,
+      backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+      child: avatarUrl.isEmpty
+          ? Icon(Icons.person_rounded, color: iconColor)
+          : null,
     );
   }
 }

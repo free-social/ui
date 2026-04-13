@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../providers/wallet_provider.dart';
-import '../../utils/snackbar_helper.dart';
+import 'package:provider/provider.dart';
+
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_radii.dart';
+import '../core/theme/app_spacing.dart';
+import '../providers/wallet_provider.dart';
+import '../utils/snackbar_helper.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -11,1190 +15,723 @@ class WalletScreen extends StatefulWidget {
   State<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  late PageController _pageController; // For card swipe animation
-  bool _isListView = false; // Toggle between PageView and ListView
-
+class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-
-    // Initialize page controller for card carousel
-    _pageController = PageController(viewportFraction: 1);
-
-    // Initialize animation controller
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
-
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
-
-    // Fetch wallet data when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WalletProvider>().fetchWalletData();
-      _animationController.forward(); // Start animation
     });
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _animationController.dispose();
-    super.dispose();
-  }
+  Future<void> _showWalletAmountDialog({
+    required String title,
+    required String description,
+    required String confirmLabel,
+    required Future<void> Function(double amount) onSubmit,
+  }) async {
+    final controller = TextEditingController();
+    final theme = Theme.of(context);
 
-  // 🟢 1. Add Wallet - Modern Dialog
-  void _showAddWalletDialog(BuildContext context) {
-    final TextEditingController amountController = TextEditingController();
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
+    await showDialog<void>(
       context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+        ),
+        title: Text(title, style: theme.textTheme.titleLarge),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(description, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: AppSpacing.lg),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                hintText: '0.00',
+                prefixIcon: Icon(Icons.attach_money_rounded),
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Gradient Header
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.green.shade400, Colors.teal.shade600],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.add_circle,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Text(
-                        "Add to Wallet",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Enter Amount",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDarkMode
-                              ? Colors.white70
-                              : Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: amountController,
-                        keyboardType: TextInputType.number,
-                        autofocus: true,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: "0.00",
-                          prefixIcon: Icon(
-                            Icons.attach_money,
-                            color: Colors.green.shade600,
-                          ),
-                          filled: true,
-                          fillColor: isDarkMode
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade100,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.all(20),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                "Cancel",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDarkMode
-                                      ? Colors.white70
-                                      : Colors.grey.shade700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                final amount =
-                                    double.tryParse(amountController.text) ??
-                                    0.0;
-                                if (amount <= 0) return;
-                                Navigator.pop(context);
-                                _processTopUpWallet(amount, "Add Wallet");
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade600,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: const Text(
-                                "Add",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
           ),
-        );
-      },
+          ElevatedButton(
+            onPressed: () async {
+              final amount = double.tryParse(controller.text.trim());
+              if (amount == null || amount < 0) {
+                return;
+              }
+
+              Navigator.of(dialogContext).pop();
+              await onSubmit(amount);
+            },
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
     );
   }
 
-  // 🔴 2. Renew Wallet - Modern Dialog
-  void _showRenewWalletDialog(BuildContext context) {
-    final TextEditingController amountController = TextEditingController();
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
+  Future<void> _confirmReset() async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+        ),
+        title: const Text('Reset wallet?'),
+        content: const Text(
+          'This will set the wallet balance to \$0.00.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
           ),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Gradient Header
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.amber.shade400, Colors.orange.shade600],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.sync_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Text(
-                        "Renew Wallet",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Set New Balance",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDarkMode
-                              ? Colors.white70
-                              : Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "This will replace your current balance",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: amountController,
-                        keyboardType: TextInputType.number,
-                        autofocus: true,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: "0.00",
-                          prefixIcon: Icon(
-                            Icons.attach_money,
-                            color: Colors.orange.shade600,
-                          ),
-                          filled: true,
-                          fillColor: isDarkMode
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade100,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.all(20),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                "Cancel",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDarkMode
-                                      ? Colors.white70
-                                      : Colors.grey.shade700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                final amount = double.tryParse(
-                                  amountController.text,
-                                );
-                                if (amount == null || amount < 0) return;
-                                Navigator.pop(context);
-                                _processUpdateWallet(amount, "Renew Wallet");
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange.shade600,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: const Text(
-                                "Update",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            child: const Text('Reset'),
           ),
-        );
-      },
+        ],
+      ),
     );
-  }
 
-  // ⚪ 3. Reset Wallet - Modern Dialog
-  void _showResetWalletDialog(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Gradient Header
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.red.shade400, Colors.pink.shade600],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.refresh_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Text(
-                        "Reset Wallet",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: Colors.red.shade600,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                "This will reset your wallet balance to \$0.00",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.red.shade900,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                "Cancel",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDarkMode
-                                      ? Colors.white70
-                                      : Colors.grey.shade700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                Navigator.pop(context);
-                                _processUpdateWallet(0.0, "Reset Wallet");
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.shade600,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: const Text(
-                                "Reset",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _processTopUpWallet(double amount, String actionName) async {
-    showInfoSnackBar(context, 'Processing...');
-    try {
-      await context.read<WalletProvider>().topUpWallet(amount);
-      if (mounted) showSuccessSnackBar(context, '$actionName Successful!');
-    } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Error: $e');
+    if (confirmed == true) {
+      await _processWalletAction(
+        actionLabel: 'Reset wallet',
+        action: () => context.read<WalletProvider>().updateWalletBalance(0.0),
+      );
     }
   }
 
-  Future<void> _processUpdateWallet(
-    double newBalance,
-    String actionName,
-  ) async {
-    showInfoSnackBar(context, 'Updating...');
+  Future<void> _processWalletAction({
+    required String actionLabel,
+    required Future<void> Function() action,
+  }) async {
+    showInfoSnackBar(context, '$actionLabel in progress...');
     try {
-      await context.read<WalletProvider>().updateWalletBalance(newBalance);
-      if (mounted) showSuccessSnackBar(context, '$actionName Successful!');
-    } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Error: $e');
+      await action();
+      if (mounted) {
+        showSuccessSnackBar(context, '$actionLabel successful');
+      }
+    } catch (error) {
+      if (mounted) {
+        showErrorSnackBar(
+          context,
+          error.toString().replaceFirst('Exception: ', ''),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🌑 Dark Mode Check
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    final backgroundColor = isDarkMode
-        ? const Color(0xFF121212)
-        : const Color(0xFFF5F7FA);
-    final cardBackgroundColor = isDarkMode
-        ? const Color(0xFF1E1E1E)
-        : Colors.white;
-    final primaryTextColor = isDarkMode ? Colors.white : Colors.black87;
-    final secondaryTextColor = isDarkMode ? Colors.white70 : Colors.grey;
+    final theme = Theme.of(context);
 
     return SafeArea(
-      child: Scaffold(
-        backgroundColor: backgroundColor,
-        body: Consumer<WalletProvider>(
-          builder: (context, walletProvider, child) {
-            // Handle loading state - Show skeleton
-            if (walletProvider.isLoading && walletProvider.walletData == null) {
-              return _buildSkeletonLoading(
-                backgroundColor,
-                cardBackgroundColor,
-                isDarkMode,
-              );
-            }
+      child: Consumer<WalletProvider>(
+        builder: (context, walletProvider, child) {
+          if (walletProvider.isLoading && walletProvider.walletData == null) {
+            return const _WalletLoadingState();
+          }
 
-            // Handle error state
-            if (walletProvider.error != null &&
-                walletProvider.walletData == null) {
-              return Center(
-                child: Text(
-                  'Error: ${walletProvider.error}',
-                  style: TextStyle(color: primaryTextColor),
-                ),
-              );
-            }
+          if (walletProvider.error != null && walletProvider.walletData == null) {
+            return _WalletMessageState(
+              title: 'Could not load wallet',
+              message: walletProvider.error!,
+              actionLabel: 'Try again',
+              onPressed: walletProvider.fetchWalletData,
+            );
+          }
 
-            // Handle no data
-            if (walletProvider.walletData == null) {
-              return Center(
-                child: Text(
-                  'No Data',
-                  style: TextStyle(color: primaryTextColor),
-                ),
-              );
-            }
+          final walletData = walletProvider.walletData;
+          if (walletData == null) {
+            return _WalletMessageState(
+              title: 'Wallet unavailable',
+              message: 'No wallet data has been returned yet.',
+              actionLabel: 'Refresh',
+              onPressed: walletProvider.fetchWalletData,
+            );
+          }
 
-            // Extract data from provider
-            final walletData = walletProvider.walletData!;
-            final lastMonthExpense = walletProvider.lastMonthExpense;
-            final transactions = walletData.transactions;
-            double calcBalance = 0;
-            for (var tx in transactions) calcBalance += tx.amount;
-            final walletModel = walletData.walletBalance;
+          final transactions = walletData.transactions;
+          final transactionNet = transactions.fold<double>(
+            0,
+            (sum, transaction) => sum + transaction.amount,
+          );
 
-            return RefreshIndicator(
-              onRefresh: () => walletProvider.refreshData(),
-              color: const Color(0xFF00BFA5),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const SizedBox(width: 48), // For balance
-                          Text(
-                            "My Wallet",
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: primaryTextColor,
-                            ),
-                          ),
-                          // View Toggle Button
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _isListView = !_isListView;
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: cardBackgroundColor,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isDarkMode
-                                        ? Colors.black.withOpacity(0.3)
-                                        : Colors.grey.withOpacity(0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
+          final currentMonth = DateFormat('MMMM y').format(DateTime.now());
+          final previousMonth = DateFormat('MMM').format(
+            DateTime(DateTime.now().year, DateTime.now().month - 1),
+          );
+
+          return RefreshIndicator(
+            onRefresh: walletProvider.refreshData,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                      AppSpacing.xl,
+                      AppSpacing.xl,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Wallet',
+                                    style: theme.textTheme.displaySmall?.copyWith(
+                                      fontSize: 32,
+                                    ),
                                   ),
+                
                                 ],
                               ),
-                              child: Icon(
-                                _isListView
-                                    ? Icons.view_carousel
-                                    : Icons.view_list,
-                                color: const Color(0xFF00BFA5),
-                                size: 24,
-                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Animated wallet cards
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: _isListView
-                              ? _buildCardListView(
-                                  calcBalance,
-                                  walletModel.balance,
-                                  lastMonthExpense,
-                                )
-                              : _buildTopCardsSection(
-                                  calcBalance,
-                                  walletModel.balance,
-                                  lastMonthExpense,
-                                ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      // Button Container
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        decoration: BoxDecoration(
-                          color: cardBackgroundColor,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: isDarkMode
-                                  ? Colors.black.withOpacity(0.3)
-                                  : Colors.grey.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
+                            IconButton.filledTonal(
+                              onPressed: walletProvider.refreshData,
+                              icon: const Icon(Icons.refresh_rounded),
                             ),
                           ],
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        const SizedBox(height: AppSpacing.xl),
+                        _WalletBalanceCard(
+                          title: 'Available balance',
+                          amount: walletData.walletBalance.balance,
+                          subtitle: 'Tracked wallet amount',
+                          icon: Icons.account_balance_wallet_rounded,
+                          colors: const [
+                            AppColors.seed,
+                            AppColors.accent,
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        Row(
                           children: [
-                            GestureDetector(
-                              onTap: () => _showAddWalletDialog(context),
-                              child: _buildNewActionButton(
-                                Icons.add,
-                                "Add Wallet",
-                                const Color(0xFFE0F7F5),
-                                const Color(0xFF00C4B4),
-                                isDarkMode,
+                            Expanded(
+                              child: _WalletStatCard(
+                                title: 'Transaction net',
+                                value: transactionNet,
+                                icon: Icons.swap_vert_rounded,
+                                accentColor: const Color(0xFF4B6ED6),
                               ),
                             ),
-                            Container(
-                              width: 1,
-                              height: 50,
-                              color: secondaryTextColor.withOpacity(0.2),
-                            ),
-                            GestureDetector(
-                              onTap: () => _showRenewWalletDialog(context),
-                              child: _buildNewActionButton(
-                                Icons.sync,
-                                "Renew Wallet",
-                                const Color(0xFFFFEBEE),
-                                const Color(0xFFEF5350),
-                                isDarkMode,
-                              ),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 50,
-                              color: secondaryTextColor.withOpacity(0.2),
-                            ),
-                            GestureDetector(
-                              onTap: () => _showResetWalletDialog(context),
-                              child: _buildNewActionButton(
-                                Icons.refresh,
-                                "Reset Wallet",
-                                const Color(0xFFE8EAF6),
-                                const Color(0xFF3F51B5),
-                                isDarkMode,
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: _WalletStatCard(
+                                title: 'Expense ($previousMonth)',
+                                value: walletProvider.lastMonthExpense,
+                                icon: Icons.calendar_month_rounded,
+                                accentColor: AppColors.danger,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: AppSpacing.xl),
+                        Text(
+                          'Quick actions',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _WalletActionCard(
+                                icon: Icons.add_circle_outline_rounded,
+                                label: 'Add funds',
+                                accentColor: AppColors.success,
+                                onTap: () => _showWalletAmountDialog(
+                                  title: 'Add funds',
+                                  description:
+                                      'Increase the wallet balance by the amount you enter.',
+                                  confirmLabel: 'Add',
+                                  onSubmit: (amount) => _processWalletAction(
+                                    actionLabel: 'Add funds',
+                                    action: () => context
+                                        .read<WalletProvider>()
+                                        .topUpWallet(amount),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: _WalletActionCard(
+                                icon: Icons.sync_alt_rounded,
+                                label: 'Set balance',
+                                accentColor: AppColors.warning,
+                                onTap: () => _showWalletAmountDialog(
+                                  title: 'Set wallet balance',
+                                  description:
+                                      'Replace the current wallet balance with a new amount.',
+                                  confirmLabel: 'Update',
+                                  onSubmit: (amount) => _processWalletAction(
+                                    actionLabel: 'Update balance',
+                                    action: () => context
+                                        .read<WalletProvider>()
+                                        .updateWalletBalance(amount),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: _WalletActionCard(
+                                icon: Icons.refresh_rounded,
+                                label: 'Reset',
+                                accentColor: AppColors.danger,
+                                onTap: _confirmReset,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Row(
+                          children: [
+                            Text(
+                              'Recent wallet transactions',
+                              style: theme.textTheme.titleLarge,
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.sm,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.pill,
+                                ),
+                              ),
+                              child: Text(
+                                '${transactions.length} items',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  // --- Widgets ---
-
-  Widget _buildTopCardsSection(
-    double historyBalance,
-    double realWalletBalance,
-    double lastMonthExpense,
-  ) {
-    DateTime now = DateTime.now();
-    DateTime prevDate = DateTime(now.year, now.month - 1);
-    String prevMonthName = DateFormat('MMM').format(prevDate);
-
-    final cards = [
-      {
-        "title": "Transaction Net",
-        "amount": historyBalance,
-        "icon": Icons.history,
-        "colors": [
-          Colors.blue.shade400,
-          Colors.blue.shade600,
-          Colors.blue.shade800.withOpacity(0.9),
-        ],
-      },
-      {
-        "title": "Total Wallet",
-        "amount": realWalletBalance,
-        "icon": Icons.account_balance_wallet,
-        "colors": [
-          Colors.teal.shade400,
-          Colors.teal.shade600,
-          Colors.teal.shade800.withOpacity(0.9),
-        ],
-      },
-      {
-        "title": "Expense ($prevMonthName)",
-        "amount": lastMonthExpense,
-        "icon": Icons.calendar_today,
-        "colors": [
-          Colors.red.shade400,
-          Colors.red.shade600,
-          Colors.red.shade800.withOpacity(0.9),
-        ],
-      },
-    ];
-
-    return SizedBox(
-      height: 200, // Increased height to accommodate scale
-      width: double.infinity,
-      child: PageView.builder(
-        controller: _pageController,
-        itemCount: cards.length,
-        itemBuilder: (context, index) {
-          return AnimatedBuilder(
-            animation: _pageController,
-            builder: (context, child) {
-              double value = 1.0;
-              if (_pageController.position.haveDimensions) {
-                value = _pageController.page! - index;
-                value = (1 - (value.abs() * 0.3)).clamp(0.8, 1.0);
-              }
-
-              return Center(
-                child: Transform.scale(scale: value, child: child),
-              );
-            },
-            child: _buildSingleCard(
-              cards[index]["title"] as String,
-              cards[index]["amount"] as double,
-              cards[index]["icon"] as IconData,
-              cards[index]["colors"] as List<Color>,
+                if (transactions.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _WalletEmptyState(),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      0,
+                      AppSpacing.xl,
+                      120,
+                    ),
+                    sliver: SliverList.separated(
+                      itemCount: transactions.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: AppSpacing.md),
+                      itemBuilder: (context, index) {
+                        final transaction = transactions[index];
+                        return Card(
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                              vertical: AppSpacing.sm,
+                            ),
+                            leading: Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                Icons.payments_outlined,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            title: Text(
+                              transaction.description.isNotEmpty
+                                  ? transaction.description
+                                  : 'Wallet movement',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            subtitle: Text(
+                              DateFormat('MMM d, y • h:mm a')
+                                  .format(transaction.date),
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            trailing: Text(
+                              '\$${transaction.amount.toStringAsFixed(2)}',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
           );
         },
       ),
     );
   }
+}
 
-  // List View for Cards
-  Widget _buildCardListView(
-    double historyBalance,
-    double realWalletBalance,
-    double lastMonthExpense,
-  ) {
-    DateTime now = DateTime.now();
-    DateTime prevDate = DateTime(now.year, now.month - 1);
-    String prevMonthName = DateFormat('MMM').format(prevDate);
+class _WalletBalanceCard extends StatelessWidget {
+  final String title;
+  final double amount;
+  final String subtitle;
+  final IconData icon;
+  final List<Color> colors;
 
-    final cards = [
-      {
-        "title": "Transaction Net",
-        "amount": historyBalance,
-        "icon": Icons.history,
-        "colors": [
-          Colors.blue.shade400,
-          Colors.blue.shade600,
-          Colors.blue.shade800.withOpacity(0.9),
-        ],
-      },
-      {
-        "title": "Total Wallet",
-        "amount": realWalletBalance,
-        "icon": Icons.account_balance_wallet,
-        "colors": [
-          Colors.teal.shade400,
-          Colors.teal.shade600,
-          Colors.teal.shade800.withOpacity(0.9),
-        ],
-      },
-      {
-        "title": "Expense ($prevMonthName)",
-        "amount": lastMonthExpense,
-        "icon": Icons.calendar_today,
-        "colors": [
-          Colors.red.shade400,
-          Colors.red.shade600,
-          Colors.red.shade800.withOpacity(0.9),
-        ],
-      },
-    ];
+  const _WalletBalanceCard({
+    required this.title,
+    required this.amount,
+    required this.subtitle,
+    required this.icon,
+    required this.colors,
+  });
 
-    return Column(
-      children: cards.map((card) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: _buildSingleCard(
-            card["title"] as String,
-            card["amount"] as double,
-            card["icon"] as IconData,
-            card["colors"] as List<Color>,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildSingleCard(
-    String title,
-    double amount,
-    IconData icon,
-    List<Color> gradientColors, // Keeping this if you want to override per card
-  ) {
-    // --- OPTION 1: "Aurora" (Teal -> Purple -> Pink) ---
-    // Rich, modern, and very colorful
-    const List<Color> activeGradient = [
-      Color(0xFF0093E9),
-      Color(0xFF80D0C7),
-      Color(0xFF8A2BE2),
-    ];
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: activeGradient,
+          colors: colors,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        boxShadow: [
+          BoxShadow(
+            color: colors.first.withValues(alpha: 0.24),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  shadows: [
-                    Shadow(
-                      offset: Offset(0, 1),
-                      blurRadius: 2,
-                      color: Colors.black26,
-                    ),
-                  ],
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: Colors.white, size: 20),
+                child: Icon(icon, color: Colors.white),
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.xl),
           Text(
-            "\$${amount.toStringAsFixed(2)}",
-            style: const TextStyle(
+            '\$${amount.toStringAsFixed(2)}',
+            style: theme.textTheme.displaySmall?.copyWith(
               color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
-              shadows: [
-                Shadow(
-                  offset: Offset(0, 2),
-                  blurRadius: 4,
-                  color: Colors.black26,
-                ),
-              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  // Skeleton Loading Widget
-  Widget _buildSkeletonLoading(
-    Color backgroundColor,
-    Color cardBackgroundColor,
-    bool isDarkMode,
-  ) {
-    final shimmerBaseColor = isDarkMode ? Colors.grey[850]! : Colors.grey[300]!;
-    final shimmerHighlightColor = isDarkMode
-        ? Colors.grey[800]!
-        : Colors.grey[100]!;
+class _WalletStatCard extends StatelessWidget {
+  final String title;
+  final double value;
+  final IconData icon;
+  final Color accentColor;
+
+  const _WalletStatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: accentColor),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(title, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '\$${value.toStringAsFixed(2)}',
+              style: theme.textTheme.titleLarge,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WalletActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  const _WalletActionCard({
+    required this.icon,
+    required this.label,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: accentColor),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WalletLoadingState extends StatelessWidget {
+  const _WalletLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      children: const [
+        _WalletSkeletonBlock(height: 140),
+        SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Expanded(child: _WalletSkeletonBlock(height: 120)),
+            SizedBox(width: AppSpacing.md),
+            Expanded(child: _WalletSkeletonBlock(height: 120)),
+          ],
+        ),
+        SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Expanded(child: _WalletSkeletonBlock(height: 118)),
+            SizedBox(width: AppSpacing.md),
+            Expanded(child: _WalletSkeletonBlock(height: 118)),
+            SizedBox(width: AppSpacing.md),
+            Expanded(child: _WalletSkeletonBlock(height: 118)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _WalletSkeletonBlock extends StatelessWidget {
+  final double height;
+
+  const _WalletSkeletonBlock({
+    required this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Theme.of(context).dividerColor.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+      ),
+    );
+  }
+}
+
+class _WalletMessageState extends StatelessWidget {
+  final String title;
+  final String message;
+  final String actionLabel;
+  final Future<void> Function() onPressed;
+
+  const _WalletMessageState({
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title, style: theme.textTheme.titleLarge),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                ElevatedButton(
+                  onPressed: onPressed,
+                  child: Text(actionLabel),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WalletEmptyState extends StatelessWidget {
+  const _WalletEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        children: [
-          // Title skeleton
-          Container(
-            width: 120,
-            height: 24,
-            decoration: BoxDecoration(
-              color: shimmerBaseColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(color: theme.dividerColor),
           ),
-          const SizedBox(height: 20),
-
-          // Card skeleton with shimmer effect
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.3, end: 1.0),
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeInOut,
-            builder: (context, value, child) {
-              return Opacity(opacity: value, child: child);
-            },
-            onEnd: () {
-              // Loop animation
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) setState(() {});
-              });
-            },
-            child: Container(
-              height: 180,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    shimmerBaseColor,
-                    shimmerHighlightColor,
-                    shimmerBaseColor,
-                  ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                borderRadius: BorderRadius.circular(25),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    width: 160,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 30),
-
-          // Buttons skeleton
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            decoration: BoxDecoration(
-              color: cardBackgroundColor,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: isDarkMode
-                      ? Colors.black.withOpacity(0.3)
-                      : Colors.grey.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
+                child: Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: scheme.primary,
+                  size: 34,
                 ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildSkeletonButton(shimmerBaseColor),
-                Container(width: 1, height: 50, color: shimmerBaseColor),
-                _buildSkeletonButton(shimmerBaseColor),
-                Container(width: 1, height: 50, color: shimmerBaseColor),
-                _buildSkeletonButton(shimmerBaseColor),
-              ],
-            ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'No wallet transactions yet',
+                style: theme.textTheme.titleLarge,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Use the actions above to add funds or set your first wallet balance.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildSkeletonButton(Color shimmerColor) {
-    return Column(
-      children: [
-        Container(
-          height: 65,
-          width: 65,
-          decoration: BoxDecoration(
-            color: shimmerColor,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: 70,
-          height: 12,
-          decoration: BoxDecoration(
-            color: shimmerColor,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNewActionButton(
-    IconData icon,
-    String label,
-    Color bgColor,
-    Color iconColor,
-    bool isDarkMode,
-  ) {
-    return Column(
-      children: [
-        Container(
-          height: 65,
-          width: 65,
-          decoration: BoxDecoration(
-            color: isDarkMode ? bgColor.withOpacity(0.15) : bgColor,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: iconColor, size: 30),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isDarkMode ? Colors.white70 : Colors.black54,
-          ),
-        ),
-      ],
     );
   }
 }

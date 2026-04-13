@@ -216,7 +216,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
           autofocus: widget.transaction == null,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 48,
+            fontSize: 32,
             color: kPrimaryColor,
             fontWeight: FontWeight.bold,
           ),
@@ -224,7 +224,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
             hintText: "0.00",
             prefixText: "\$ ",
             prefixStyle: TextStyle(
-              fontSize: 48,
+              fontSize: 32,
               color: kPrimaryColor,
               fontWeight: FontWeight.bold,
             ),

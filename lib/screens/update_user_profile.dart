@@ -1,7 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../core/theme/app_radii.dart';
+import '../core/theme/app_spacing.dart';
+import '../core/widgets/app_text_field.dart';
+import '../core/widgets/primary_button.dart';
+import '../core/widgets/section_card.dart';
 import '../providers/auth_provider.dart';
 import '../utils/snackbar_helper.dart';
 
@@ -13,17 +20,15 @@ class UpdateUserProfile extends StatefulWidget {
 }
 
 class _UpdateUserProfileState extends State<UpdateUserProfile> {
-  late TextEditingController _nameController;
+  late final TextEditingController _nameController;
   File? _imageFile;
   bool _isSaving = false;
-
-  final Color kPrimaryColor = const Color(0xFF00BFA5);
 
   @override
   void initState() {
     super.initState();
-    final user = Provider.of<AuthProvider>(context, listen: false).user;
-    _nameController = TextEditingController(text: user?.username ?? "");
+    final user = context.read<AuthProvider>().user;
+    _nameController = TextEditingController(text: user?.username ?? '');
   }
 
   @override
@@ -32,24 +37,19 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
     super.dispose();
   }
 
-  // --- 1. PICK IMAGE LOGIC ---
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
+    final image = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (image != null) {
-      setState(() {
-        _imageFile = File(image.path);
-      });
+      setState(() => _imageFile = File(image.path));
     }
   }
 
-  // --- 2. SAVE CHANGES LOGIC ---
   Future<void> _handleSave() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final String userId = authProvider.user?.id ?? "";
-
-    if (userId.isEmpty) return;
+    final authProvider = context.read<AuthProvider>();
+    final userId = authProvider.user?.id ?? '';
+    if (userId.isEmpty) {
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -64,236 +64,163 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
       }
 
       if (mounted) {
-        showSuccessSnackBar(context, 'Profile updated successfully!');
+        showSuccessSnackBar(context, 'Profile updated successfully');
         Navigator.pop(context);
       }
-    } catch (e) {
+    } catch (error) {
       if (mounted) {
         showErrorSnackBar(
           context,
-          e.toString().replaceFirst('Exception: ', ''),
+          error.toString().replaceFirst('Exception: ', ''),
         );
       }
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<AuthProvider>(context).user;
-
-    // ✅ SETUP DYNAMIC COLORS (Strictly typed)
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    final Color textColor = isDark ? Colors.white : Colors.black;
-    final Color iconColor = isDark ? Colors.white : Colors.black;
-    final Color scaffoldBg = theme.scaffoldBackgroundColor;
-
-    // ✅ FIX: Force non-null with '!' and explicit types
-    final Color inputFill = isDark ? Colors.grey[800]! : Colors.white;
-    final Color borderColor = isDark ? Colors.grey[700]! : Colors.grey.shade200;
-    final Color hintColor = isDark ? Colors.grey[400]! : Colors.grey[500]!;
+    final user = context.watch<AuthProvider>().user;
+    final scheme = theme.colorScheme;
 
     return Scaffold(
-      // Background handled by Theme
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: scaffoldBg, // ✅ Dynamic
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: iconColor), // ✅ Dynamic
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Edit Profile",
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-          ), // ✅ Dynamic
-        ),
-        centerTitle: true,
+        title: const Text('Edit profile'),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 30),
-
-                  // --- AVATAR SECTION ---
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: borderColor,
-                            width: 4,
-                          ), // ✅ Dynamic Border
-                        ),
-                        child: CircleAvatar(
-                          radius: 65,
-                          backgroundColor: const Color(0xFFF5F7FA),
-                          child: ClipOval(
-                            child: _imageFile != null
-                                ? Image.file(
-                                    _imageFile!,
-                                    width: 130,
-                                    height: 130,
-                                    fit: BoxFit.cover,
-                                  )
-                                : (user?.avatar != null &&
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Update how your profile appears across Spendwise.',
+                style: theme.textTheme.bodyLarge,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                decoration: BoxDecoration(
+                  color: scheme.surface,
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                  border: Border.all(color: theme.dividerColor),
+                ),
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 56,
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHighest,
+                          backgroundImage: _imageFile != null
+                              ? FileImage(_imageFile!)
+                              : (user?.avatar != null &&
                                       user!.avatar.isNotEmpty)
-                                ? Image.network(
-                                    user.avatar,
-                                    width: 130,
-                                    height: 130,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return const Icon(
-                                        Icons.person,
-                                        size: 80,
-                                        color: Colors.grey,
-                                      );
-                                    },
-                                  )
-                                : const Icon(
-                                    Icons.person,
-                                    size: 80,
-                                    color: Colors.grey,
-                                  ),
-                          ),
+                                  ? NetworkImage(user.avatar)
+                                  : null,
+                          child: (_imageFile == null &&
+                                  (user?.avatar == null || user!.avatar.isEmpty))
+                              ? const Icon(Icons.person_rounded, size: 54)
+                              : null,
                         ),
-                      ),
-                      GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: kPrimaryColor,
-                            shape: BoxShape.circle,
-                            // Border matches scaffold background to create "cutout" effect
-                            border: Border.all(
-                              color: scaffoldBg,
-                              width: 3,
-                            ), // ✅ Dynamic
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                        IconButton.filled(
+                          onPressed: _pickImage,
+                          icon: const Icon(Icons.camera_alt_outlined),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  Text(
-                    _nameController.text.isEmpty
-                        ? "No Name"
-                        : _nameController.text,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
+                      ],
                     ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  // --- FULL NAME INPUT ---
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Full Name",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: textColor,
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      'Profile photo',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Choose a clear image so teammates can recognize you quickly.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              SectionCard(
+                title: 'Profile details',
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppTextField(
+                          controller: _nameController,
+                          label: 'Display name',
+                          hintText: 'Enter your name',
+                          prefixIcon: Icons.person_outline_rounded,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _nameController,
-                        onChanged: (val) => setState(() {}),
-                        style: TextStyle(
-                          color: textColor,
-                        ), // ✅ Dynamic Input Text
-                        decoration: InputDecoration(
-                          hintText: "Enter your name",
-                          hintStyle: TextStyle(color: hintColor), // ✅ Dynamic
-                          filled: true,
-                          fillColor: inputFill, // ✅ Dynamic
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
+                        const SizedBox(height: AppSpacing.md),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(AppRadii.md),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(
-                              color: borderColor,
-                            ), // ✅ Dynamic
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(
-                              color: borderColor,
-                            ), // ✅ Dynamic
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(color: kPrimaryColor),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.email_outlined,
+                                color: scheme.primary,
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Email',
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: AppSpacing.xs),
+                                    Text(
+                                      user?.email ?? 'No email available',
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
-
-          // --- SAVE BUTTON ---
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _handleSave,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        "Save Changes",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+              const SizedBox(height: AppSpacing.xl),
+              PrimaryButton(
+                label: 'Save changes',
+                isLoading: _isSaving,
+                onPressed: _handleSave,
               ),
-            ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _isSaving ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
