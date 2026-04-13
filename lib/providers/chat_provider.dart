@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../models/chat_models.dart';
 import '../services/chat_service.dart';
 import '../services/chat_socket_service.dart';
@@ -10,13 +11,21 @@ class ChatProvider with ChangeNotifier {
   ChatProvider({ChatService? chatService, ChatSocketService? chatSocketService})
     : _chatService = chatService ?? ChatService(),
       _chatSocketService = chatSocketService ?? ChatSocketService() {
-    _chatSocketService.configure(onMessage: _handleIncomingMessage);
+    _chatSocketService.configure(
+      onMessage: _handleIncomingMessage,
+      onMessageUpdated: _handleUpdatedMessage,
+      onMessageDeleted: _handleDeletedMessage,
+      onConversationUpdated: _handleConversationUpdated,
+      onTypingChanged: _handleTypingChanged,
+    );
   }
 
   bool _isLoading = false;
   bool _isSendingMessage = false;
+  bool _isUpdatingMessage = false;
   String _searchQuery = '';
   String? _activeConversationId;
+  final Map<String, Set<String>> _typingUserIdsByConversation = {};
 
   List<ChatUser> _searchResults = [];
   List<FriendRequestModel> _receivedRequests = [];
@@ -26,12 +35,22 @@ class ChatProvider with ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isSendingMessage => _isSendingMessage;
+  bool get isUpdatingMessage => _isUpdatingMessage;
   String get searchQuery => _searchQuery;
   List<ChatUser> get searchResults => _searchResults;
   List<FriendRequestModel> get receivedRequests => _receivedRequests;
   List<FriendRequestModel> get sentRequests => _sentRequests;
   List<ChatConversation> get conversations => _conversations;
   List<ChatMessageModel> get messages => _messages;
+  bool get isActiveConversationTyping {
+    final conversationId = _activeConversationId;
+    if (conversationId == null) {
+      return false;
+    }
+
+    return (_typingUserIdsByConversation[conversationId] ?? const <String>{})
+        .isNotEmpty;
+  }
 
   bool isFriend(String userId) {
     return _conversations.any(
@@ -172,6 +191,7 @@ class ChatProvider with ChangeNotifier {
 
   Future<void> openConversation(String conversationId) async {
     _activeConversationId = conversationId;
+    _clearTypingUsers(conversationId);
     _isLoading = true;
     notifyListeners();
 
@@ -199,6 +219,7 @@ class ChatProvider with ChangeNotifier {
 
   Future<void> sendMessage(String conversationId, String content) async {
     _isSendingMessage = true;
+    stopTyping(conversationId);
     notifyListeners();
 
     try {
@@ -224,7 +245,76 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  Future<void> sendImageMessage(
+    String conversationId, {
+    required File imageFile,
+    String content = '',
+  }) async {
+    _isSendingMessage = true;
+    stopTyping(conversationId);
+    notifyListeners();
+
+    try {
+      final sentMessage = await _chatService.sendMessage(
+        conversationId,
+        content,
+        imageFile: imageFile,
+      );
+      _upsertMessage(sentMessage);
+      _upsertConversationPreview(
+        conversationId,
+        sentMessage.content.isNotEmpty ? sentMessage.content : 'Photo',
+        sentMessage.createdAt,
+      );
+      try {
+        await loadInbox(forceSearchRefresh: true);
+      } catch (_) {}
+    } finally {
+      _isSendingMessage = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateMessage(
+    String conversationId,
+    String messageId,
+    String content,
+  ) async {
+    _isUpdatingMessage = true;
+    notifyListeners();
+
+    try {
+      final updatedMessage = await _chatService.updateMessage(
+        conversationId,
+        messageId,
+        content,
+      );
+      _upsertMessage(updatedMessage);
+      _upsertConversationPreview(
+        conversationId,
+        updatedMessage.content.isNotEmpty ? updatedMessage.content : 'Photo',
+        updatedMessage.createdAt,
+      );
+      try {
+        await loadInbox(forceSearchRefresh: true);
+      } catch (_) {}
+    } finally {
+      _isUpdatingMessage = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteMessage(String conversationId, String messageId) async {
+    await _chatService.deleteMessage(conversationId, messageId);
+    _removeMessage(conversationId, messageId);
+    try {
+      await loadInbox(forceSearchRefresh: true);
+    } catch (_) {}
+    notifyListeners();
+  }
+
   void _handleIncomingMessage(ChatMessageModel message) {
+    _removeTypingUser(message.conversationId, message.sender.id);
     _upsertConversationPreview(
       message.conversationId,
       message.content,
@@ -244,6 +334,86 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void _handleUpdatedMessage(ChatMessageModel message) {
+    _upsertMessage(message);
+    _upsertConversationPreview(
+      message.conversationId,
+      message.content.isNotEmpty ? message.content : 'Photo',
+      message.createdAt,
+    );
+    if (_activeConversationId == message.conversationId) {
+      notifyListeners();
+    }
+  }
+
+  void _handleDeletedMessage(String conversationId, String messageId) {
+    final removed = _removeMessage(conversationId, messageId);
+    if (removed && _activeConversationId == conversationId) {
+      notifyListeners();
+    }
+  }
+
+  void _handleConversationUpdated(
+    String conversationId,
+    String lastMessage,
+    DateTime? lastMessageAt,
+  ) {
+    _upsertConversationPreview(conversationId, lastMessage, lastMessageAt);
+    notifyListeners();
+  }
+
+  void startTyping(String conversationId) {
+    _chatSocketService.startTyping(conversationId);
+  }
+
+  void stopTyping(String conversationId) {
+    _chatSocketService.stopTyping(conversationId);
+  }
+
+  void _handleTypingChanged(String conversationId, String userId, bool isTyping) {
+    final normalizedConversationId = conversationId.trim();
+    final normalizedUserId = userId.trim();
+    if (normalizedConversationId.isEmpty || normalizedUserId.isEmpty) {
+      return;
+    }
+
+    final typingUsers = {
+      ...(_typingUserIdsByConversation[normalizedConversationId] ?? <String>{}),
+    };
+
+    if (isTyping) {
+      typingUsers.add(normalizedUserId);
+      _typingUserIdsByConversation[normalizedConversationId] = typingUsers;
+    } else if (typingUsers.remove(normalizedUserId)) {
+      if (typingUsers.isEmpty) {
+        _typingUserIdsByConversation.remove(normalizedConversationId);
+      } else {
+        _typingUserIdsByConversation[normalizedConversationId] = typingUsers;
+      }
+    } else {
+      return;
+    }
+
+    if (_activeConversationId == normalizedConversationId) {
+      notifyListeners();
+    }
+  }
+
+  void _removeTypingUser(String conversationId, String userId) {
+    final typingUsers = _typingUserIdsByConversation[conversationId];
+    if (typingUsers == null || !typingUsers.remove(userId)) {
+      return;
+    }
+
+    if (typingUsers.isEmpty) {
+      _typingUserIdsByConversation.remove(conversationId);
+    }
+  }
+
+  void _clearTypingUsers(String conversationId) {
+    _typingUserIdsByConversation.remove(conversationId);
+  }
+
   void _upsertMessage(ChatMessageModel message) {
     final existingIndex = _messages.indexWhere((item) => item.id == message.id);
     if (existingIndex >= 0) {
@@ -259,6 +429,16 @@ class ChatProvider with ChangeNotifier {
         final right = b.createdAt?.millisecondsSinceEpoch ?? 0;
         return left.compareTo(right);
       });
+  }
+
+  bool _removeMessage(String conversationId, String messageId) {
+    if (_activeConversationId != conversationId) {
+      return false;
+    }
+
+    final previousLength = _messages.length;
+    _messages = _messages.where((item) => item.id != messageId).toList();
+    return _messages.length != previousLength;
   }
 
   void _upsertConversationPreview(

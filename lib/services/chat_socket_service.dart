@@ -11,13 +11,29 @@ class ChatSocketService {
   io.Socket? _socket;
   VoidCallback? _onUnauthorized;
   void Function(ChatMessageModel message)? _onMessage;
+  void Function(ChatMessageModel message)? _onMessageUpdated;
+  void Function(String conversationId, String messageId)? _onMessageDeleted;
+  void Function(String conversationId, String lastMessage, DateTime? lastMessageAt)?
+  _onConversationUpdated;
+  void Function(String conversationId, String userId, bool isTyping)?
+  _onTypingChanged;
   final Set<String> _joinedConversationIds = <String>{};
 
   void configure({
     required void Function(ChatMessageModel message) onMessage,
+    void Function(ChatMessageModel message)? onMessageUpdated,
+    void Function(String conversationId, String messageId)? onMessageDeleted,
+    void Function(String conversationId, String lastMessage, DateTime? lastMessageAt)?
+    onConversationUpdated,
+    void Function(String conversationId, String userId, bool isTyping)?
+    onTypingChanged,
     VoidCallback? onUnauthorized,
   }) {
     _onMessage = onMessage;
+    _onMessageUpdated = onMessageUpdated;
+    _onMessageDeleted = onMessageDeleted;
+    _onConversationUpdated = onConversationUpdated;
+    _onTypingChanged = onTypingChanged;
     _onUnauthorized = onUnauthorized;
   }
 
@@ -63,11 +79,62 @@ class ChatSocketService {
           _onMessage?.call(
             ChatMessageModel.fromJson(Map<String, dynamic>.from(messageData)),
           );
+          _handleConversationUpdate(payload['conversation']);
         } catch (error, stackTrace) {
           debugPrint('Chat socket payload parse failed: $error');
           debugPrintStack(stackTrace: stackTrace);
         }
       });
+
+      socket.on('chat:messageUpdated', (data) {
+        final payload = data is Map
+            ? Map<String, dynamic>.from(data)
+            : const <String, dynamic>{};
+        final messageData = payload['message'];
+        if (messageData is! Map) {
+          return;
+        }
+
+        try {
+          _onMessageUpdated?.call(
+            ChatMessageModel.fromJson(Map<String, dynamic>.from(messageData)),
+          );
+          _handleConversationUpdate(payload['conversation']);
+        } catch (error, stackTrace) {
+          debugPrint('Chat socket update payload parse failed: $error');
+          debugPrintStack(stackTrace: stackTrace);
+        }
+      });
+
+      socket.on('chat:messageDeleted', (data) {
+        final payload = data is Map
+            ? Map<String, dynamic>.from(data)
+            : const <String, dynamic>{};
+        final conversationId = (payload['conversationId'] ?? '').toString();
+        final messageId = (payload['messageId'] ?? '').toString();
+        if (conversationId.trim().isEmpty || messageId.trim().isEmpty) {
+          return;
+        }
+
+        _onMessageDeleted?.call(conversationId.trim(), messageId.trim());
+        _handleConversationUpdate(payload['conversation']);
+      });
+
+      void handleTypingEvent(dynamic data, bool isTyping) {
+        final payload = data is Map
+            ? Map<String, dynamic>.from(data)
+            : const <String, dynamic>{};
+        final conversationId = (payload['conversationId'] ?? '').toString();
+        final userId = (payload['userId'] ?? '').toString();
+        if (conversationId.trim().isEmpty || userId.trim().isEmpty) {
+          return;
+        }
+
+        _onTypingChanged?.call(conversationId.trim(), userId.trim(), isTyping);
+      }
+
+      socket.on('chat:typing', (data) => handleTypingEvent(data, true));
+      socket.on('chat:stopTyping', (data) => handleTypingEvent(data, false));
 
       socket.onConnectError((error) {
         final message = error.toString().toLowerCase();
@@ -115,9 +182,51 @@ class ChatSocketService {
     }
   }
 
+  void startTyping(String conversationId) {
+    final normalizedConversationId = conversationId.trim();
+    if (normalizedConversationId.isEmpty) {
+      return;
+    }
+
+    _socket?.emit('chat:typing', normalizedConversationId);
+  }
+
+  void stopTyping(String conversationId) {
+    final normalizedConversationId = conversationId.trim();
+    if (normalizedConversationId.isEmpty) {
+      return;
+    }
+
+    _socket?.emit('chat:stopTyping', normalizedConversationId);
+  }
+
+  void _handleConversationUpdate(dynamic data) {
+    if (data is! Map) {
+      return;
+    }
+
+    final payload = Map<String, dynamic>.from(data);
+    final conversationId = (payload['id'] ?? '').toString().trim();
+    if (conversationId.isEmpty) {
+      return;
+    }
+
+    _onConversationUpdated?.call(
+      conversationId,
+      (payload['lastMessage'] ?? '').toString(),
+      _parseLocalDateTime(payload['lastMessageAt']),
+    );
+  }
+
   void disconnect() {
     _joinedConversationIds.clear();
     _socket?.dispose();
     _socket = null;
+  }
+
+  DateTime? _parseLocalDateTime(dynamic value) {
+    if (value == null) return null;
+    final parsed = DateTime.tryParse(value.toString());
+    return parsed?.toLocal();
   }
 }

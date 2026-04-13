@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
+import 'dart:io';
 import '../models/chat_models.dart';
 import 'api_service.dart';
 
@@ -134,12 +136,19 @@ class ChatService {
 
   Future<ChatMessageModel> sendMessage(
     String conversationId,
-    String content,
+    String content, {
+    File? imageFile,
+  }
   ) async {
     try {
       final response = await _apiService.client.post(
         '/chat/conversations/$conversationId/messages',
-        data: {'content': content},
+        data: imageFile == null
+            ? {'content': content}
+            : await _buildMessageFormData(content, imageFile),
+        options: imageFile == null
+            ? null
+            : Options(contentType: 'multipart/form-data'),
       );
 
       return ChatMessageModel.fromJson(
@@ -147,6 +156,37 @@ class ChatService {
       );
     } catch (e) {
       _handleError(e, 'Failed to send message');
+      rethrow;
+    }
+  }
+
+  Future<ChatMessageModel> updateMessage(
+    String conversationId,
+    String messageId,
+    String content,
+  ) async {
+    try {
+      final response = await _apiService.client.patch(
+        '/chat/conversations/$conversationId/messages/$messageId',
+        data: {'content': content},
+      );
+
+      return ChatMessageModel.fromJson(
+        response.data['data'] as Map<String, dynamic>,
+      );
+    } catch (e) {
+      _handleError(e, 'Failed to update message');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteMessage(String conversationId, String messageId) async {
+    try {
+      await _apiService.client.delete(
+        '/chat/conversations/$conversationId/messages/$messageId',
+      );
+    } catch (e) {
+      _handleError(e, 'Failed to delete message');
       rethrow;
     }
   }
@@ -176,5 +216,27 @@ class ChatService {
       }
     }
     return errorMessage;
+  }
+
+  Future<FormData> _buildMessageFormData(String content, File imageFile) async {
+    final fileName = imageFile.path.split('/').last;
+    final extension = fileName.split('.').last.toLowerCase();
+    var subtype = 'jpeg';
+    if (extension == 'png') {
+      subtype = 'png';
+    } else if (extension == 'gif') {
+      subtype = 'gif';
+    } else if (extension == 'webp') {
+      subtype = 'webp';
+    }
+
+    return FormData.fromMap({
+      'content': content,
+      'image': await MultipartFile.fromFile(
+        imageFile.path,
+        filename: fileName,
+        contentType: MediaType('image', subtype),
+      ),
+    });
   }
 }

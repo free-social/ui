@@ -194,14 +194,20 @@ class ChatMessageModel {
   final String conversationId;
   final ChatUser sender;
   final String content;
+  final String imageUrl;
   final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? editedAt;
 
   const ChatMessageModel({
     required this.id,
     required this.conversationId,
     required this.sender,
     required this.content,
+    required this.imageUrl,
     this.createdAt,
+    this.updatedAt,
+    this.editedAt,
   });
 
   factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
@@ -211,7 +217,32 @@ class ChatMessageModel {
       conversationId: json['conversation'] ?? '',
       sender: ChatUser.fromJson(senderData),
       content: json['content'] ?? '',
+      imageUrl: json['imageUrl'] ?? '',
       createdAt: _parseLocalDateTime(json['createdAt']),
+      updatedAt: _parseLocalDateTime(json['updatedAt']),
+      editedAt: _parseLocalDateTime(json['editedAt']),
+    );
+  }
+
+  ChatMessageModel copyWith({
+    String? id,
+    String? conversationId,
+    ChatUser? sender,
+    String? content,
+    String? imageUrl,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? editedAt,
+  }) {
+    return ChatMessageModel(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      sender: sender ?? this.sender,
+      content: content ?? this.content,
+      imageUrl: imageUrl ?? this.imageUrl,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      editedAt: editedAt ?? this.editedAt,
     );
   }
 }
