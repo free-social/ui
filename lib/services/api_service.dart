@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../utils/snackbar_helper.dart';
 import '../main.dart';
+import 'push_notification_service.dart';
 
 class ApiService {
   final Dio _dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
@@ -16,11 +17,22 @@ class ApiService {
             debugPrint('[API] ${options.method} ${options.uri}');
           }
 
+          final prefs = await SharedPreferences.getInstance();
+          final pushToken = prefs.getString('pushToken');
+          final deviceId = await PushNotificationService.instance.getOrCreateDeviceId();
+          options.headers['X-Device-Id'] = deviceId;
+          options.headers['X-Device-Platform'] =
+              PushNotificationService.instance.platformHeaderValue;
+          options.headers['X-Device-Name'] =
+              PushNotificationService.instance.deviceName;
+          if (pushToken != null && pushToken.trim().isNotEmpty) {
+            options.headers['X-Push-Token'] = pushToken.trim();
+          }
+
           if (options.path.contains('/auth/login')) {
             // Don’t attach old token
             return handler.next(options);
           }
-          final prefs = await SharedPreferences.getInstance();
           final token = prefs.getString('token');
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -82,7 +94,15 @@ class ApiService {
           // Handle 401 Unauthorized
           if (e.response?.statusCode == 401) {
             final prefs = await SharedPreferences.getInstance();
+            final pushToken = prefs.getString('pushToken');
+            final deviceId = prefs.getString('deviceId');
             await prefs.clear(); // clear old token + user data
+            if (pushToken != null && pushToken.trim().isNotEmpty) {
+              await prefs.setString('pushToken', pushToken);
+            }
+            if (deviceId != null && deviceId.trim().isNotEmpty) {
+              await prefs.setString('deviceId', deviceId);
+            }
 
             final navigator = navigatorKey.currentState;
             if (navigator != null) {

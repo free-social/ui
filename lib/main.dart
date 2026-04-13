@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/expense_provider.dart';
@@ -8,9 +9,11 @@ import 'providers/theme_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await PushNotificationService.instance.initialize();
 
   // Initialize AuthProvider
   final authProvider = AuthProvider();
@@ -49,58 +52,8 @@ class MyApp extends StatelessWidget {
             '/splash': (_) => const SplashScreen(),
           },
 
-          // Light Theme
-          theme: ThemeData(
-            brightness: Brightness.light,
-            scaffoldBackgroundColor: const Color(0xFFF2F4F7),
-            primaryColor: const Color(0xFF00BFA5),
-            cardColor: Colors.white,
-            dividerColor: Colors.grey.shade200,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Color(0xFFF2F4F7),
-              iconTheme: IconThemeData(color: Colors.black),
-              titleTextStyle: TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            textTheme: const TextTheme(
-              bodyLarge: TextStyle(color: Colors.black87),
-              bodyMedium: TextStyle(color: Colors.black87),
-            ),
-            snackBarTheme: const SnackBarThemeData(
-              behavior: SnackBarBehavior.floating,
-              elevation: 8,
-            ),
-          ),
-
-          // Dark Theme
-          darkTheme: ThemeData(
-            brightness: Brightness.dark,
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            primaryColor: const Color(0xFF00BFA5),
-            cardColor: const Color(0xFF1E1E1E),
-            dividerColor: Colors.grey.shade800,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Color(0xFF121212),
-              iconTheme: IconThemeData(color: Colors.white),
-              titleTextStyle: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            textTheme: const TextTheme(
-              bodyLarge: TextStyle(color: Colors.white),
-              bodyMedium: TextStyle(color: Colors.white),
-            ),
-            snackBarTheme: const SnackBarThemeData(
-              behavior: SnackBarBehavior.floating,
-              elevation: 8,
-            ),
-          ),
-
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
           themeMode: themeProvider.themeMode,
           home: const SplashScreen(),
         );
@@ -108,5 +61,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-// Test

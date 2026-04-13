@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http_parser/http_parser.dart'; // Required for MediaType
 import 'dart:io'; // Required for File
@@ -23,7 +24,7 @@ class AuthService {
         '/auth/$userId',
         data: {"username": newUsername},
       );
-      print('Username update successful: ${response.data}');
+      debugPrint('Username update successful: ${response.data}');
       return response.data; //
     } catch (e) {
       _handleError(e, 'Failed to update username');
@@ -69,7 +70,7 @@ class AuthService {
         ), // Ensure multipart header
       );
 
-      print('Avatar upload successful: ${response.data}');
+      debugPrint('Avatar upload successful: ${response.data}');
       return response.data; //
     } catch (e) {
       _handleError(e, 'Failed to upload avatar');
@@ -86,7 +87,7 @@ class AuthService {
       // Route matching your new Postman request
       final response = await _apiService.client.get('/auth/$userId/profile');
 
-      print('Profile retrieved successfully: ${response.data}');
+      debugPrint('Profile retrieved successfully: ${response.data}');
       return response.data;
     } catch (e) {
       _handleError(e, 'Failed to retrieve user profile');
@@ -100,7 +101,7 @@ class AuthService {
         '/auth/register',
         data: {"username": username, "email": email, "password": password},
       );
-      print('Registration successful: ${response.data}');
+      debugPrint('Registration successful: ${response.data}');
     } catch (e) {
       _handleError(e, 'Failed to register');
     }
@@ -233,7 +234,15 @@ class AuthService {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    final pushToken = prefs.getString('pushToken');
+    final deviceId = prefs.getString('deviceId');
     await prefs.clear();
+    if (pushToken != null && pushToken.trim().isNotEmpty) {
+      await prefs.setString('pushToken', pushToken);
+    }
+    if (deviceId != null && deviceId.trim().isNotEmpty) {
+      await prefs.setString('deviceId', deviceId);
+    }
   }
 
   void _handleError(dynamic e, String defaultMessage) {
