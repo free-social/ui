@@ -13,6 +13,8 @@ class ChatSocketService {
   void Function(ChatMessageModel message)? _onMessage;
   void Function(ChatMessageModel message)? _onMessageUpdated;
   void Function(String conversationId, String messageId)? _onMessageDeleted;
+  void Function(String conversationId, List<String> messageIds, DateTime? seenAt)?
+  _onMessagesSeen;
   void Function(String conversationId, String lastMessage, DateTime? lastMessageAt)?
   _onConversationUpdated;
   void Function(String conversationId, String userId, bool isTyping)?
@@ -23,6 +25,8 @@ class ChatSocketService {
     required void Function(ChatMessageModel message) onMessage,
     void Function(ChatMessageModel message)? onMessageUpdated,
     void Function(String conversationId, String messageId)? onMessageDeleted,
+    void Function(String conversationId, List<String> messageIds, DateTime? seenAt)?
+    onMessagesSeen,
     void Function(String conversationId, String lastMessage, DateTime? lastMessageAt)?
     onConversationUpdated,
     void Function(String conversationId, String userId, bool isTyping)?
@@ -32,6 +36,7 @@ class ChatSocketService {
     _onMessage = onMessage;
     _onMessageUpdated = onMessageUpdated;
     _onMessageDeleted = onMessageDeleted;
+    _onMessagesSeen = onMessagesSeen;
     _onConversationUpdated = onConversationUpdated;
     _onTypingChanged = onTypingChanged;
     _onUnauthorized = onUnauthorized;
@@ -118,6 +123,31 @@ class ChatSocketService {
 
         _onMessageDeleted?.call(conversationId.trim(), messageId.trim());
         _handleConversationUpdate(payload['conversation']);
+      });
+
+      socket.on('chat:seen', (data) {
+        final payload = data is Map
+            ? Map<String, dynamic>.from(data)
+            : const <String, dynamic>{};
+        final conversationId = (payload['conversationId'] ?? '').toString().trim();
+        final rawMessageIds = payload['messageIds'];
+        if (conversationId.isEmpty || rawMessageIds is! List) {
+          return;
+        }
+
+        final messageIds = rawMessageIds
+            .map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
+        if (messageIds.isEmpty) {
+          return;
+        }
+
+        _onMessagesSeen?.call(
+          conversationId,
+          messageIds,
+          _parseLocalDateTime(payload['seenAt']),
+        );
       });
 
       void handleTypingEvent(dynamic data, bool isTyping) {

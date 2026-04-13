@@ -84,21 +84,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           ),
                           child: CircleAvatar(
                             radius: 50,
-                            backgroundColor:
-                                Colors.grey[200]!, // ✅ Force non-null
-                            backgroundImage:
-                                (user?.avatar != null &&
-                                    user!.avatar.isNotEmpty)
-                                ? NetworkImage(user.avatar) as ImageProvider?
-                                : null,
-                            child:
-                                (user?.avatar == null || user!.avatar.isEmpty)
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 60,
-                                    color: Colors.grey,
-                                  )
-                                : null,
+                            backgroundColor: const Color(0xFFF5F7FA),
+                            child: ClipOval(
+                              child:
+                                  (user?.avatar != null &&
+                                      user!.avatar.isNotEmpty)
+                                  ? Image.network(
+                                      user.avatar,
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return const Icon(
+                                              Icons.person,
+                                              size: 60,
+                                              color: Colors.grey,
+                                            );
+                                          },
+                                    )
+                                  : const Icon(
+                                      Icons.person,
+                                      size: 60,
+                                      color: Colors.grey,
+                                    ),
+                            ),
                           ),
                         ),
                         Positioned(
@@ -125,7 +135,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      user?.username ?? "Default",
+                      (user?.username.trim().isNotEmpty ?? false)
+                          ? user!.username
+                          : 'User',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -133,7 +145,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ),
                     ),
                     Text(
-                      user?.email ?? "@example.com",
+                      (user?.email.trim().isNotEmpty ?? false)
+                          ? user!.email
+                          : 'No email available',
                       style: TextStyle(
                         fontSize: 14,
                         color: subTextColor,

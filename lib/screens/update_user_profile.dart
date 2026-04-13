@@ -69,7 +69,10 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
       }
     } catch (e) {
       if (mounted) {
-        showErrorSnackBar(context, 'Error: $e');
+        showErrorSnackBar(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -134,17 +137,36 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                         ),
                         child: CircleAvatar(
                           radius: 65,
-                          backgroundColor: Colors.grey[200],
-                          backgroundImage: _imageFile != null
-                              ? FileImage(_imageFile!) as ImageProvider?
-                              : (user?.avatar != null &&
+                          backgroundColor: const Color(0xFFF5F7FA),
+                          child: ClipOval(
+                            child: _imageFile != null
+                                ? Image.file(
+                                    _imageFile!,
+                                    width: 130,
+                                    height: 130,
+                                    fit: BoxFit.cover,
+                                  )
+                                : (user?.avatar != null &&
                                       user!.avatar.isNotEmpty)
-                                  ? NetworkImage(user.avatar) as ImageProvider?
-                                  : null,
-                          child: (_imageFile == null &&
-                                  (user?.avatar == null || user!.avatar.isEmpty))
-                              ? const Icon(Icons.person, size: 80, color: Colors.grey)
-                              : null,
+                                ? Image.network(
+                                    user.avatar,
+                                    width: 130,
+                                    height: 130,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.person,
+                                        size: 80,
+                                        color: Colors.grey,
+                                      );
+                                    },
+                                  )
+                                : const Icon(
+                                    Icons.person,
+                                    size: 80,
+                                    color: Colors.grey,
+                                  ),
+                          ),
                         ),
                       ),
                       GestureDetector(

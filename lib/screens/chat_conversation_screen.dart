@@ -26,6 +26,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   final Color kPrimaryColor = const Color(0xFF00BFA5);
   static const double _chatSnackTopOffset = 18;
   static const Duration _typingIdleTimeout = Duration(milliseconds: 1200);
+  static const Color _imagePreviewBackground = Color(0xFFF5F7FA);
   int _lastRenderedMessageCount = 0;
   bool _isTyping = false;
   String? _editingMessageId;
@@ -240,10 +241,27 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       context: context,
       builder: (context) => Dialog(
         insetPadding: const EdgeInsets.all(16),
+        backgroundColor: Colors.transparent,
         child: InteractiveViewer(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(imageUrl, fit: BoxFit.contain),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              color: _imagePreviewBackground,
+              padding: const EdgeInsets.all(12),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const SizedBox(
+                    width: 240,
+                    height: 240,
+                    child: Center(
+                      child: Icon(Icons.broken_image_outlined, size: 28),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),
@@ -319,7 +337,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           controller: _scrollController,
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          itemCount: chatProvider.messages.length +
+                          itemCount:
+                              chatProvider.messages.length +
                               (chatProvider.isActiveConversationTyping ? 1 : 0),
                           itemBuilder: (context, index) {
                             if (index == chatProvider.messages.length) {
@@ -441,7 +460,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Center(
-                                child: chatProvider.isSendingMessage ||
+                                child:
+                                    chatProvider.isSendingMessage ||
                                         chatProvider.isUpdatingMessage
                                     ? const SizedBox(
                                         width: 22,
@@ -485,6 +505,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     final textColor = isMine
         ? Colors.white
         : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final metaColor = isMine ? Colors.white70 : Colors.grey[600];
 
     return GestureDetector(
       onLongPress: isMine ? () => _showMessageActions(message) : null,
@@ -513,20 +534,21 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                   onTap: () => _openImagePreview(message.imageUrl),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      message.imageUrl,
+                    child: Container(
                       width: 220,
                       height: 220,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 220,
-                          height: 220,
-                          color: Colors.black12,
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.broken_image_outlined),
-                        );
-                      },
+                      color: _imagePreviewBackground,
+                      child: Image.network(
+                        message.imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: _imagePreviewBackground,
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.broken_image_outlined),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -545,18 +567,23 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     message.createdAt != null
                         ? DateFormat('HH:mm').format(message.createdAt!)
                         : '',
-                    style: TextStyle(
-                      color: isMine ? Colors.white70 : Colors.grey[600],
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: metaColor, fontSize: 11),
                   ),
                   if (message.editedAt != null) ...[
                     const SizedBox(width: 6),
                     Text(
                       'edited',
+                      style: TextStyle(color: metaColor, fontSize: 11),
+                    ),
+                  ],
+                  if (isMine) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      message.isSeen ? 'Seen' : 'Sent',
                       style: TextStyle(
-                        color: isMine ? Colors.white70 : Colors.grey[600],
+                        color: metaColor,
                         fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],

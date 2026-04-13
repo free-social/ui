@@ -191,6 +191,20 @@ class ChatService {
     }
   }
 
+  Future<void> markConversationAsSeen(String conversationId) async {
+    try {
+      await _apiService.client.patch(
+        '/chat/conversations/$conversationId/messages/seen',
+      );
+    } catch (e) {
+      final errorMessage = _extractErrorMessage(
+        e,
+        'Failed to mark messages as seen',
+      );
+      debugPrint('ChatService fetch warning: $errorMessage');
+    }
+  }
+
   void _handleError(dynamic e, String defaultMessage) {
     throw Exception(_extractErrorMessage(e, defaultMessage));
   }

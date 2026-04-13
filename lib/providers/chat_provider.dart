@@ -15,6 +15,7 @@ class ChatProvider with ChangeNotifier {
       onMessage: _handleIncomingMessage,
       onMessageUpdated: _handleUpdatedMessage,
       onMessageDeleted: _handleDeletedMessage,
+      onMessagesSeen: _handleMessagesSeen,
       onConversationUpdated: _handleConversationUpdated,
       onTypingChanged: _handleTypingChanged,
     );
@@ -203,6 +204,7 @@ class ChatProvider with ChangeNotifier {
         },
       );
       _messages = await _chatService.getMessages(conversationId);
+      await _chatService.markConversationAsSeen(conversationId);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -214,6 +216,7 @@ class ChatProvider with ChangeNotifier {
     if (conversationId == null) return;
 
     _messages = await _chatService.getMessages(conversationId);
+    await _chatService.markConversationAsSeen(conversationId);
     notifyListeners();
   }
 
@@ -324,6 +327,7 @@ class ChatProvider with ChangeNotifier {
     if (_activeConversationId == message.conversationId) {
       final previousLength = _messages.length;
       _upsertMessage(message);
+      _markConversationAsSeen(message.conversationId);
       if (_messages.length != previousLength ||
           _messages.any((item) => item.id == message.id)) {
         notifyListeners();
@@ -349,6 +353,17 @@ class ChatProvider with ChangeNotifier {
   void _handleDeletedMessage(String conversationId, String messageId) {
     final removed = _removeMessage(conversationId, messageId);
     if (removed && _activeConversationId == conversationId) {
+      notifyListeners();
+    }
+  }
+
+  void _handleMessagesSeen(
+    String conversationId,
+    List<String> messageIds,
+    DateTime? seenAt,
+  ) {
+    final updated = _markMessagesAsSeen(conversationId, messageIds, seenAt);
+    if (updated && _activeConversationId == conversationId) {
       notifyListeners();
     }
   }
@@ -414,6 +429,12 @@ class ChatProvider with ChangeNotifier {
     _typingUserIdsByConversation.remove(conversationId);
   }
 
+  Future<void> _markConversationAsSeen(String conversationId) async {
+    try {
+      await _chatService.markConversationAsSeen(conversationId);
+    } catch (_) {}
+  }
+
   void _upsertMessage(ChatMessageModel message) {
     final existingIndex = _messages.indexWhere((item) => item.id == message.id);
     if (existingIndex >= 0) {
@@ -429,6 +450,37 @@ class ChatProvider with ChangeNotifier {
         final right = b.createdAt?.millisecondsSinceEpoch ?? 0;
         return left.compareTo(right);
       });
+  }
+
+  bool _markMessagesAsSeen(
+    String conversationId,
+    List<String> messageIds,
+    DateTime? seenAt,
+  ) {
+    if (_activeConversationId != conversationId || messageIds.isEmpty) {
+      return false;
+    }
+
+    final targetIds = messageIds.toSet();
+    var hasChanges = false;
+    final updatedMessages = _messages.map((message) {
+      if (!targetIds.contains(message.id) || message.isSeen) {
+        return message;
+      }
+
+      hasChanges = true;
+      return message.copyWith(
+        isSeen: true,
+        seenAt: seenAt ?? message.seenAt,
+      );
+    }).toList();
+
+    if (!hasChanges) {
+      return false;
+    }
+
+    _messages = updatedMessages;
+    return true;
   }
 
   bool _removeMessage(String conversationId, String messageId) {

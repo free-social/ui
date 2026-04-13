@@ -56,6 +56,13 @@ DateTime? _parseLocalDateTime(dynamic value) {
   return parsed?.toLocal();
 }
 
+bool _parseBool(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final normalized = value?.toString().trim().toLowerCase() ?? '';
+  return normalized == 'true' || normalized == '1' || normalized == 'yes';
+}
+
 class FriendRequestActionResult {
   final String message;
   final ChatConversation? conversation;
@@ -195,6 +202,8 @@ class ChatMessageModel {
   final ChatUser sender;
   final String content;
   final String imageUrl;
+  final bool isSeen;
+  final DateTime? seenAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? editedAt;
@@ -205,6 +214,8 @@ class ChatMessageModel {
     required this.sender,
     required this.content,
     required this.imageUrl,
+    required this.isSeen,
+    this.seenAt,
     this.createdAt,
     this.updatedAt,
     this.editedAt,
@@ -212,12 +223,34 @@ class ChatMessageModel {
 
   factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
     final senderData = (json['sender'] as Map<String, dynamic>?) ?? const {};
+    final receiptData =
+        (json['receipt'] as Map<String, dynamic>?) ??
+        (json['readReceipt'] as Map<String, dynamic>?) ??
+        (json['status'] as Map<String, dynamic>?) ??
+        const <String, dynamic>{};
+    final seenAt =
+        _parseLocalDateTime(json['seenAt']) ??
+        _parseLocalDateTime(json['readAt']) ??
+        _parseLocalDateTime(receiptData['seenAt']) ??
+        _parseLocalDateTime(receiptData['readAt']);
+
     return ChatMessageModel(
       id: json['_id'] ?? '',
       conversationId: json['conversation'] ?? '',
       sender: ChatUser.fromJson(senderData),
       content: json['content'] ?? '',
       imageUrl: json['imageUrl'] ?? '',
+      isSeen:
+          _parseBool(json['isSeen']) ||
+          _parseBool(json['seen']) ||
+          _parseBool(json['isRead']) ||
+          _parseBool(json['read']) ||
+          _parseBool(receiptData['isSeen']) ||
+          _parseBool(receiptData['seen']) ||
+          _parseBool(receiptData['isRead']) ||
+          _parseBool(receiptData['read']) ||
+          seenAt != null,
+      seenAt: seenAt,
       createdAt: _parseLocalDateTime(json['createdAt']),
       updatedAt: _parseLocalDateTime(json['updatedAt']),
       editedAt: _parseLocalDateTime(json['editedAt']),
@@ -230,6 +263,8 @@ class ChatMessageModel {
     ChatUser? sender,
     String? content,
     String? imageUrl,
+    bool? isSeen,
+    DateTime? seenAt,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? editedAt,
@@ -240,6 +275,8 @@ class ChatMessageModel {
       sender: sender ?? this.sender,
       content: content ?? this.content,
       imageUrl: imageUrl ?? this.imageUrl,
+      isSeen: isSeen ?? this.isSeen,
+      seenAt: seenAt ?? this.seenAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       editedAt: editedAt ?? this.editedAt,

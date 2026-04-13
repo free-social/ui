@@ -233,7 +233,9 @@ class _ChatScreenState extends State<ChatScreen> {
         : pendingSent
         ? (isDark ? const Color(0xFF4A3612) : const Color(0xFFFFF3D6))
         : pendingReceived
-        ? (isDark ? const Color(0xFF11332F) : const Color.fromARGB(255, 95, 132, 123))
+        ? (isDark
+              ? const Color(0xFF11332F)
+              : const Color.fromARGB(255, 95, 132, 123))
         : kPrimaryColor;
     final actionTextColor = alreadyAdded
         ? kPrimaryColor
@@ -793,11 +795,24 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: CircleAvatar(
         radius: radius,
-        backgroundColor: Colors.grey[200]!,
-        backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-        child: avatarUrl.isEmpty
-            ? const Icon(Icons.person, size: 24, color: Colors.grey)
-            : null,
+        backgroundColor: const Color(0xFFF5F7FA),
+        child: ClipOval(
+          child: avatarUrl.isNotEmpty
+              ? Image.network(
+                  avatarUrl,
+                  width: radius * 2,
+                  height: radius * 2,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(Icons.person, size: 24, color: Colors.grey),
+                    );
+                  },
+                )
+              : const Center(
+                  child: Icon(Icons.person, size: 24, color: Colors.grey),
+                ),
+        ),
       ),
     );
   }
