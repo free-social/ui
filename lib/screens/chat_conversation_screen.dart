@@ -681,11 +681,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   ? null
                                   : _handleSend,
                               style: FilledButton.styleFrom(
-                                minimumSize: const Size(24, 24),
+                                minimumSize: const Size(40, 40),
                                 padding: EdgeInsets.zero,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(
-                                    AppRadii.md,
+                                    AppRadii.lg,
                                   ),
                                 ),
                               ),
