@@ -97,11 +97,6 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Update how your profile appears across Spendwise.',
-                style: theme.textTheme.bodyLarge,
-              ),
-              const SizedBox(height: AppSpacing.xl),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.xl),
@@ -140,12 +135,6 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                     Text(
                       'Profile photo',
                       style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Choose a clear image so teammates can recognize you quickly.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium,
                     ),
                   ],
                 ),

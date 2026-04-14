@@ -667,8 +667,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                       ? 'Edit message'
                                       : 'Type a message',
                                   contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 14,
+                                    horizontal: 10,
+                                    vertical: 0,
                                   ),
                                 ),
                               ),
@@ -681,7 +681,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   ? null
                                   : _handleSend,
                               style: FilledButton.styleFrom(
-                                minimumSize: const Size(56, 56),
+                                minimumSize: const Size(40, 40),
                                 padding: EdgeInsets.zero,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(

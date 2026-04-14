@@ -89,7 +89,7 @@ class AuthScreenShell extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  // const SizedBox(height: AppSpacing.lg),
                   if (title != null) ...[
                     Text(title!, style: theme.textTheme.displaySmall),
                   ],
@@ -97,7 +97,7 @@ class AuthScreenShell extends StatelessWidget {
                     const SizedBox(height: AppSpacing.md),
                     Text(subtitle!, style: theme.textTheme.bodyLarge),
                   ],
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: AppSpacing.sm),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSpacing.xl),

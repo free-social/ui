@@ -195,7 +195,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     Text('Find people', style: theme.textTheme.titleLarge),
                     const SizedBox(height: 2),
                     Text(
-                      'Search by username or email to add a friend.',
+                      'Search to add friends.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: scheme.onSurface.withValues(alpha: 0.7),
                       ),

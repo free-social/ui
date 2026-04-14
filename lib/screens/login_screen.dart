@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
               AppTextField(
                 controller: _emailController,
                 label: 'Email',
-                hintText: 'hello@example.com',
+                hintText: 'abc@gmail.com',
                 prefixIcon: Icons.alternate_email_rounded,
                 keyboardType: TextInputType.emailAddress,
                 validator: ValidationUtils.validateEmail,
