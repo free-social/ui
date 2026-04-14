@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/navigation/app_navigator.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/wallet_provider.dart';
 import 'providers/theme_provider.dart';
+import 'screens/chat_call_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
@@ -33,8 +35,6 @@ void main() async {
   );
 }
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -47,6 +47,7 @@ class MyApp extends StatelessWidget {
           title: 'Spendwise',
           debugShowCheckedModeBanner: false,
           routes: {
+            '/chat-call': (_) => const ChatCallScreen(),
             '/login': (_) => const LoginScreen(),
             '/main': (_) => const MainScreen(),
             '/splash': (_) => const SplashScreen(),

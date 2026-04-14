@@ -283,3 +283,120 @@ class ChatMessageModel {
     );
   }
 }
+
+class ChatCallParticipant {
+  final String id;
+  final String username;
+  final String email;
+  final String avatar;
+
+  const ChatCallParticipant({
+    required this.id,
+    required this.username,
+    required this.email,
+    required this.avatar,
+  });
+
+  factory ChatCallParticipant.fromJson(Map<String, dynamic> json) {
+    return ChatCallParticipant(
+      id: (json['id'] ?? json['_id'] ?? '').toString(),
+      username: (json['username'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      avatar: (json['avatar'] ?? '').toString(),
+    );
+  }
+}
+
+class ChatCallModel {
+  final String id;
+  final String conversationId;
+  final ChatCallParticipant initiator;
+  final ChatCallParticipant recipient;
+  final String type;
+  final String status;
+  final ChatCallParticipant? endedBy;
+  final int? durationSeconds;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const ChatCallModel({
+    required this.id,
+    required this.conversationId,
+    required this.initiator,
+    required this.recipient,
+    required this.type,
+    required this.status,
+    this.endedBy,
+    this.durationSeconds,
+    this.startedAt,
+    this.endedAt,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory ChatCallModel.fromJson(Map<String, dynamic> json) {
+    return ChatCallModel(
+      id: (json['id'] ?? json['_id'] ?? '').toString(),
+      conversationId: (json['conversationId'] ?? json['conversation'] ?? '')
+          .toString(),
+      initiator: ChatCallParticipant.fromJson(
+        (json['initiator'] as Map<String, dynamic>?) ??
+            const <String, dynamic>{},
+      ),
+      recipient: ChatCallParticipant.fromJson(
+        (json['recipient'] as Map<String, dynamic>?) ??
+            const <String, dynamic>{},
+      ),
+      type: (json['type'] ?? 'video').toString(),
+      status: (json['status'] ?? 'ringing').toString(),
+      endedBy: json['endedBy'] is Map<String, dynamic>
+          ? ChatCallParticipant.fromJson(
+              json['endedBy'] as Map<String, dynamic>,
+            )
+          : null,
+      durationSeconds: json['durationSeconds'] is num
+          ? (json['durationSeconds'] as num).toInt()
+          : int.tryParse('${json['durationSeconds'] ?? ''}'),
+      startedAt: _parseLocalDateTime(json['startedAt']),
+      endedAt: _parseLocalDateTime(json['endedAt']),
+      createdAt: _parseLocalDateTime(json['createdAt']),
+      updatedAt: _parseLocalDateTime(json['updatedAt']),
+    );
+  }
+
+  bool get isVideo => type == 'video';
+  bool get isAccepted => status == 'accepted';
+  bool get isRinging => status == 'ringing';
+
+  ChatCallModel copyWith({
+    String? id,
+    String? conversationId,
+    ChatCallParticipant? initiator,
+    ChatCallParticipant? recipient,
+    String? type,
+    String? status,
+    ChatCallParticipant? endedBy,
+    int? durationSeconds,
+    DateTime? startedAt,
+    DateTime? endedAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return ChatCallModel(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      initiator: initiator ?? this.initiator,
+      recipient: recipient ?? this.recipient,
+      type: type ?? this.type,
+      status: status ?? this.status,
+      endedBy: endedBy ?? this.endedBy,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+}

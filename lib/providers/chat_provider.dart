@@ -1,48 +1,86 @@
-import 'package:flutter/material.dart';
 import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/navigation/app_navigator.dart';
 import '../models/chat_models.dart';
 import '../services/chat_service.dart';
 import '../services/chat_socket_service.dart';
+import '../services/chat_webrtc_service.dart';
 
 class ChatProvider with ChangeNotifier {
   final ChatService _chatService;
   final ChatSocketService _chatSocketService;
+  final ChatWebRtcService _chatWebRtcService;
 
-  ChatProvider({ChatService? chatService, ChatSocketService? chatSocketService})
-    : _chatService = chatService ?? ChatService(),
-      _chatSocketService = chatSocketService ?? ChatSocketService() {
+  ChatProvider({
+    ChatService? chatService,
+    ChatSocketService? chatSocketService,
+    ChatWebRtcService? chatWebRtcService,
+  }) : _chatService = chatService ?? ChatService(),
+       _chatSocketService = chatSocketService ?? ChatSocketService(),
+       _chatWebRtcService = chatWebRtcService ?? ChatWebRtcService() {
     _chatSocketService.configure(
       onMessage: _handleIncomingMessage,
       onMessageUpdated: _handleUpdatedMessage,
       onMessageDeleted: _handleDeletedMessage,
       onMessagesSeen: _handleMessagesSeen,
+      onCallIncoming: _handleIncomingCall,
+      onCallStatus: _handleCallStatus,
+      onCallEnded: _handleCallEnded,
+      onCallSignal: _handleCallSignal,
       onConversationUpdated: _handleConversationUpdated,
       onTypingChanged: _handleTypingChanged,
     );
+    _bootstrap();
   }
 
   bool _isLoading = false;
   bool _isSendingMessage = false;
   bool _isUpdatingMessage = false;
+  bool _isCallLoading = false;
+  bool _isMicEnabled = true;
+  bool _isCameraEnabled = true;
+  bool _hasRemoteVideo = false;
+  bool _callRouteVisible = false;
+  bool _incomingCallDialogVisible = false;
+  bool _renderersReady = false;
   String _searchQuery = '';
+  String _currentUserId = '';
   String? _activeConversationId;
+  String? _lastNegotiatedCallId;
   final Map<String, Set<String>> _typingUserIdsByConversation = {};
+
+  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
 
   List<ChatUser> _searchResults = [];
   List<FriendRequestModel> _receivedRequests = [];
   List<FriendRequestModel> _sentRequests = [];
   List<ChatConversation> _conversations = [];
   List<ChatMessageModel> _messages = [];
+  ChatCallModel? _activeCall;
 
   bool get isLoading => _isLoading;
   bool get isSendingMessage => _isSendingMessage;
   bool get isUpdatingMessage => _isUpdatingMessage;
+  bool get isCallLoading => _isCallLoading;
+  bool get isMicEnabled => _isMicEnabled;
+  bool get isCameraEnabled => _isCameraEnabled;
+  bool get hasRemoteVideo => _hasRemoteVideo;
   String get searchQuery => _searchQuery;
+  String get currentUserId => _currentUserId;
   List<ChatUser> get searchResults => _searchResults;
   List<FriendRequestModel> get receivedRequests => _receivedRequests;
   List<FriendRequestModel> get sentRequests => _sentRequests;
   List<ChatConversation> get conversations => _conversations;
   List<ChatMessageModel> get messages => _messages;
+  ChatCallModel? get activeCall => _activeCall;
+  RTCVideoRenderer get localRenderer => _localRenderer;
+  RTCVideoRenderer get remoteRenderer => _remoteRenderer;
+  bool get hasActiveCall => _activeCall != null;
   bool get isActiveConversationTyping {
     final conversationId = _activeConversationId;
     if (conversationId == null) {
@@ -51,6 +89,45 @@ class ChatProvider with ChangeNotifier {
 
     return (_typingUserIdsByConversation[conversationId] ?? const <String>{})
         .isNotEmpty;
+  }
+
+  ChatCallParticipant? get activeCallPeer {
+    final call = _activeCall;
+    if (call == null || _currentUserId.isEmpty) {
+      return null;
+    }
+
+    return call.initiator.id == _currentUserId
+        ? call.recipient
+        : call.initiator;
+  }
+
+  String get activeCallStatusLabel {
+    final call = _activeCall;
+    if (call == null) {
+      return '';
+    }
+
+    switch (call.status) {
+      case 'ringing':
+        return call.initiator.id == _currentUserId
+            ? 'Calling...'
+            : 'Incoming call';
+      case 'accepted':
+        return 'Connected';
+      case 'rejected':
+        return 'Declined';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'missed':
+        return 'Missed';
+      case 'failed':
+        return 'Call failed';
+      case 'ended':
+        return 'Call ended';
+      default:
+        return call.status;
+    }
   }
 
   bool isFriend(String userId) {
@@ -83,7 +160,9 @@ class ChatProvider with ChangeNotifier {
     String requestId = '',
   }) {
     _searchResults = _searchResults.map((user) {
-      if (user.id != userId) return user;
+      if (user.id != userId) {
+        return user;
+      }
 
       return user.copyWith(
         relationshipStatus: relationshipStatus,
@@ -197,14 +276,17 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _chatSocketService.syncConversationSubscriptions(
-        {
-          ..._conversations.map((conversation) => conversation.id),
-          conversationId,
-        },
-      );
+      await _chatSocketService.syncConversationSubscriptions({
+        ..._conversations.map((conversation) => conversation.id),
+        conversationId,
+      });
       _messages = await _chatService.getMessages(conversationId);
       await _chatService.markConversationAsSeen(conversationId);
+      final activeCall = await _chatService.getActiveCall(conversationId);
+      if (activeCall != null &&
+          (_activeCall == null || _activeCall!.id == activeCall.id)) {
+        _activeCall = activeCall;
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -213,7 +295,9 @@ class ChatProvider with ChangeNotifier {
 
   Future<void> refreshConversation() async {
     final conversationId = _activeConversationId;
-    if (conversationId == null) return;
+    if (conversationId == null) {
+      return;
+    }
 
     _messages = await _chatService.getMessages(conversationId);
     await _chatService.markConversationAsSeen(conversationId);
@@ -238,10 +322,7 @@ class ChatProvider with ChangeNotifier {
       );
       try {
         await loadInbox(forceSearchRefresh: true);
-      } catch (_) {
-        // The message send already succeeded. Keep the conversation usable even
-        // if a secondary inbox refresh fails.
-      }
+      } catch (_) {}
     } finally {
       _isSendingMessage = false;
       notifyListeners();
@@ -316,11 +397,400 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> startOutgoingCall(
+    String conversationId, {
+    required String type,
+  }) async {
+    _isCallLoading = true;
+    notifyListeners();
+
+    try {
+      await _ensureCurrentUserId();
+      await _ensureRenderersReady();
+
+      final call = await _chatService.startCall(conversationId, type);
+      _activeCall = call;
+      _lastNegotiatedCallId = null;
+      _hasRemoteVideo = false;
+      _isMicEnabled = true;
+      _isCameraEnabled = call.isVideo;
+
+      await _prepareLocalMedia(call);
+      await _openCallScreen();
+    } finally {
+      _isCallLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> acceptIncomingCall() async {
+    final call = _activeCall;
+    if (call == null) {
+      return;
+    }
+
+    _isCallLoading = true;
+    notifyListeners();
+
+    try {
+      await _ensureRenderersReady();
+      final updatedCall = await _chatService.respondToCall(call.id, 'accepted');
+      _activeCall = updatedCall;
+      _isMicEnabled = true;
+      _isCameraEnabled = updatedCall.isVideo;
+      _hasRemoteVideo = false;
+
+      await _prepareLocalMedia(updatedCall);
+      await _ensurePeerConnection();
+      await _openCallScreen();
+    } finally {
+      _isCallLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> rejectIncomingCall() async {
+    final call = _activeCall;
+    if (call == null) {
+      return;
+    }
+
+    _isCallLoading = true;
+    notifyListeners();
+
+    try {
+      await _chatService.respondToCall(call.id, 'rejected');
+      await _resetCallState();
+    } finally {
+      _isCallLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> endCurrentCall({String? forcedStatus}) async {
+    final call = _activeCall;
+    if (call == null) {
+      return;
+    }
+
+    final status =
+        forcedStatus ??
+        (call.status == 'ringing'
+            ? (call.initiator.id == _currentUserId ? 'cancelled' : 'missed')
+            : 'ended');
+
+    _isCallLoading = true;
+    notifyListeners();
+
+    try {
+      await _chatService.endCall(call.id, status);
+    } catch (_) {
+      // Still tear down local state if the call already ended remotely.
+    } finally {
+      await _resetCallState();
+      _isCallLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleMicrophone() async {
+    _isMicEnabled = !_isMicEnabled;
+    await _chatWebRtcService.setMicrophoneEnabled(_isMicEnabled);
+    notifyListeners();
+  }
+
+  Future<void> toggleCamera() async {
+    if (_activeCall == null || !_activeCall!.isVideo) {
+      return;
+    }
+
+    _isCameraEnabled = !_isCameraEnabled;
+    await _chatWebRtcService.setCameraEnabled(_isCameraEnabled);
+    notifyListeners();
+  }
+
+  Future<void> switchCamera() async {
+    if (_activeCall == null || !_activeCall!.isVideo) {
+      return;
+    }
+
+    await _chatWebRtcService.switchCamera();
+  }
+
+  void startTyping(String conversationId) {
+    _chatSocketService.startTyping(conversationId);
+  }
+
+  void stopTyping(String conversationId) {
+    _chatSocketService.stopTyping(conversationId);
+  }
+
+  Future<void> _bootstrap() async {
+    await _ensureCurrentUserId();
+    await _ensureRenderersReady();
+    final iceServers = await _chatService.getRtcIceServers();
+    _chatWebRtcService.configureIceServers(iceServers);
+    await _chatSocketService.connect();
+    try {
+      await loadInbox();
+    } catch (_) {
+      // Keep global call signaling alive even if inbox prefetch fails.
+    }
+  }
+
+  Future<void> _ensureCurrentUserId() async {
+    if (_currentUserId.isNotEmpty) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    _currentUserId = prefs.getString('userId')?.trim() ?? '';
+  }
+
+  Future<void> _ensureRenderersReady() async {
+    if (_renderersReady) {
+      return;
+    }
+
+    await _chatWebRtcService.initializeRenderers(
+      _localRenderer,
+      _remoteRenderer,
+    );
+    _renderersReady = true;
+  }
+
+  Future<void> _prepareLocalMedia(ChatCallModel call) async {
+    await _chatWebRtcService.openLocalMedia(
+      videoEnabled: call.isVideo,
+      localRenderer: _localRenderer,
+    );
+  }
+
+  Future<void> _ensurePeerConnection() async {
+    await _chatWebRtcService.createPeerConnection(
+      remoteRenderer: _remoteRenderer,
+      onIceCandidate: (candidate) {
+        final call = _activeCall;
+        if (call == null) {
+          return;
+        }
+
+        _chatSocketService.sendCallSignal(
+          callId: call.id,
+          type: 'ice-candidate',
+          candidate: <String, dynamic>{
+            'candidate': candidate.candidate,
+            'sdpMid': candidate.sdpMid,
+            'sdpMLineIndex': candidate.sdpMLineIndex,
+          },
+        );
+      },
+      onRemoteStream: () {
+        _hasRemoteVideo = true;
+        notifyListeners();
+      },
+    );
+  }
+
+  Future<void> _startNegotiationAsCaller(ChatCallModel call) async {
+    if (_lastNegotiatedCallId == call.id) {
+      return;
+    }
+
+    _lastNegotiatedCallId = call.id;
+    await _prepareLocalMedia(call);
+    await _ensurePeerConnection();
+
+    final offer = await _chatWebRtcService.createOffer();
+    _chatSocketService.sendCallSignal(
+      callId: call.id,
+      type: 'offer',
+      sdp: offer.sdp,
+    );
+  }
+
+  Future<void> _handleIncomingCall(ChatCallModel call) async {
+    await _ensureCurrentUserId();
+    if (call.recipient.id != _currentUserId) {
+      return;
+    }
+
+    if (_activeCall != null && _activeCall!.id != call.id) {
+      return;
+    }
+
+    _activeCall = call;
+    _lastNegotiatedCallId = null;
+    notifyListeners();
+    await _showIncomingCallDialog(call);
+  }
+
+  Future<void> _handleCallStatus(ChatCallModel call) async {
+    await _ensureCurrentUserId();
+    if (!_isParticipantInCall(call)) {
+      return;
+    }
+
+    _activeCall = call;
+    notifyListeners();
+
+    if (call.status == 'accepted' && call.initiator.id == _currentUserId) {
+      await _startNegotiationAsCaller(call);
+      await _openCallScreen();
+      notifyListeners();
+      return;
+    }
+
+    if (call.status == 'rejected') {
+      await _resetCallState();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _handleCallEnded(ChatCallModel call) async {
+    await _ensureCurrentUserId();
+    if (!_isParticipantInCall(call)) {
+      return;
+    }
+
+    await _resetCallState();
+    notifyListeners();
+  }
+
+  Future<void> _handleCallSignal({
+    required String callId,
+    required String conversationId,
+    required String senderId,
+    required String type,
+    String? sdp,
+    Map<String, dynamic>? candidate,
+  }) async {
+    final call = _activeCall;
+    if (call == null || call.id != callId) {
+      return;
+    }
+
+    await _ensureRenderersReady();
+
+    switch (type) {
+      case 'offer':
+        await _prepareLocalMedia(call);
+        await _ensurePeerConnection();
+        if (sdp == null || sdp.isEmpty) {
+          return;
+        }
+        await _chatWebRtcService.setRemoteDescription(sdp: sdp, type: 'offer');
+        final answer = await _chatWebRtcService.createAnswer();
+        _chatSocketService.sendCallSignal(
+          callId: callId,
+          type: 'answer',
+          sdp: answer.sdp,
+        );
+        await _openCallScreen();
+        notifyListeners();
+        return;
+      case 'answer':
+        if (sdp == null || sdp.isEmpty) {
+          return;
+        }
+        await _chatWebRtcService.setRemoteDescription(sdp: sdp, type: 'answer');
+        notifyListeners();
+        return;
+      case 'ice-candidate':
+        if (candidate == null) {
+          return;
+        }
+        await _chatWebRtcService.addRemoteCandidate(candidate);
+        return;
+      default:
+        return;
+    }
+  }
+
+  Future<void> _showIncomingCallDialog(ChatCallModel call) async {
+    if (_incomingCallDialogVisible) {
+      return;
+    }
+
+    final context = navigatorKey.currentContext;
+    if (context == null) {
+      return;
+    }
+
+    _incomingCallDialogVisible = true;
+    final caller = call.initiator.username.isNotEmpty
+        ? call.initiator.username
+        : call.initiator.email;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            call.isVideo ? 'Incoming video call' : 'Incoming audio call',
+          ),
+          content: Text('$caller is calling you.'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await rejectIncomingCall();
+              },
+              child: const Text('Decline'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await acceptIncomingCall();
+              },
+              child: const Text('Answer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    _incomingCallDialogVisible = false;
+  }
+
+  Future<void> _openCallScreen() async {
+    if (_callRouteVisible || navigatorKey.currentState == null) {
+      return;
+    }
+
+    _callRouteVisible = true;
+    navigatorKey.currentState!
+        .pushNamed('/chat-call')
+        .whenComplete(() => _callRouteVisible = false);
+  }
+
+  Future<void> _resetCallState() async {
+    _lastNegotiatedCallId = null;
+    _hasRemoteVideo = false;
+    _isMicEnabled = true;
+    _isCameraEnabled = true;
+    _activeCall = null;
+    await _chatWebRtcService.close(
+      localRenderer: _localRenderer,
+      remoteRenderer: _remoteRenderer,
+    );
+  }
+
+  bool _isParticipantInCall(ChatCallModel call) {
+    if (_currentUserId.isEmpty) {
+      return true;
+    }
+
+    return call.initiator.id == _currentUserId ||
+        call.recipient.id == _currentUserId;
+  }
+
   void _handleIncomingMessage(ChatMessageModel message) {
     _removeTypingUser(message.conversationId, message.sender.id);
     _upsertConversationPreview(
       message.conversationId,
-      message.content,
+      message.content.isNotEmpty ? message.content : 'Photo',
       message.createdAt,
     );
 
@@ -377,15 +847,11 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void startTyping(String conversationId) {
-    _chatSocketService.startTyping(conversationId);
-  }
-
-  void stopTyping(String conversationId) {
-    _chatSocketService.stopTyping(conversationId);
-  }
-
-  void _handleTypingChanged(String conversationId, String userId, bool isTyping) {
+  void _handleTypingChanged(
+    String conversationId,
+    String userId,
+    bool isTyping,
+  ) {
     final normalizedConversationId = conversationId.trim();
     final normalizedUserId = userId.trim();
     if (normalizedConversationId.isEmpty || normalizedUserId.isEmpty) {
@@ -469,10 +935,7 @@ class ChatProvider with ChangeNotifier {
       }
 
       hasChanges = true;
-      return message.copyWith(
-        isSeen: true,
-        seenAt: seenAt ?? message.seenAt,
-      );
+      return message.copyWith(isSeen: true, seenAt: seenAt ?? message.seenAt);
     }).toList();
 
     if (!hasChanges) {
@@ -523,6 +986,11 @@ class ChatProvider with ChangeNotifier {
   @override
   void dispose() {
     _chatSocketService.disconnect();
+    _chatWebRtcService.close(
+      localRenderer: _localRenderer,
+      remoteRenderer: _remoteRenderer,
+    );
+    _chatWebRtcService.disposeRenderers(_localRenderer, _remoteRenderer);
     super.dispose();
   }
 }

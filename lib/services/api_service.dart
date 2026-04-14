@@ -1,9 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/navigation/app_navigator.dart';
 import '../utils/constants.dart';
 import '../utils/snackbar_helper.dart';
-import '../main.dart';
 import 'push_notification_service.dart';
 
 class ApiService {
@@ -19,7 +19,8 @@ class ApiService {
 
           final prefs = await SharedPreferences.getInstance();
           final pushToken = prefs.getString('pushToken');
-          final deviceId = await PushNotificationService.instance.getOrCreateDeviceId();
+          final deviceId = await PushNotificationService.instance
+              .getOrCreateDeviceId();
           options.headers['X-Device-Id'] = deviceId;
           options.headers['X-Device-Platform'] =
               PushNotificationService.instance.platformHeaderValue;

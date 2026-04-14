@@ -13,9 +13,29 @@ class ChatSocketService {
   void Function(ChatMessageModel message)? _onMessage;
   void Function(ChatMessageModel message)? _onMessageUpdated;
   void Function(String conversationId, String messageId)? _onMessageDeleted;
-  void Function(String conversationId, List<String> messageIds, DateTime? seenAt)?
+  void Function(
+    String conversationId,
+    List<String> messageIds,
+    DateTime? seenAt,
+  )?
   _onMessagesSeen;
-  void Function(String conversationId, String lastMessage, DateTime? lastMessageAt)?
+  void Function(ChatCallModel call)? _onCallIncoming;
+  void Function(ChatCallModel call)? _onCallStatus;
+  void Function(ChatCallModel call)? _onCallEnded;
+  void Function({
+    required String callId,
+    required String conversationId,
+    required String senderId,
+    required String type,
+    String? sdp,
+    Map<String, dynamic>? candidate,
+  })?
+  _onCallSignal;
+  void Function(
+    String conversationId,
+    String lastMessage,
+    DateTime? lastMessageAt,
+  )?
   _onConversationUpdated;
   void Function(String conversationId, String userId, bool isTyping)?
   _onTypingChanged;
@@ -25,9 +45,29 @@ class ChatSocketService {
     required void Function(ChatMessageModel message) onMessage,
     void Function(ChatMessageModel message)? onMessageUpdated,
     void Function(String conversationId, String messageId)? onMessageDeleted,
-    void Function(String conversationId, List<String> messageIds, DateTime? seenAt)?
+    void Function(
+      String conversationId,
+      List<String> messageIds,
+      DateTime? seenAt,
+    )?
     onMessagesSeen,
-    void Function(String conversationId, String lastMessage, DateTime? lastMessageAt)?
+    void Function(ChatCallModel call)? onCallIncoming,
+    void Function(ChatCallModel call)? onCallStatus,
+    void Function(ChatCallModel call)? onCallEnded,
+    void Function({
+      required String callId,
+      required String conversationId,
+      required String senderId,
+      required String type,
+      String? sdp,
+      Map<String, dynamic>? candidate,
+    })?
+    onCallSignal,
+    void Function(
+      String conversationId,
+      String lastMessage,
+      DateTime? lastMessageAt,
+    )?
     onConversationUpdated,
     void Function(String conversationId, String userId, bool isTyping)?
     onTypingChanged,
@@ -37,6 +77,10 @@ class ChatSocketService {
     _onMessageUpdated = onMessageUpdated;
     _onMessageDeleted = onMessageDeleted;
     _onMessagesSeen = onMessagesSeen;
+    _onCallIncoming = onCallIncoming;
+    _onCallStatus = onCallStatus;
+    _onCallEnded = onCallEnded;
+    _onCallSignal = onCallSignal;
     _onConversationUpdated = onConversationUpdated;
     _onTypingChanged = onTypingChanged;
     _onUnauthorized = onUnauthorized;
@@ -54,16 +98,13 @@ class ChatSocketService {
     }
 
     if (_socket == null) {
-      final socket = io.io(
-        ApiConstants.socketUrl,
-        <String, dynamic>{
-          'transports': ['websocket'],
-          'autoConnect': false,
-          'forceNew': false,
-          'auth': {'token': token},
-          'extraHeaders': {'Authorization': 'Bearer $token'},
-        },
-      );
+      final socket = io.io(ApiConstants.socketUrl, <String, dynamic>{
+        'transports': ['websocket'],
+        'autoConnect': false,
+        'forceNew': false,
+        'auth': {'token': token},
+        'extraHeaders': {'Authorization': 'Bearer $token'},
+      });
 
       socket.onConnect((_) {
         for (final conversationId in _joinedConversationIds) {
@@ -129,7 +170,9 @@ class ChatSocketService {
         final payload = data is Map
             ? Map<String, dynamic>.from(data)
             : const <String, dynamic>{};
-        final conversationId = (payload['conversationId'] ?? '').toString().trim();
+        final conversationId = (payload['conversationId'] ?? '')
+            .toString()
+            .trim();
         final rawMessageIds = payload['messageIds'];
         if (conversationId.isEmpty || rawMessageIds is! List) {
           return;
@@ -147,6 +190,61 @@ class ChatSocketService {
           conversationId,
           messageIds,
           _parseLocalDateTime(payload['seenAt']),
+        );
+      });
+
+      void handleCallPayload(
+        dynamic data,
+        void Function(ChatCallModel call)? callback,
+      ) {
+        if (callback == null || data is! Map) {
+          return;
+        }
+
+        try {
+          callback(ChatCallModel.fromJson(Map<String, dynamic>.from(data)));
+        } catch (error, stackTrace) {
+          debugPrint('Chat socket call payload parse failed: $error');
+          debugPrintStack(stackTrace: stackTrace);
+        }
+      }
+
+      socket.on('call:incoming', (data) {
+        handleCallPayload(data, _onCallIncoming);
+      });
+      socket.on('call:status', (data) {
+        handleCallPayload(data, _onCallStatus);
+      });
+      socket.on('call:ended', (data) {
+        handleCallPayload(data, _onCallEnded);
+      });
+
+      socket.on('call:signal', (data) {
+        final payload = data is Map
+            ? Map<String, dynamic>.from(data)
+            : const <String, dynamic>{};
+        final callId = (payload['callId'] ?? '').toString().trim();
+        final conversationId = (payload['conversationId'] ?? '')
+            .toString()
+            .trim();
+        final senderId = (payload['senderId'] ?? '').toString().trim();
+        final type = (payload['type'] ?? '').toString().trim();
+        if (callId.isEmpty ||
+            conversationId.isEmpty ||
+            senderId.isEmpty ||
+            type.isEmpty) {
+          return;
+        }
+
+        _onCallSignal?.call(
+          callId: callId,
+          conversationId: conversationId,
+          senderId: senderId,
+          type: type,
+          sdp: payload['sdp']?.toString(),
+          candidate: payload['candidate'] is Map
+              ? Map<String, dynamic>.from(payload['candidate'] as Map)
+              : null,
         );
       });
 
@@ -188,7 +286,9 @@ class ChatSocketService {
     _socket?.connect();
   }
 
-  Future<void> syncConversationSubscriptions(Iterable<String> conversationIds) async {
+  Future<void> syncConversationSubscriptions(
+    Iterable<String> conversationIds,
+  ) async {
     final normalizedIds = conversationIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
@@ -228,6 +328,26 @@ class ChatSocketService {
     }
 
     _socket?.emit('chat:stopTyping', normalizedConversationId);
+  }
+
+  void sendCallSignal({
+    required String callId,
+    required String type,
+    String? sdp,
+    Map<String, dynamic>? candidate,
+  }) {
+    final normalizedCallId = callId.trim();
+    final normalizedType = type.trim();
+    if (normalizedCallId.isEmpty || normalizedType.isEmpty) {
+      return;
+    }
+
+    _socket?.emit('call:signal', <String, dynamic>{
+      'callId': normalizedCallId,
+      'type': normalizedType,
+      if (sdp != null && sdp.trim().isNotEmpty) 'sdp': sdp.trim(),
+      if (candidate != null) 'candidate': candidate,
+    });
   }
 
   void _handleConversationUpdate(dynamic data) {

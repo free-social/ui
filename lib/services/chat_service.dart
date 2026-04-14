@@ -11,6 +11,23 @@ class ChatService {
   ChatService({ApiService? apiService})
     : _apiService = apiService ?? ApiService();
 
+  Future<List<Map<String, dynamic>>> getRtcIceServers() async {
+    try {
+      final response = await _apiService.client.get('/chat/rtc/config');
+      final servers = response.data['iceServers'] as List<dynamic>? ?? [];
+      return servers
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    } catch (e) {
+      return _handleFetchError<List<Map<String, dynamic>>>(
+        e,
+        'Failed to fetch RTC config',
+        const <Map<String, dynamic>>[],
+      );
+    }
+  }
+
   Future<List<ChatUser>> searchUsers(String query) async {
     try {
       final response = await _apiService.client.get(
@@ -138,8 +155,7 @@ class ChatService {
     String conversationId,
     String content, {
     File? imageFile,
-  }
-  ) async {
+  }) async {
     try {
       final response = await _apiService.client.post(
         '/chat/conversations/$conversationId/messages',
@@ -202,6 +218,74 @@ class ChatService {
         'Failed to mark messages as seen',
       );
       debugPrint('ChatService fetch warning: $errorMessage');
+    }
+  }
+
+  Future<ChatCallModel?> getActiveCall(String conversationId) async {
+    try {
+      final response = await _apiService.client.get(
+        '/chat/conversations/$conversationId/calls/active',
+      );
+      final callData = response.data['call'];
+      if (callData is! Map<String, dynamic>) {
+        return null;
+      }
+
+      return ChatCallModel.fromJson(callData);
+    } catch (e) {
+      return _handleFetchError<ChatCallModel?>(
+        e,
+        'Failed to fetch active call',
+        null,
+      );
+    }
+  }
+
+  Future<ChatCallModel> startCall(String conversationId, String type) async {
+    try {
+      final response = await _apiService.client.post(
+        '/chat/conversations/$conversationId/calls/active',
+        data: {'type': type},
+      );
+
+      return ChatCallModel.fromJson(
+        response.data['call'] as Map<String, dynamic>,
+      );
+    } catch (e) {
+      _handleError(e, 'Failed to start call');
+      rethrow;
+    }
+  }
+
+  Future<ChatCallModel> respondToCall(String callId, String action) async {
+    try {
+      final response = await _apiService.client.patch(
+        '/chat/calls/$callId/respond',
+        data: {'action': action},
+      );
+
+      return ChatCallModel.fromJson(
+        response.data['call'] as Map<String, dynamic>,
+      );
+    } catch (e) {
+      _handleError(e, 'Failed to respond to call');
+      rethrow;
+    }
+  }
+
+  Future<ChatCallModel> endCall(String callId, String status) async {
+    try {
+      final response = await _apiService.client.patch(
+        '/chat/calls/$callId/end',
+        data: {'status': status},
+      );
+
+      return ChatCallModel.fromJson(
+        response.data['call'] as Map<String, dynamic>,
+      );
+    } catch (e) {
+      _handleError(e, 'Failed to end call');
+      rethrow;
     }
   }
 

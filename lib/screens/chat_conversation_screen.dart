@@ -371,6 +371,18 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Audio call',
+            onPressed: () => _startCall('audio'),
+            icon: const Icon(Icons.call_outlined),
+          ),
+          IconButton(
+            tooltip: 'Video call',
+            onPressed: () => _startCall('video'),
+            icon: const Icon(Icons.videocam_outlined),
+          ),
+        ],
       ),
       body: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
@@ -536,6 +548,25 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _startCall(String type) async {
+    try {
+      await context.read<ChatProvider>().startOutgoingCall(
+        widget.conversation.id,
+        type: type,
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      showErrorSnackBar(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        topOffset: _chatSnackTopOffset,
+      );
+    }
   }
 }
 
