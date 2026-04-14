@@ -202,6 +202,8 @@ class ChatMessageModel {
   final ChatUser sender;
   final String content;
   final String imageUrl;
+  final String audioUrl;
+  final int? audioDurationSeconds;
   final bool isSeen;
   final DateTime? seenAt;
   final DateTime? createdAt;
@@ -214,6 +216,8 @@ class ChatMessageModel {
     required this.sender,
     required this.content,
     required this.imageUrl,
+    required this.audioUrl,
+    this.audioDurationSeconds,
     required this.isSeen,
     this.seenAt,
     this.createdAt,
@@ -240,6 +244,10 @@ class ChatMessageModel {
       sender: ChatUser.fromJson(senderData),
       content: json['content'] ?? '',
       imageUrl: json['imageUrl'] ?? '',
+      audioUrl: json['audioUrl'] ?? '',
+      audioDurationSeconds: json['audioDurationSeconds'] is num
+          ? (json['audioDurationSeconds'] as num).toInt()
+          : int.tryParse('${json['audioDurationSeconds'] ?? ''}'),
       isSeen:
           _parseBool(json['isSeen']) ||
           _parseBool(json['seen']) ||
@@ -263,6 +271,8 @@ class ChatMessageModel {
     ChatUser? sender,
     String? content,
     String? imageUrl,
+    String? audioUrl,
+    int? audioDurationSeconds,
     bool? isSeen,
     DateTime? seenAt,
     DateTime? createdAt,
@@ -275,6 +285,8 @@ class ChatMessageModel {
       sender: sender ?? this.sender,
       content: content ?? this.content,
       imageUrl: imageUrl ?? this.imageUrl,
+      audioUrl: audioUrl ?? this.audioUrl,
+      audioDurationSeconds: audioDurationSeconds ?? this.audioDurationSeconds,
       isSeen: isSeen ?? this.isSeen,
       seenAt: seenAt ?? this.seenAt,
       createdAt: createdAt ?? this.createdAt,

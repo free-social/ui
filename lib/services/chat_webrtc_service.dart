@@ -84,14 +84,12 @@ class ChatWebRtcService {
         return;
       }
 
-      final remoteStream = _remoteStream;
-      if (remoteStream == null) {
+      if (_remoteStream == null) {
+        _attachTrackToRemoteStream(event.track, remoteRenderer, onRemoteStream);
         return;
       }
 
-      remoteStream.addTrack(event.track);
-      remoteRenderer.srcObject = remoteStream;
-      onRemoteStream();
+      _attachTrackToRemoteStream(event.track, remoteRenderer, onRemoteStream);
     };
 
     _peerConnection!.onAddStream = (stream) {
@@ -218,5 +216,30 @@ class ChatWebRtcService {
   ) async {
     await localRenderer.dispose();
     await remoteRenderer.dispose();
+  }
+
+  Future<void> _attachTrackToRemoteStream(
+    rtc.MediaStreamTrack track,
+    rtc.RTCVideoRenderer remoteRenderer,
+    VoidCallback onRemoteStream,
+  ) async {
+    final remoteStream =
+        _remoteStream ?? await rtc.createLocalMediaStream('remote-stream');
+    _remoteStream = remoteStream;
+
+    if (track.kind == 'audio') {
+      final existingAudioTracks = remoteStream.getAudioTracks();
+      if (existingAudioTracks.every((item) => item.id != track.id)) {
+        remoteStream.addTrack(track);
+      }
+    } else {
+      final existingVideoTracks = remoteStream.getVideoTracks();
+      if (existingVideoTracks.every((item) => item.id != track.id)) {
+        remoteStream.addTrack(track);
+      }
+    }
+
+    remoteRenderer.srcObject = remoteStream;
+    onRemoteStream();
   }
 }

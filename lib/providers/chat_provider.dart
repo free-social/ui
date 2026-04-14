@@ -347,7 +347,39 @@ class ChatProvider with ChangeNotifier {
       _upsertMessage(sentMessage);
       _upsertConversationPreview(
         conversationId,
-        sentMessage.content.isNotEmpty ? sentMessage.content : 'Photo',
+        _messagePreview(sentMessage),
+        sentMessage.createdAt,
+      );
+      try {
+        await loadInbox(forceSearchRefresh: true);
+      } catch (_) {}
+    } finally {
+      _isSendingMessage = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> sendVoiceMessage(
+    String conversationId, {
+    required File audioFile,
+    required int durationSeconds,
+    String content = '',
+  }) async {
+    _isSendingMessage = true;
+    stopTyping(conversationId);
+    notifyListeners();
+
+    try {
+      final sentMessage = await _chatService.sendMessage(
+        conversationId,
+        content,
+        audioFile: audioFile,
+        audioDurationSeconds: durationSeconds,
+      );
+      _upsertMessage(sentMessage);
+      _upsertConversationPreview(
+        conversationId,
+        _messagePreview(sentMessage),
         sentMessage.createdAt,
       );
       try {
@@ -376,7 +408,7 @@ class ChatProvider with ChangeNotifier {
       _upsertMessage(updatedMessage);
       _upsertConversationPreview(
         conversationId,
-        updatedMessage.content.isNotEmpty ? updatedMessage.content : 'Photo',
+        _messagePreview(updatedMessage),
         updatedMessage.createdAt,
       );
       try {
@@ -786,11 +818,24 @@ class ChatProvider with ChangeNotifier {
         call.recipient.id == _currentUserId;
   }
 
+  String _messagePreview(ChatMessageModel message) {
+    if (message.content.isNotEmpty) {
+      return message.content;
+    }
+    if (message.imageUrl.isNotEmpty) {
+      return 'Photo';
+    }
+    if (message.audioUrl.isNotEmpty) {
+      return 'Voice message';
+    }
+    return '';
+  }
+
   void _handleIncomingMessage(ChatMessageModel message) {
     _removeTypingUser(message.conversationId, message.sender.id);
     _upsertConversationPreview(
       message.conversationId,
-      message.content.isNotEmpty ? message.content : 'Photo',
+      _messagePreview(message),
       message.createdAt,
     );
 
@@ -812,7 +857,7 @@ class ChatProvider with ChangeNotifier {
     _upsertMessage(message);
     _upsertConversationPreview(
       message.conversationId,
-      message.content.isNotEmpty ? message.content : 'Photo',
+      _messagePreview(message),
       message.createdAt,
     );
     if (_activeConversationId == message.conversationId) {

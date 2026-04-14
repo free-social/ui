@@ -155,14 +155,22 @@ class ChatService {
     String conversationId,
     String content, {
     File? imageFile,
+    File? audioFile,
+    int? audioDurationSeconds,
   }) async {
     try {
+      final attachmentFile = imageFile ?? audioFile;
       final response = await _apiService.client.post(
         '/chat/conversations/$conversationId/messages',
-        data: imageFile == null
+        data: attachmentFile == null
             ? {'content': content}
-            : await _buildMessageFormData(content, imageFile),
-        options: imageFile == null
+            : await _buildMessageFormData(
+                content,
+                imageFile: imageFile,
+                audioFile: audioFile,
+                audioDurationSeconds: audioDurationSeconds,
+              ),
+        options: attachmentFile == null
             ? null
             : Options(contentType: 'multipart/form-data'),
       );
@@ -316,25 +324,65 @@ class ChatService {
     return errorMessage;
   }
 
-  Future<FormData> _buildMessageFormData(String content, File imageFile) async {
-    final fileName = imageFile.path.split('/').last;
-    final extension = fileName.split('.').last.toLowerCase();
-    var subtype = 'jpeg';
-    if (extension == 'png') {
-      subtype = 'png';
-    } else if (extension == 'gif') {
-      subtype = 'gif';
-    } else if (extension == 'webp') {
-      subtype = 'webp';
+  Future<FormData> _buildMessageFormData(
+    String content, {
+    File? imageFile,
+    File? audioFile,
+    int? audioDurationSeconds,
+  }) async {
+    final file = imageFile ?? audioFile;
+    if (file == null) {
+      throw ArgumentError('An image or audio file is required');
     }
+
+    final fileName = file.path.split('/').last;
+    final isAudio = audioFile != null;
 
     return FormData.fromMap({
       'content': content,
-      'image': await MultipartFile.fromFile(
-        imageFile.path,
+      if (audioDurationSeconds != null)
+        'audioDurationSeconds': audioDurationSeconds.toString(),
+      isAudio ? 'audio' : 'image': await MultipartFile.fromFile(
+        file.path,
         filename: fileName,
-        contentType: MediaType('image', subtype),
+        contentType: isAudio
+            ? _audioMediaType(fileName)
+            : _imageMediaType(fileName),
       ),
     });
+  }
+
+  MediaType _imageMediaType(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'png':
+        return MediaType('image', 'png');
+      case 'gif':
+        return MediaType('image', 'gif');
+      case 'webp':
+        return MediaType('image', 'webp');
+      default:
+        return MediaType('image', 'jpeg');
+    }
+  }
+
+  MediaType _audioMediaType(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'm4a':
+        return MediaType('audio', 'x-m4a');
+      case 'aac':
+        return MediaType('audio', 'aac');
+      case 'mp3':
+        return MediaType('audio', 'mpeg');
+      case 'ogg':
+        return MediaType('audio', 'ogg');
+      case 'wav':
+        return MediaType('audio', 'wav');
+      case 'webm':
+        return MediaType('audio', 'webm');
+      default:
+        return MediaType('audio', 'mp4');
+    }
   }
 }

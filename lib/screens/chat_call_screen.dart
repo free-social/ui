@@ -26,6 +26,7 @@ class ChatCallScreen extends StatelessWidget {
         final displayName = peer?.username.isNotEmpty == true
             ? peer!.username
             : peer?.email ?? 'Unknown';
+        final showRemoteVideo = call.isVideo && chatProvider.hasRemoteVideo;
 
         return PopScope(
           canPop: false,
@@ -50,7 +51,7 @@ class ChatCallScreen extends StatelessWidget {
                     ),
                   ),
                   Positioned.fill(
-                    child: call.isVideo && chatProvider.hasRemoteVideo
+                    child: showRemoteVideo
                         ? RTCVideoView(
                             chatProvider.remoteRenderer,
                             objectFit: RTCVideoViewObjectFit
@@ -82,31 +83,32 @@ class ChatCallScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                  Positioned(
-                    top: AppSpacing.xl,
-                    left: AppSpacing.lg,
-                    right: AppSpacing.lg,
-                    child: Column(
-                      children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
+                  if (showRemoteVideo)
+                    Positioned(
+                      top: AppSpacing.xl,
+                      left: AppSpacing.lg,
+                      right: AppSpacing.lg,
+                      child: Column(
+                        children: [
+                          Text(
+                            displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          chatProvider.activeCallStatusLabel,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 15,
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            chatProvider.activeCallStatusLabel,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 15,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                   Positioned(
                     left: AppSpacing.lg,
                     right: AppSpacing.lg,

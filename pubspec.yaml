@@ -23,6 +23,9 @@ dependencies:
   url_launcher: ^6.3.2
   socket_io_client: ^3.1.4
   flutter_webrtc: ^0.14.2
+  record: ^6.1.2
+  just_audio: ^0.10.5
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
