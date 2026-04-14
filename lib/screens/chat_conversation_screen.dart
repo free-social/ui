@@ -681,7 +681,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   ? null
                                   : _handleSend,
                               style: FilledButton.styleFrom(
-                                minimumSize: const Size(40, 40),
+                                minimumSize: const Size(24, 24),
                                 padding: EdgeInsets.zero,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(
