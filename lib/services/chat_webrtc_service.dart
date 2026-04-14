@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 import '../utils/constants.dart';
@@ -53,7 +52,7 @@ class ChatWebRtcService {
   Future<void> createPeerConnection({
     required rtc.RTCVideoRenderer remoteRenderer,
     required void Function(rtc.RTCIceCandidate candidate) onIceCandidate,
-    required VoidCallback onRemoteStream,
+    required void Function(bool hasVideo) onRemoteStream,
   }) async {
     if (_peerConnection != null) {
       return;
@@ -80,7 +79,7 @@ class ChatWebRtcService {
       if (event.streams.isNotEmpty) {
         _remoteStream = event.streams.first;
         remoteRenderer.srcObject = _remoteStream;
-        onRemoteStream();
+        onRemoteStream(_remoteStream!.getVideoTracks().isNotEmpty);
         return;
       }
 
@@ -95,7 +94,7 @@ class ChatWebRtcService {
     _peerConnection!.onAddStream = (stream) {
       _remoteStream = stream;
       remoteRenderer.srcObject = stream;
-      onRemoteStream();
+      onRemoteStream(stream.getVideoTracks().isNotEmpty);
     };
   }
 
@@ -221,7 +220,7 @@ class ChatWebRtcService {
   Future<void> _attachTrackToRemoteStream(
     rtc.MediaStreamTrack track,
     rtc.RTCVideoRenderer remoteRenderer,
-    VoidCallback onRemoteStream,
+    void Function(bool hasVideo) onRemoteStream,
   ) async {
     final remoteStream =
         _remoteStream ?? await rtc.createLocalMediaStream('remote-stream');
@@ -240,6 +239,6 @@ class ChatWebRtcService {
     }
 
     remoteRenderer.srcObject = remoteStream;
-    onRemoteStream();
+    onRemoteStream(remoteStream.getVideoTracks().isNotEmpty);
   }
 }

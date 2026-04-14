@@ -42,26 +42,20 @@ class ChatCallScreen extends StatelessWidget {
             body: SafeArea(
               child: Stack(
                 children: [
-                  Positioned(
-                    width: 1,
-                    height: 1,
-                    child: Opacity(
-                      opacity: 0,
-                      child: RTCVideoView(chatProvider.remoteRenderer),
+                  Positioned.fill(
+                    child: RTCVideoView(
+                      chatProvider.remoteRenderer,
+                      objectFit:
+                          RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                     ),
                   ),
-                  Positioned.fill(
-                    child: showRemoteVideo
-                        ? RTCVideoView(
-                            chatProvider.remoteRenderer,
-                            objectFit: RTCVideoViewObjectFit
-                                .RTCVideoViewObjectFitCover,
-                          )
-                        : _CallBackdrop(
-                            title: displayName,
-                            subtitle: chatProvider.activeCallStatusLabel,
-                          ),
-                  ),
+                  if (!showRemoteVideo)
+                    Positioned.fill(
+                      child: _CallBackdrop(
+                        title: displayName,
+                        subtitle: chatProvider.activeCallStatusLabel,
+                      ),
+                    ),
                   if (call.isVideo)
                     Positioned(
                       top: AppSpacing.lg,

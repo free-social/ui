@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -51,6 +52,7 @@ class ChatProvider with ChangeNotifier {
   String _currentUserId = '';
   String? _activeConversationId;
   String? _lastNegotiatedCallId;
+  Timer? _ringingTimer;
   final Map<String, Set<String>> _typingUserIdsByConversation = {};
 
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
@@ -448,6 +450,7 @@ class ChatProvider with ChangeNotifier {
       _isCameraEnabled = call.isVideo;
 
       await _prepareLocalMedia(call);
+      _startRingingTimeout();
       await _openCallScreen();
     } finally {
       _isCallLoading = false;
@@ -461,6 +464,7 @@ class ChatProvider with ChangeNotifier {
       return;
     }
 
+    _cancelRingingTimeout();
     _isCallLoading = true;
     notifyListeners();
 
@@ -617,8 +621,8 @@ class ChatProvider with ChangeNotifier {
           },
         );
       },
-      onRemoteStream: () {
-        _hasRemoteVideo = true;
+      onRemoteStream: (hasVideo) {
+        _hasRemoteVideo = hasVideo;
         notifyListeners();
       },
     );
@@ -654,6 +658,7 @@ class ChatProvider with ChangeNotifier {
     _activeCall = call;
     _lastNegotiatedCallId = null;
     notifyListeners();
+    _startRingingTimeout();
     await _showIncomingCallDialog(call);
   }
 
@@ -664,6 +669,7 @@ class ChatProvider with ChangeNotifier {
     }
 
     _activeCall = call;
+    _cancelRingingTimeout();
     notifyListeners();
 
     if (call.status == 'accepted' && call.initiator.id == _currentUserId) {
@@ -787,17 +793,27 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> _openCallScreen() async {
-    if (_callRouteVisible || navigatorKey.currentState == null) {
+    if (_callRouteVisible) {
+      return;
+    }
+
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) {
       return;
     }
 
     _callRouteVisible = true;
-    navigatorKey.currentState!
-        .pushNamed('/chat-call')
-        .whenComplete(() => _callRouteVisible = false);
+    try {
+      await navigator.pushNamed('/chat-call');
+    } catch (_) {
+      // Ignore navigation errors.
+    } finally {
+      _callRouteVisible = false;
+    }
   }
 
   Future<void> _resetCallState() async {
+    _cancelRingingTimeout();
     _lastNegotiatedCallId = null;
     _hasRemoteVideo = false;
     _isMicEnabled = true;
@@ -807,6 +823,20 @@ class ChatProvider with ChangeNotifier {
       localRenderer: _localRenderer,
       remoteRenderer: _remoteRenderer,
     );
+  }
+
+  void _startRingingTimeout() {
+    _ringingTimer?.cancel();
+    _ringingTimer = Timer(const Duration(seconds: 60), () {
+      if (_activeCall != null && _activeCall!.status == 'ringing') {
+        endCurrentCall(forcedStatus: 'missed');
+      }
+    });
+  }
+
+  void _cancelRingingTimeout() {
+    _ringingTimer?.cancel();
+    _ringingTimer = null;
   }
 
   bool _isParticipantInCall(ChatCallModel call) {
