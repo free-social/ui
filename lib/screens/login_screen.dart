@@ -40,7 +40,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return AuthScreenShell(
       eyebrow: 'Welcome back',
-      title: 'Sign in',
       footer: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
