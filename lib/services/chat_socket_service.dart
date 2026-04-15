@@ -345,7 +345,7 @@ class ChatSocketService {
     _socket?.emit('call:signal', <String, dynamic>{
       'callId': normalizedCallId,
       'type': normalizedType,
-      if (sdp != null && sdp.trim().isNotEmpty) 'sdp': sdp.trim(),
+      if (sdp != null && sdp.isNotEmpty) 'sdp': sdp,
       if (candidate != null) 'candidate': candidate,
     });
   }

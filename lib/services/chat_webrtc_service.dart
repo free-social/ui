@@ -46,6 +46,9 @@ class ChatWebRtcService {
     _localStream = await rtc.navigator.mediaDevices.getUserMedia(
       mediaConstraints,
     );
+    debugPrint('[WebRTC] Local stream acquired: '
+        'audio=${_localStream!.getAudioTracks().length}, '
+        'video=${_localStream!.getVideoTracks().length}');
     localRenderer.srcObject = _localStream;
     await rtc.Helper.setSpeakerphoneOn(true);
   }
@@ -59,12 +62,16 @@ class ChatWebRtcService {
       return;
     }
 
+    debugPrint('[WebRTC] Creating peer connection with ${_iceServers.length} ICE servers');
     _peerConnection = await rtc.createPeerConnection(<String, dynamic>{
       'iceServers': _iceServers,
       'sdpSemantics': 'unified-plan',
     });
 
-    for (final track in _localStream?.getTracks() ?? <rtc.MediaStreamTrack>[]) {
+    final localTracks = _localStream?.getTracks() ?? <rtc.MediaStreamTrack>[];
+    debugPrint('[WebRTC] Adding ${localTracks.length} local tracks to peer connection');
+    for (final track in localTracks) {
+      debugPrint('[WebRTC]   Adding track: ${track.kind} (id=${track.id}, enabled=${track.enabled})');
       await _peerConnection!.addTrack(track, _localStream!);
     }
 
@@ -118,6 +125,7 @@ class ChatWebRtcService {
     }
 
     final offer = await peerConnection.createOffer();
+    debugPrint('[WebRTC] Offer created (${offer.sdp?.length ?? 0} chars)');
     await peerConnection.setLocalDescription(offer);
     return offer;
   }
@@ -129,6 +137,7 @@ class ChatWebRtcService {
     }
 
     final answer = await peerConnection.createAnswer();
+    debugPrint('[WebRTC] Answer created (${answer.sdp?.length ?? 0} chars)');
     await peerConnection.setLocalDescription(answer);
     return answer;
   }
@@ -142,10 +151,12 @@ class ChatWebRtcService {
       throw StateError('Peer connection is not ready');
     }
 
+    debugPrint('[WebRTC] Setting remote description: type=$type (${sdp.length} chars)');
     await peerConnection.setRemoteDescription(
       rtc.RTCSessionDescription(sdp, type),
     );
     _remoteDescriptionSet = true;
+    debugPrint('[WebRTC] Remote description set, flushing ${_pendingRemoteCandidates.length} buffered candidates');
 
     for (final candidate in _pendingRemoteCandidates) {
       await peerConnection.addCandidate(candidate);

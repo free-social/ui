@@ -478,7 +478,9 @@ class ChatProvider with ChangeNotifier {
       _hasRemoteVideo = false;
 
       await _prepareLocalMedia(updatedCall);
-      await _ensurePeerConnection();
+      // Peer connection is created when the caller's offer arrives
+      // in _processCallSignal — creating it here too early causes
+      // a race condition with mismatched transceivers.
       await _openCallScreen();
     } finally {
       _isCallLoading = false;
