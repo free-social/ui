@@ -53,6 +53,7 @@ class ChatProvider with ChangeNotifier {
   String? _activeConversationId;
   String? _lastNegotiatedCallId;
   Timer? _ringingTimer;
+  Completer<void>? _signalLock;
   final Map<String, Set<String>> _typingUserIdsByConversation = {};
 
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
@@ -703,6 +704,37 @@ class ChatProvider with ChangeNotifier {
     String? sdp,
     Map<String, dynamic>? candidate,
   }) async {
+    // Serialize signal processing to avoid race conditions when multiple
+    // signals (offer + ICE candidates) arrive almost simultaneously.
+    while (_signalLock != null) {
+      await _signalLock!.future;
+    }
+    _signalLock = Completer<void>();
+
+    try {
+      await _processCallSignal(
+        callId: callId,
+        conversationId: conversationId,
+        senderId: senderId,
+        type: type,
+        sdp: sdp,
+        candidate: candidate,
+      );
+    } finally {
+      final lock = _signalLock;
+      _signalLock = null;
+      lock?.complete();
+    }
+  }
+
+  Future<void> _processCallSignal({
+    required String callId,
+    required String conversationId,
+    required String senderId,
+    required String type,
+    String? sdp,
+    Map<String, dynamic>? candidate,
+  }) async {
     final call = _activeCall;
     if (call == null || call.id != callId) {
       return;
@@ -819,6 +851,13 @@ class ChatProvider with ChangeNotifier {
     _isMicEnabled = true;
     _isCameraEnabled = true;
     _activeCall = null;
+
+    final pendingLock = _signalLock;
+    _signalLock = null;
+    if (pendingLock != null && !pendingLock.isCompleted) {
+      pendingLock.complete();
+    }
+
     await _chatWebRtcService.close(
       localRenderer: _localRenderer,
       remoteRenderer: _remoteRenderer,
@@ -829,7 +868,10 @@ class ChatProvider with ChangeNotifier {
     _ringingTimer?.cancel();
     _ringingTimer = Timer(const Duration(seconds: 60), () {
       if (_activeCall != null && _activeCall!.status == 'ringing') {
-        endCurrentCall(forcedStatus: 'missed');
+        final status = _activeCall!.initiator.id == _currentUserId
+            ? 'cancelled'
+            : 'missed';
+        endCurrentCall(forcedStatus: status);
       }
     });
   }

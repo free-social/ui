@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 import '../utils/constants.dart';
@@ -95,6 +96,18 @@ class ChatWebRtcService {
       _remoteStream = stream;
       remoteRenderer.srcObject = stream;
       onRemoteStream(stream.getVideoTracks().isNotEmpty);
+    };
+
+    _peerConnection!.onConnectionState = (state) {
+      debugPrint('[WebRTC] Connection state: $state');
+    };
+
+    _peerConnection!.onIceConnectionState = (state) {
+      debugPrint('[WebRTC] ICE connection state: $state');
+    };
+
+    _peerConnection!.onIceGatheringState = (state) {
+      debugPrint('[WebRTC] ICE gathering state: $state');
     };
   }
 
