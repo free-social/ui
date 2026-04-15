@@ -53,6 +53,8 @@ class ChatProvider with ChangeNotifier {
   String? _activeConversationId;
   String? _lastNegotiatedCallId;
   Timer? _ringingTimer;
+  Timer? _callDurationTimer;
+  int _callDurationSeconds = 0;
   Completer<void>? _signalLock;
   final Map<String, Set<String>> _typingUserIdsByConversation = {};
 
@@ -105,6 +107,21 @@ class ChatProvider with ChangeNotifier {
         : call.initiator;
   }
 
+  String get callDurationLabel {
+    final hours = _callDurationSeconds ~/ 3600;
+    final minutes = (_callDurationSeconds % 3600) ~/ 60;
+    final seconds = _callDurationSeconds % 60;
+
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:'
+          '${minutes.toString().padLeft(2, '0')}:'
+          '${seconds.toString().padLeft(2, '0')}';
+    }
+
+    return '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
+  }
+
   String get activeCallStatusLabel {
     final call = _activeCall;
     if (call == null) {
@@ -117,7 +134,7 @@ class ChatProvider with ChangeNotifier {
             ? 'Calling...'
             : 'Incoming call';
       case 'accepted':
-        return 'Connected';
+        return _callDurationSeconds > 0 ? callDurationLabel : 'Connecting...';
       case 'rejected':
         return 'Declined';
       case 'cancelled':
@@ -626,6 +643,7 @@ class ChatProvider with ChangeNotifier {
       },
       onRemoteStream: (hasVideo) {
         _hasRemoteVideo = hasVideo;
+        _startCallDurationTimer();
         notifyListeners();
       },
     );
@@ -848,6 +866,7 @@ class ChatProvider with ChangeNotifier {
 
   Future<void> _resetCallState() async {
     _cancelRingingTimeout();
+    _stopCallDurationTimer();
     _lastNegotiatedCallId = null;
     _hasRemoteVideo = false;
     _isMicEnabled = true;
@@ -864,6 +883,24 @@ class ChatProvider with ChangeNotifier {
       localRenderer: _localRenderer,
       remoteRenderer: _remoteRenderer,
     );
+  }
+
+  void _startCallDurationTimer() {
+    if (_callDurationTimer != null) {
+      return;
+    }
+
+    _callDurationSeconds = 0;
+    _callDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _callDurationSeconds++;
+      notifyListeners();
+    });
+  }
+
+  void _stopCallDurationTimer() {
+    _callDurationTimer?.cancel();
+    _callDurationTimer = null;
+    _callDurationSeconds = 0;
   }
 
   void _startRingingTimeout() {
