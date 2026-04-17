@@ -30,9 +30,16 @@ class ChatService {
 
   Future<List<ChatUser>> searchUsers(String query) async {
     try {
+      final normalizedQuery = query.trim();
+      final queryParameters = <String, dynamic>{};
+
+      if (normalizedQuery.isNotEmpty) {
+        queryParameters['search'] = normalizedQuery;
+      }
+
       final response = await _apiService.client.get(
         '/chat/users',
-        queryParameters: query.trim().isEmpty ? null : {'search': query.trim()},
+        queryParameters: queryParameters.isEmpty ? null : queryParameters,
       );
 
       final users = (response.data['users'] as List<dynamic>? ?? [])
@@ -60,9 +67,14 @@ class ChatService {
     }
   }
 
-  Future<Map<String, List<FriendRequestModel>>> getFriendRequests() async {
+  Future<Map<String, List<FriendRequestModel>>> getFriendRequests({
+    FriendRequestStatusFilter? status,
+  }) async {
     try {
-      final response = await _apiService.client.get('/chat/friends/requests');
+      final response = await _apiService.client.get(
+        '/chat/friends/requests',
+        queryParameters: status == null ? null : {'status': status.apiValue},
+      );
 
       final received = (response.data['received'] as List<dynamic>? ?? [])
           .map(

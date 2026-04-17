@@ -50,6 +50,21 @@ class ChatUser {
   }
 }
 
+enum FriendRequestStatusFilter { pending, accepted, rejected }
+
+extension FriendRequestStatusFilterX on FriendRequestStatusFilter {
+  String get apiValue {
+    switch (this) {
+      case FriendRequestStatusFilter.pending:
+        return 'pending';
+      case FriendRequestStatusFilter.accepted:
+        return 'accepted';
+      case FriendRequestStatusFilter.rejected:
+        return 'rejected';
+    }
+  }
+}
+
 DateTime? _parseLocalDateTime(dynamic value) {
   if (value == null) return null;
   final parsed = DateTime.tryParse(value.toString());
@@ -155,17 +170,45 @@ class FriendRequestModel {
   factory FriendRequestModel.fromJson(Map<String, dynamic> json) {
     return FriendRequestModel(
       id: json['_id'] ?? '',
-      sender: ChatUser.fromJson(
-        (json['sender'] as Map<String, dynamic>?) ?? const {},
-      ),
-      receiver: ChatUser.fromJson(
-        (json['receiver'] as Map<String, dynamic>?) ?? const {},
-      ),
+      sender: _parseFriendRequestUser(json['sender']),
+      receiver: _parseFriendRequestUser(json['receiver']),
       status: json['status'] ?? '',
       createdAt: _parseLocalDateTime(json['createdAt']),
       updatedAt: _parseLocalDateTime(json['updatedAt']),
     );
   }
+}
+
+ChatUser _parseFriendRequestUser(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return ChatUser.fromJson(value);
+  }
+
+  if (value is Map) {
+    return ChatUser.fromJson(Map<String, dynamic>.from(value));
+  }
+
+  if (value is String) {
+    return ChatUser(
+      id: value,
+      username: '',
+      email: '',
+      avatar: '',
+      relationshipStatus: 'none',
+      conversationId: '',
+      requestId: '',
+    );
+  }
+
+  return const ChatUser(
+    id: '',
+    username: '',
+    email: '',
+    avatar: '',
+    relationshipStatus: 'none',
+    conversationId: '',
+    requestId: '',
+  );
 }
 
 class ChatConversation {

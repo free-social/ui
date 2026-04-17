@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -20,6 +21,11 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _searchController = TextEditingController();
   static const double _chatSnackTopOffset = kToolbarHeight;
+  static const List<FriendRequestStatusFilter> _requestTabs = [
+    FriendRequestStatusFilter.pending,
+    FriendRequestStatusFilter.accepted,
+    FriendRequestStatusFilter.rejected,
+  ];
 
   @override
   void initState() {
@@ -38,106 +44,102 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final scaffoldBg = theme.scaffoldBackgroundColor;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final overlayStyle = isDark
+        ? SystemUiOverlayStyle.light.copyWith(
+            statusBarColor: scaffoldBg,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+          )
+        : SystemUiOverlayStyle.dark.copyWith(
+            statusBarColor: scaffoldBg,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
-      body: Consumer<ChatProvider>(
-        builder: (context, chatProvider, child) {
-          return RefreshIndicator(
-            onRefresh: () => chatProvider.loadInbox(forceSearchRefresh: true),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
-                      AppSpacing.lg,
-                      AppSpacing.xl,
-                      AppSpacing.xl,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: AppSpacing.xl),
-                        _buildSearchPanel(context, chatProvider),
-                        if (chatProvider.receivedRequests.isNotEmpty) ...[
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlayStyle,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: scaffoldBg,
+          systemOverlayStyle: overlayStyle,
+          title: Text(
+            'Messages',
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+        ),
+        body: Consumer<ChatProvider>(
+          builder: (context, chatProvider, child) {
+            return RefreshIndicator(
+              onRefresh: () => chatProvider.loadInbox(forceSearchRefresh: true),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.xl,
+                        AppSpacing.lg,
+                        AppSpacing.xl,
+                        AppSpacing.xl,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildSearchPanel(context, chatProvider),
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildRequestSection(context, chatProvider),
                           const SizedBox(height: AppSpacing.xl),
                           _buildSectionHeader(
                             context,
-                            'Friend requests',
-                            '${chatProvider.receivedRequests.length} waiting',
+                            'Conversations',
+                            chatProvider.conversations.isEmpty
+                                ? 'Start one by adding a friend'
+                                : '${chatProvider.conversations.length} active',
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          Column(
-                            children: chatProvider.receivedRequests
-                                .map(
-                                  (request) =>
-                                      _buildRequestCard(context, request),
-                                )
-                                .toList(),
-                          ),
+                          if (chatProvider.isLoading &&
+                              chatProvider.conversations.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 32),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (chatProvider.conversations.isEmpty)
+                            _buildEmptyState(
+                              context,
+                              title: 'No conversations yet',
+                              subtitle: 'No Chat',
+                            )
+                          else
+                            Column(
+                              children: chatProvider.conversations
+                                  .map(
+                                    (conversation) => _buildConversationRow(
+                                      context,
+                                      conversation,
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          const SizedBox(height: 120),
                         ],
-                        const SizedBox(height: AppSpacing.xl),
-                        _buildSectionHeader(
-                          context,
-                          'Conversations',
-                          chatProvider.conversations.isEmpty
-                              ? 'Start one by adding a friend'
-                              : '${chatProvider.conversations.length} active',
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        if (chatProvider.isLoading &&
-                            chatProvider.conversations.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 32),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else if (chatProvider.conversations.isEmpty)
-                          _buildEmptyState(
-                            context,
-                            title: 'No conversations yet',
-                            subtitle: 'No Chat',
-                          )
-                        else
-                          Column(
-                            children: chatProvider.conversations
-                                .map(
-                                  (conversation) => _buildConversationRow(
-                                    context,
-                                    conversation,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (chatProvider.sentRequests.isNotEmpty) ...[
-                          const SizedBox(height: AppSpacing.xl),
-                          _buildSectionHeader(
-                            context,
-                            'Pending sent requests',
-                            'Waiting for a reply',
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          Column(
-                            children: chatProvider.sentRequests
-                                .map(
-                                  (request) =>
-                                      _buildSentRequestRow(context, request),
-                                )
-                                .toList(),
-                          ),
-                        ],
-                        const SizedBox(height: 120),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -236,15 +238,95 @@ class _ChatScreenState extends State<ChatScreen> {
             Column(
               children: chatProvider.searchResults
                   .map(
-                    (user) => _buildSearchUserTile(
-                      context,
-                      chatProvider,
-                      user,
-                    ),
+                    (user) => _buildSearchUserTile(context, chatProvider, user),
                   )
                   .toList(),
             ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildRequestSection(BuildContext context, ChatProvider chatProvider) {
+    final receivedRequests = chatProvider.receivedRequests;
+    final sentRequests = chatProvider.sentRequests;
+    final totalRequests = receivedRequests.length + sentRequests.length;
+    final activeFilter = chatProvider.requestStatusFilter;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          context,
+          'Requests',
+          totalRequests == 0
+              ? 'No ${_requestStatusLabel(activeFilter).toLowerCase()} requests'
+              : '$totalRequests ${_requestStatusLabel(activeFilter).toLowerCase()}',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: _requestTabs.map((filter) {
+            return ChoiceChip(
+              label: Text(_requestStatusLabel(filter)),
+              selected: filter == activeFilter,
+              onSelected: (selected) async {
+                if (!selected) return;
+                await chatProvider.setRequestStatusFilter(filter);
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (chatProvider.isLoading && totalRequests == 0)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (totalRequests == 0)
+          _buildEmptyState(
+            context,
+            title: 'No ${_requestStatusLabel(activeFilter)} requests',
+            subtitle: activeFilter == FriendRequestStatusFilter.pending
+                ? 'New incoming and outgoing requests will appear here.'
+                : 'Nothing in this tab yet.',
+          )
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (receivedRequests.isNotEmpty) ...[
+                _buildSubsectionLabel(context, 'Received'),
+                const SizedBox(height: AppSpacing.sm),
+                Column(
+                  children: receivedRequests.map((request) {
+                    if (activeFilter == FriendRequestStatusFilter.pending) {
+                      return _buildRequestCard(context, request);
+                    }
+
+                    return _buildRequestStatusRow(
+                      context,
+                      user: request.sender,
+                      status: request.status,
+                      subtitle: request.sender.email,
+                    );
+                  }).toList(),
+                ),
+              ],
+              if (receivedRequests.isNotEmpty && sentRequests.isNotEmpty)
+                const SizedBox(height: AppSpacing.lg),
+              if (sentRequests.isNotEmpty) ...[
+                _buildSubsectionLabel(context, 'Sent'),
+                const SizedBox(height: AppSpacing.sm),
+                Column(
+                  children: sentRequests
+                      .map((request) => _buildSentRequestRow(context, request))
+                      .toList(),
+                ),
+              ],
+            ],
+          ),
       ],
     );
   }
@@ -425,7 +507,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (pendingReceived) {
       final requestId = user.requestId.isNotEmpty
           ? user.requestId
-          : _findReceivedRequestId(chatProvider, user.id);
+          : chatProvider.findPendingReceivedRequestId(user.id);
 
       if (requestId.isEmpty) {
         await chatProvider.refreshRelationshipState();
@@ -701,6 +783,7 @@ class _ChatScreenState extends State<ChatScreen> {
     BuildContext context,
     FriendRequestModel request,
   ) {
+    final activeFilter = context.read<ChatProvider>().requestStatusFilter;
     final theme = Theme.of(context);
     final receiver = request.receiver;
 
@@ -719,7 +802,12 @@ class _ChatScreenState extends State<ChatScreen> {
         receiver.username.isNotEmpty ? receiver.username : receiver.email,
         style: theme.textTheme.titleMedium,
       ),
-      subtitle: Text('Pending approval', style: theme.textTheme.bodyMedium),
+      subtitle: Text(
+        activeFilter == FriendRequestStatusFilter.pending
+            ? 'Pending approval'
+            : receiver.email,
+        style: theme.textTheme.bodyMedium,
+      ),
       trailing: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
@@ -730,7 +818,50 @@ class _ChatScreenState extends State<ChatScreen> {
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
-          'Pending',
+          _requestStatusLabelFromValue(request.status),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequestStatusRow(
+    BuildContext context, {
+    required ChatUser user,
+    required String status,
+    required String subtitle,
+  }) {
+    final theme = Theme.of(context);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      leading: _Avatar(
+        avatarUrl: user.avatar,
+        size: 48,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        iconColor: theme.colorScheme.primary,
+      ),
+      title: Text(
+        user.username.isNotEmpty ? user.username : user.email,
+        style: theme.textTheme.titleMedium,
+      ),
+      subtitle: Text(subtitle, style: theme.textTheme.bodyMedium),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          _requestStatusLabelFromValue(status),
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w700,
           ),
@@ -759,6 +890,18 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSubsectionLabel(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      child: Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      ),
     );
   }
 
@@ -814,13 +957,27 @@ class _ChatScreenState extends State<ChatScreen> {
     return DateFormat('dd MMM').format(value);
   }
 
-  String _findReceivedRequestId(ChatProvider chatProvider, String userId) {
-    for (final request in chatProvider.receivedRequests) {
-      if (request.sender.id == userId) {
-        return request.id;
-      }
+  String _requestStatusLabel(FriendRequestStatusFilter status) {
+    switch (status) {
+      case FriendRequestStatusFilter.pending:
+        return 'Pending';
+      case FriendRequestStatusFilter.accepted:
+        return 'Accepted';
+      case FriendRequestStatusFilter.rejected:
+        return 'Rejected';
     }
-    return '';
+  }
+
+  String _requestStatusLabelFromValue(String status) {
+    switch (status.toLowerCase()) {
+      case 'accepted':
+        return 'Accepted';
+      case 'rejected':
+        return 'Rejected';
+      case 'pending':
+      default:
+        return 'Pending';
+    }
   }
 
   Future<String?> _showFriendOptionsSheet(BuildContext context, ChatUser user) {

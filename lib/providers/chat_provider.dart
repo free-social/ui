@@ -54,6 +54,8 @@ class ChatProvider with ChangeNotifier {
   String _currentUserId = '';
   String? _activeConversationId;
   String? _lastNegotiatedCallId;
+  FriendRequestStatusFilter _requestStatusFilter =
+      FriendRequestStatusFilter.pending;
   Timer? _ringingTimer;
   Timer? _callDurationTimer;
   int _callDurationSeconds = 0;
@@ -66,6 +68,8 @@ class ChatProvider with ChangeNotifier {
   List<ChatUser> _searchResults = [];
   List<FriendRequestModel> _receivedRequests = [];
   List<FriendRequestModel> _sentRequests = [];
+  List<FriendRequestModel> _pendingReceivedRequests = [];
+  List<FriendRequestModel> _pendingSentRequests = [];
   List<ChatConversation> _conversations = [];
   List<ChatMessageModel> _messages = [];
   ChatCallModel? _activeCall;
@@ -79,6 +83,7 @@ class ChatProvider with ChangeNotifier {
   bool get hasRemoteVideo => _hasRemoteVideo;
   String get searchQuery => _searchQuery;
   String get currentUserId => _currentUserId;
+  FriendRequestStatusFilter get requestStatusFilter => _requestStatusFilter;
   List<ChatUser> get searchResults => _searchResults;
   List<FriendRequestModel> get receivedRequests => _receivedRequests;
   List<FriendRequestModel> get sentRequests => _sentRequests;
@@ -164,6 +169,8 @@ class ChatProvider with ChangeNotifier {
     _searchResults = [];
     _receivedRequests = [];
     _sentRequests = [];
+    _pendingReceivedRequests = [];
+    _pendingSentRequests = [];
     _conversations = [];
     _messages = [];
     await _resetCallState();
@@ -178,11 +185,13 @@ class ChatProvider with ChangeNotifier {
   }
 
   bool hasPendingSentRequest(String userId) {
-    return _sentRequests.any((request) => request.receiver.id == userId);
+    return _pendingSentRequests.any((request) => request.receiver.id == userId);
   }
 
   bool hasPendingReceivedRequest(String userId) {
-    return _receivedRequests.any((request) => request.sender.id == userId);
+    return _pendingReceivedRequests.any(
+      (request) => request.sender.id == userId,
+    );
   }
 
   ChatConversation? findConversationByUserId(String userId) {
@@ -192,6 +201,15 @@ class ChatProvider with ChangeNotifier {
       }
     }
     return null;
+  }
+
+  String findPendingReceivedRequestId(String userId) {
+    for (final request in _pendingReceivedRequests) {
+      if (request.sender.id == userId) {
+        return request.id;
+      }
+    }
+    return '';
   }
 
   void markUserRelationship(
@@ -219,14 +237,38 @@ class ChatProvider with ChangeNotifier {
     await loadInbox(forceSearchRefresh: true);
   }
 
-  Future<void> loadInbox({bool forceSearchRefresh = false}) async {
+  Future<void> setRequestStatusFilter(
+    FriendRequestStatusFilter status, {
+    bool forceSearchRefresh = false,
+  }) async {
+    if (_requestStatusFilter == status && !forceSearchRefresh) {
+      return;
+    }
+
+    await loadInbox(
+      forceSearchRefresh: forceSearchRefresh,
+      requestStatus: status,
+    );
+  }
+
+  Future<void> loadInbox({
+    bool forceSearchRefresh = false,
+    FriendRequestStatusFilter? requestStatus,
+  }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final results = await Future.wait([
+      final activeRequestStatus = requestStatus ?? _requestStatusFilter;
+      _requestStatusFilter = activeRequestStatus;
+
+      final results = await Future.wait<dynamic>([
         _chatService.getConversations(),
-        _chatService.getFriendRequests(),
+        _chatService.getFriendRequests(status: activeRequestStatus),
+        if (activeRequestStatus != FriendRequestStatusFilter.pending)
+          _chatService.getFriendRequests(
+            status: FriendRequestStatusFilter.pending,
+          ),
         if (forceSearchRefresh || _searchQuery.trim().isNotEmpty)
           _chatService.searchUsers(_searchQuery)
         else
@@ -237,17 +279,31 @@ class ChatProvider with ChangeNotifier {
       final requestMap = results[1] as Map<String, List<FriendRequestModel>>;
       _receivedRequests = requestMap['received'] ?? [];
       _sentRequests = requestMap['sent'] ?? [];
+
+      final pendingRequestMap =
+          activeRequestStatus == FriendRequestStatusFilter.pending
+          ? requestMap
+          : results[2] as Map<String, List<FriendRequestModel>>;
+      _pendingReceivedRequests = pendingRequestMap['received'] ?? [];
+      _pendingSentRequests = pendingRequestMap['sent'] ?? [];
+
       await _chatSocketService.syncConversationSubscriptions(
         _conversations.map((conversation) => conversation.id),
       );
 
       if (forceSearchRefresh || _searchQuery.trim().isNotEmpty) {
-        _searchResults = results[2] as List<ChatUser>;
+        _searchResults = results.last as List<ChatUser>;
       }
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<Map<String, List<FriendRequestModel>>> getFriendRequestsByStatus(
+    FriendRequestStatusFilter status,
+  ) {
+    return _chatService.getFriendRequests(status: status);
   }
 
   Future<void> searchUsers(String query) async {
