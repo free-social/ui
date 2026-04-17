@@ -9,6 +9,7 @@ class ExpenseProvider with ChangeNotifier {
 
   List<TransactionModel> _transactions = [];
   bool _isLoading = false;
+  bool _isStatsLoading = false;
   dynamic _monthlySummary;
   dynamic _dailySummary;
 
@@ -25,6 +26,7 @@ class ExpenseProvider with ChangeNotifier {
   dynamic get monthlySummary => _monthlySummary;
   dynamic get dailySummary => _dailySummary;
   bool get isLoading => _isLoading;
+  bool get isStatsLoading => _isStatsLoading;
 
   int get currentPage => _currentPage;
   String? get currentCategory => _currentCategory;
@@ -138,21 +140,29 @@ class ExpenseProvider with ChangeNotifier {
 
   // 5. Monthly Expenses
   Future<void> fetchMonthlyExpenses(int month, int year) async {
+    _isStatsLoading = true;
+    notifyListeners();
     try {
       _monthlySummary = await _expenseService.getMonthlyExpenses(month, year);
-      notifyListeners();
     } catch (e) {
       debugPrint('Error fetching monthly report: $e');
+    } finally {
+      _isStatsLoading = false;
+      notifyListeners();
     }
   }
 
   // 6. Daily Expenses
   Future<void> fetchDailyExpenses([DateTime? date]) async {
+    _isStatsLoading = true;
+    notifyListeners();
     try {
       _dailySummary = await _expenseService.getDailyExpenses(date: date);
-      notifyListeners();
     } catch (e) {
       debugPrint('Error fetching daily report: $e');
+    } finally {
+      _isStatsLoading = false;
+      notifyListeners();
     }
   }
 }

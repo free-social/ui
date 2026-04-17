@@ -64,7 +64,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
 
     final Color textColor = isDark ? Colors.white : Colors.black;
     final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey;
-    final Color cardColor = theme.cardColor;
+    final Color cardColor = theme.colorScheme.surface;
     final Color progressBgColor = isDark
         ? Colors.grey[800]!
         : const Color(0xFFF2F4F7);
@@ -84,9 +84,17 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         ),
         centerTitle: true,
       ),
-      body: Consumer<ExpenseProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
+      body: Builder(
+        builder: (context) {
+          final isStatsLoading = context.select<ExpenseProvider, bool>(
+            (provider) => provider.isStatsLoading,
+          );
+          final rawData = context.select<ExpenseProvider, dynamic>(
+            (provider) =>
+                _isDailyView ? provider.dailySummary : provider.monthlySummary,
+          );
+
+          if (isStatsLoading) {
             return _buildSkeletonLoading(
               cardColor,
               textColor,
@@ -94,10 +102,6 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               isDark,
             );
           }
-
-          final dynamic rawData = _isDailyView
-              ? provider.dailySummary
-              : provider.monthlySummary;
 
           List<dynamic> rawTransactions = [];
           if (rawData is Map && rawData.containsKey('data')) {
@@ -132,52 +136,44 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
             (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
           );
 
-          // ✅ Wrapped in RefreshIndicator
           return RefreshIndicator(
             onRefresh: _fetchData,
             color: kPrimaryColor,
-            child: Column(
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
               children: [
                 _buildToggleBar(cardColor, textColor),
-                _buildDateSelector(textColor),
-                const SizedBox(height: 20),
-
-                _buildDynamicRing(uiList, totalSpent, textColor, subTextColor),
-
-                const SizedBox(height: 40),
-                _buildCategoryHeader(textColor),
-
-                // ✅ Using Expanded with LayoutBuilder to handle empty states
-                // while keeping pull-to-refresh working
-                Expanded(
-                  child: uiList.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            SizedBox(
-                              height: 200, // Space to push empty state down
-                              child: _buildEmptyState(subTextColor),
-                            ),
-                          ],
-                        )
-                      : ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          itemCount: uiList.length,
-                          itemBuilder: (context, index) {
-                            final item = uiList[index];
-                            return _buildStatRow(
-                              item['category'],
-                              item['amount'],
-                              totalSpent,
-                              item['color'],
-                              textColor,
-                              subTextColor,
-                              progressBgColor,
-                            );
-                          },
-                        ),
+                const SizedBox(height: 14),
+                _buildDateSelector(textColor, subTextColor),
+                const SizedBox(height: 16),
+                _buildOverviewCard(
+                  categories: uiList,
+                  totalSpent: totalSpent,
+                  textColor: textColor,
+                  subTextColor: subTextColor,
+                  cardColor: cardColor,
                 ),
+                const SizedBox(height: 20),
+                _buildCategoryHeader(textColor, subTextColor, uiList.length),
+                const SizedBox(height: 10),
+                if (uiList.isEmpty)
+                  SizedBox(height: 220, child: _buildEmptyState(subTextColor))
+                else
+                  ...uiList.map(
+                    (item) => _buildStatRow(
+                      item['category'],
+                      item['amount'],
+                      totalSpent,
+                      item['color'],
+                      textColor,
+                      subTextColor,
+                      progressBgColor,
+                      cardColor,
+                    ),
+                  ),
               ],
             ),
           );
@@ -197,7 +193,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -237,7 +233,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     );
   }
 
-  Widget _buildDateSelector(Color textColor) {
+  Widget _buildDateSelector(Color textColor, Color subTextColor) {
     String label;
     if (_isDailyView) {
       label = DateFormat('EEE, MMM d').format(_currentDate);
@@ -245,11 +241,23 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
       label = DateFormat('MMMM yyyy').format(_currentDate);
     }
 
-    if (_isDailyView) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Center(
-          child: Text(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        // border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildDateChevron(
+            icon: Icons.chevron_left,
+            onTap: () => _changeDate(-1),
+          ),
+          const SizedBox(width: 8),
+          Text(
             label,
             style: TextStyle(
               fontSize: 16,
@@ -257,28 +265,159 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               color: textColor,
             ),
           ),
-        ),
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          icon: Icon(Icons.chevron_left, color: kPrimaryColor),
-          onPressed: () => _changeDate(-1),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: textColor,
+          const SizedBox(width: 8),
+          _buildDateChevron(
+            icon: Icons.chevron_right,
+            onTap: () => _changeDate(1),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateChevron({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: kPrimaryColor.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, color: kPrimaryColor),
         ),
-        IconButton(
-          icon: Icon(Icons.chevron_right, color: kPrimaryColor),
-          onPressed: () => _changeDate(1),
+      ),
+    );
+  }
+
+  Widget _buildOverviewCard({
+    required List<Map<String, dynamic>> categories,
+    required double totalSpent,
+    required Color textColor,
+    required Color subTextColor,
+    required Color cardColor,
+  }) {
+    final topCategory = categories.isEmpty ? null : categories.first;
+    final topCategoryAmount = (topCategory?['amount'] as double?) ?? 0.0;
+    final topCategoryShare = totalSpent == 0
+        ? 0
+        : ((topCategoryAmount / totalSpent) * 100).round();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _buildDynamicRing(
+                categories,
+                totalSpent,
+                textColor,
+                subTextColor,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSummaryMetric(
+                      label: 'Total spent',
+                      value: '\$${NumberFormat("#,##0").format(totalSpent)}',
+                      textColor: textColor,
+                      subTextColor: subTextColor,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildSummaryMetric(
+                      label: 'Top category',
+                      value: topCategory == null
+                          ? 'No data'
+                          : _formatCategoryName(
+                              topCategory['category'] as String,
+                            ),
+                      textColor: textColor,
+                      subTextColor: subTextColor,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildSummaryMetric(
+                      label: 'Share',
+                      value: topCategory == null ? '0%' : '$topCategoryShare%',
+                      textColor: textColor,
+                      subTextColor: subTextColor,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (topCategory != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: (topCategory['color'] as Color).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _getCategoryIcon(topCategory['category'] as String),
+                    color: topCategory['color'] as Color,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${_formatCategoryName(topCategory['category'] as String)} leads this ${_isDailyView ? 'day' : 'month'}',
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryMetric({
+    required String label,
+    required String value,
+    required Color textColor,
+    required Color subTextColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: subTextColor, fontSize: 12)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
         ),
       ],
     );
@@ -291,19 +430,19 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     Color subText,
   ) {
     return SizedBox(
-      width: 180,
-      height: 160,
+      width: 132,
+      height: 132,
       child: Stack(
         alignment: Alignment.center,
         children: [
           SizedBox(
-            width: 200,
-            height: 200,
+            width: 132,
+            height: 132,
             child: CustomPaint(
               painter: MultiSegmentPainter(
                 categories: categories,
                 total: total,
-                strokeWidth: 16,
+                strokeWidth: 14,
               ),
             ),
           ),
@@ -312,13 +451,13 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
             children: [
               Text(
                 "Total Spent",
-                style: TextStyle(color: subText, fontSize: 14),
+                style: TextStyle(color: subText, fontSize: 11),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
-                "\$${NumberFormat("#,##0").format(total)}",
+                "\$${NumberFormat.compactCurrency(symbol: '', decimalDigits: 0).format(total)}",
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: mainText,
                 ),
@@ -338,14 +477,24 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     Color mainText,
     Color subText,
     Color progressBg,
+    Color cardColor,
   ) {
     final percentage = total == 0 ? 0.0 : (amount / total);
-    final displayCategory = category.isNotEmpty
-        ? category[0].toUpperCase() + category.substring(1)
-        : category;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Row(
@@ -354,7 +503,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                 width: 45,
                 height: 45,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(_getCategoryIcon(category), color: color, size: 24),
@@ -365,7 +514,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      displayCategory,
+                      _formatCategoryName(category),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -400,10 +549,10 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           ),
           const SizedBox(height: 12),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
               value: percentage,
-              minHeight: 6,
+              minHeight: 7,
               backgroundColor: progressBg,
               color: color,
             ),
@@ -429,23 +578,45 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     );
   }
 
-  Widget _buildCategoryHeader(Color textColor) {
+  Widget _buildCategoryHeader(
+    Color textColor,
+    Color subTextColor,
+    int itemCount,
+  ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            "Categories",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Categories",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                itemCount == 0
+                    ? 'No category data yet'
+                    : '$itemCount categories tracked',
+                style: TextStyle(color: subTextColor, fontSize: 12),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  String _formatCategoryName(String category) {
+    return category.isNotEmpty
+        ? category[0].toUpperCase() + category.substring(1)
+        : category;
   }
 
   IconData _getCategoryIcon(String category) {
@@ -515,96 +686,138 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         ? Colors.grey[700]!
         : Colors.grey[100]!;
 
-    return Column(
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
       children: [
-        // _buildToggleBar(cardColor, textColor), // Assuming these are defined elsewhere or not needed for skeleton
-        // _buildDateSelector(textColor),
-        const SizedBox(height: 20),
-
-        // Ring chart skeleton
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.4, end: 1.0),
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOut,
-          builder: (context, value, child) {
-            return Opacity(opacity: value, child: child);
-          },
-          onEnd: () {
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) setState(() {});
-            });
-          },
+        _buildToggleBar(cardColor, textColor),
+        const SizedBox(height: 14),
+        Center(
           child: Container(
-            width: 200,
-            height: 180,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  shimmerBaseColor,
-                  shimmerHighlightColor,
-                  shimmerBaseColor,
-                ],
-              ),
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: Center(
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: shimmerBaseColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSkeletonDateChevron(shimmerBaseColor),
+                const SizedBox(width: 8),
+                Container(
+                  width: 124,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        shimmerBaseColor,
+                        shimmerHighlightColor,
+                        shimmerBaseColor,
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: 100,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: shimmerBaseColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                _buildSkeletonDateChevron(shimmerBaseColor),
+              ],
             ),
           ),
         ),
-
-        const SizedBox(height: 40),
-        _buildCategoryHeader(textColor),
-
-        // Category list skeleton
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            itemCount: 4,
-            itemBuilder: (context, index) {
-              return _buildSkeletonCategoryRow(
-                shimmerBaseColor,
-                shimmerHighlightColor,
-              );
-            },
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 132,
+                height: 132,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      shimmerBaseColor,
+                      shimmerHighlightColor,
+                      shimmerBaseColor,
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildSkeletonSummaryLine(shimmerBaseColor, 90, 12),
+                    const SizedBox(height: 8),
+                    _buildSkeletonSummaryLine(shimmerBaseColor, 120, 20),
+                    const SizedBox(height: 14),
+                    _buildSkeletonSummaryLine(shimmerBaseColor, 80, 12),
+                    const SizedBox(height: 8),
+                    _buildSkeletonSummaryLine(shimmerBaseColor, 100, 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildCategoryHeader(textColor, subTextColor, 0),
+        const SizedBox(height: 10),
+        ...List.generate(
+          4,
+          (_) => _buildSkeletonCategoryRow(
+            shimmerBaseColor,
+            highlightColor: shimmerHighlightColor,
+            cardColor: cardColor,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSkeletonCategoryRow(Color baseColor, Color highlightColor) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+  Widget _buildSkeletonSummaryLine(Color color, double width, double height) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonDateChevron(Color color) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(14),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonCategoryRow(
+    Color baseColor, {
+    required Color highlightColor,
+    required Color cardColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         children: [
           Row(
@@ -637,7 +850,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                       width: 100,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: baseColor.withOpacity(0.7),
+                        color: baseColor.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -660,7 +873,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                     width: 40,
                     height: 12,
                     decoration: BoxDecoration(
-                      color: baseColor.withOpacity(0.7),
+                      color: baseColor.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
