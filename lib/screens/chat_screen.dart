@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radii.dart';
 import '../core/theme/app_spacing.dart';
-import '../core/widgets/section_card.dart';
 import '../models/chat_models.dart';
 import '../providers/chat_provider.dart';
 import '../utils/snackbar_helper.dart';
@@ -62,17 +61,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Chat',
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            fontSize: 32,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Keep up with friends',
-                          style: theme.textTheme.bodyLarge,
-                        ),
                         const SizedBox(height: AppSpacing.xl),
                         _buildSearchPanel(context, chatProvider),
                         if (chatProvider.receivedRequests.isNotEmpty) ...[
@@ -83,7 +71,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             '${chatProvider.receivedRequests.length} waiting',
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          SectionCard(
+                          Column(
                             children: chatProvider.receivedRequests
                                 .map(
                                   (request) =>
@@ -114,7 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             subtitle: 'No Chat',
                           )
                         else
-                          SectionCard(
+                          Column(
                             children: chatProvider.conversations
                                 .map(
                                   (conversation) => _buildConversationRow(
@@ -132,7 +120,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             'Waiting for a reply',
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          SectionCard(
+                          Column(
                             children: chatProvider.sentRequests
                                 .map(
                                   (request) =>
@@ -158,129 +146,106 @@ class _ChatScreenState extends State<ChatScreen> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.8)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(Icons.person_search_rounded, color: scheme.primary),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Find people', style: theme.textTheme.titleLarge),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Search to add friends.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          const SizedBox(height: AppSpacing.lg),
-          TextField(
-            controller: _searchController,
-            onChanged: chatProvider.searchUsers,
-            decoration: InputDecoration(
-              hintText: 'Search users',
-              filled: true,
-              fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                color: scheme.onSurfaceVariant,
-              ),
-              hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadii.md),
-                borderSide: BorderSide(
-                  color: theme.dividerColor.withValues(alpha: 0.9),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadii.md),
-                borderSide: BorderSide(color: scheme.primary, width: 1.2),
-              ),
-            ),
-            style: TextStyle(color: scheme.onSurface),
-          ),
-          if (chatProvider.searchQuery.trim().isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.lg),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
             Container(
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(AppRadii.md),
-                border: Border.all(
-                  color: theme.dividerColor.withValues(alpha: 0.8),
-                ),
+                color: scheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child:
-                  chatProvider.isLoading && chatProvider.searchResults.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(AppSpacing.xl),
-                      child: Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2.4),
-                        ),
-                      ),
-                    )
-                  : chatProvider.searchResults.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Text(
-                        'No users found for "${chatProvider.searchQuery}".',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurface.withValues(alpha: 0.72),
-                        ),
-                      ),
-                    )
-                  : Column(
-                      children: chatProvider.searchResults
-                          .map(
-                            (user) => _buildSearchUserTile(
-                              context,
-                              chatProvider,
-                              user,
-                            ),
-                          )
-                          .toList(),
+              child: Icon(Icons.person_search_rounded, color: scheme.primary),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Find people', style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Search to add friends.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.7),
                     ),
+                  ),
+                ],
+              ),
             ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        TextField(
+          controller: _searchController,
+          onChanged: chatProvider.searchUsers,
+          decoration: InputDecoration(
+            hintText: 'Search users',
+            filled: true,
+            fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: scheme.onSurfaceVariant,
+            ),
+            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              borderSide: BorderSide(
+                color: theme.dividerColor.withValues(alpha: 0.55),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              borderSide: BorderSide(color: scheme.primary, width: 1.2),
+            ),
+          ),
+          style: TextStyle(color: scheme.onSurface),
+        ),
+        if (chatProvider.searchQuery.trim().isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          if (chatProvider.isLoading && chatProvider.searchResults.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(AppSpacing.xl),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+              ),
+            )
+          else if (chatProvider.searchResults.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: AppSpacing.md,
+                horizontal: AppSpacing.sm,
+              ),
+              child: Text(
+                'No users found for "${chatProvider.searchQuery}".',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurface.withValues(alpha: 0.72),
+                ),
+              ),
+            )
+          else
+            Column(
+              children: chatProvider.searchResults
+                  .map(
+                    (user) => _buildSearchUserTile(
+                      context,
+                      chatProvider,
+                      user,
+                    ),
+                  )
+                  .toList(),
+            ),
         ],
-      ),
+      ],
     );
   }
 
