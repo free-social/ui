@@ -61,85 +61,122 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: scaffoldBg,
-          systemOverlayStyle: overlayStyle,
-          title: Text(
-            'Messages',
-            style: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
+      child: DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: scaffoldBg,
+            systemOverlayStyle: overlayStyle,
+            title: Text(
+              'Messages',
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            bottom: TabBar(
+              dividerColor: Colors.transparent,
+              indicatorColor: theme.colorScheme.primary,
+              labelColor: textColor,
+              unselectedLabelColor: textColor.withValues(alpha: 0.62),
+              tabs: const [
+                Tab(text: 'Find'),
+                Tab(text: 'Requests'),
+                Tab(text: 'Chats'),
+              ],
             ),
           ),
-        ),
-        body: Consumer<ChatProvider>(
-          builder: (context, chatProvider, child) {
-            return RefreshIndicator(
-              onRefresh: () => chatProvider.loadInbox(forceSearchRefresh: true),
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.xl,
-                        AppSpacing.lg,
-                        AppSpacing.xl,
-                        AppSpacing.xl,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: AppSpacing.xl),
-                          _buildSearchPanel(context, chatProvider),
-                          const SizedBox(height: AppSpacing.xl),
-                          _buildRequestSection(context, chatProvider),
-                          const SizedBox(height: AppSpacing.xl),
-                          _buildSectionHeader(
-                            context,
-                            'Conversations',
-                            chatProvider.conversations.isEmpty
-                                ? 'Start one by adding a friend'
-                                : '${chatProvider.conversations.length} active',
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          if (chatProvider.isLoading &&
-                              chatProvider.conversations.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 32),
-                              child: Center(child: CircularProgressIndicator()),
-                            )
-                          else if (chatProvider.conversations.isEmpty)
-                            _buildEmptyState(
-                              context,
-                              title: 'No conversations yet',
-                              subtitle: 'No Chat',
-                            )
-                          else
-                            Column(
-                              children: chatProvider.conversations
-                                  .map(
-                                    (conversation) => _buildConversationRow(
-                                      context,
-                                      conversation,
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          const SizedBox(height: 120),
-                        ],
-                      ),
-                    ),
-                  ),
+          body: Consumer<ChatProvider>(
+            builder: (context, chatProvider, child) {
+              return TabBarView(
+                children: [
+                  _buildFindPeopleTab(context, chatProvider),
+                  _buildRequestsTab(context, chatProvider),
+                  _buildChatsTab(context, chatProvider),
                 ],
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFindPeopleTab(BuildContext context, ChatProvider chatProvider) {
+    return RefreshIndicator(
+      onRefresh: () => chatProvider.loadInbox(forceSearchRefresh: true),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.xl,
+          AppSpacing.xl,
+          120,
+        ),
+        children: [_buildSearchPanel(context, chatProvider)],
+      ),
+    );
+  }
+
+  Widget _buildRequestsTab(BuildContext context, ChatProvider chatProvider) {
+    return RefreshIndicator(
+      onRefresh: () => chatProvider.loadInbox(forceSearchRefresh: true),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.xl,
+          AppSpacing.xl,
+          120,
+        ),
+        children: [_buildRequestSection(context, chatProvider)],
+      ),
+    );
+  }
+
+  Widget _buildChatsTab(BuildContext context, ChatProvider chatProvider) {
+    return RefreshIndicator(
+      onRefresh: () => chatProvider.loadInbox(forceSearchRefresh: true),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.xl,
+          AppSpacing.xl,
+          120,
+        ),
+        children: [
+          _buildSectionHeader(
+            context,
+            'Conversations',
+            chatProvider.conversations.isEmpty
+                ? 'Start one by adding a friend'
+                : '${chatProvider.conversations.length} active',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (chatProvider.isLoading && chatProvider.conversations.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (chatProvider.conversations.isEmpty)
+            _buildEmptyState(
+              context,
+              title: 'No conversations yet',
+              subtitle: 'No Chat',
+            )
+          else
+            ...chatProvider.conversations.map(
+              (conversation) => _buildConversationRow(context, conversation),
+            ),
+        ],
       ),
     );
   }
@@ -379,8 +416,8 @@ class _ChatScreenState extends State<ChatScreen> {
           leading: _Avatar(
             avatarUrl: user.avatar,
             size: 46,
-            backgroundColor: Colors.white.withValues(alpha: 0.12),
-            iconColor: Colors.white,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            iconColor: theme.colorScheme.onSurfaceVariant,
           ),
           title: Text(
             user.username.isNotEmpty ? user.username : user.email,
@@ -672,32 +709,6 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () async {
-                    try {
-                      await context.read<ChatProvider>().rejectFriendRequest(
-                        request.id,
-                      );
-                      if (!context.mounted) return;
-                      showInfoSnackBar(
-                        context,
-                        'Friend request dismissed',
-                        topOffset: _chatSnackTopOffset,
-                      );
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      showErrorSnackBar(
-                        context,
-                        e.toString().replaceFirst('Exception: ', ''),
-                        topOffset: _chatSnackTopOffset,
-                      );
-                    }
-                  },
-                  child: const Text('Later'),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: FilledButton(
                   onPressed: () async {
