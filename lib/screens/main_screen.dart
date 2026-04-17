@@ -109,9 +109,9 @@ class _MainScreenState extends State<MainScreen> {
           decoration: BoxDecoration(
             color: scheme.surface.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(
-              color: theme.dividerColor.withValues(alpha: 0.5),
-            ),
+            // border: Border.all(
+            //   color: theme.dividerColor.withValues(alpha: 0.5),
+            // ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
