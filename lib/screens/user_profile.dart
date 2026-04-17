@@ -9,7 +9,6 @@ import '../core/widgets/section_card.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import 'change_password_screen.dart';
-import 'chat_screen.dart';
 import 'login_screen.dart';
 import 'update_user_profile.dart';
 
@@ -251,17 +250,6 @@ class UserProfileScreen extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const ChangePasswordScreen(),
-                            ),
-                          ),
-                        ),
-                        _SettingsDivider(),
-                        _SettingsTile(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          title: 'Chat',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ChatScreen(),
                             ),
                           ),
                         ),

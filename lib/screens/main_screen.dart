@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_radii.dart';
 import '../core/theme/app_spacing.dart';
+import 'chat_screen.dart';
 import 'home_view.dart';
 import 'monthly_stats_screen.dart';
 import 'transaction_form_screen.dart';
@@ -37,6 +38,12 @@ class _MainScreenState extends State<MainScreen> {
       icon: Icons.account_balance_wallet_outlined,
       selectedIcon: Icons.account_balance_wallet_rounded,
       screen: WalletScreen(),
+    ),
+    _NavItem(
+      label: 'Chat',
+      icon: Icons.chat_bubble_outline_rounded,
+      selectedIcon: Icons.chat_bubble_rounded,
+      screen: ChatScreen(),
     ),
     _NavItem(
       label: 'Profile',
