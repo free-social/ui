@@ -289,12 +289,24 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> acceptFriendRequest(String requestId) async {
-    await _chatService.respondToFriendRequest(requestId, 'accepted');
+    try {
+      await _chatService.respondToFriendRequest(requestId, 'accepted');
+    } catch (e) {
+      if (!_isAlreadyHandledFriendRequestError(e)) {
+        rethrow;
+      }
+    }
     await loadInbox(forceSearchRefresh: true);
   }
 
   Future<void> rejectFriendRequest(String requestId) async {
-    await _chatService.respondToFriendRequest(requestId, 'rejected');
+    try {
+      await _chatService.respondToFriendRequest(requestId, 'rejected');
+    } catch (e) {
+      if (!_isAlreadyHandledFriendRequestError(e)) {
+        rethrow;
+      }
+    }
     await loadInbox(forceSearchRefresh: true);
   }
 
@@ -1180,6 +1192,17 @@ class ChatProvider with ChangeNotifier {
     updatedConversations.removeAt(existingIndex);
     updatedConversations.insert(0, updatedConversation);
     _conversations = updatedConversations;
+  }
+
+  bool _isAlreadyHandledFriendRequestError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('invalid id') ||
+        message.contains('invalid request') ||
+        message.contains('not found') ||
+        message.contains('already processed') ||
+        message.contains('already accepted') ||
+        message.contains('already rejected') ||
+        message.contains('already friends');
   }
 
   @override
