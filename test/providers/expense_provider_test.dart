@@ -82,7 +82,7 @@ void main() {
 
       // 2. Mock Delete (Void return)
       // ✅ FIX: Use 'null' for void functions, NOT '{}'
-      when(mockService.deleteTransaction('1')).thenAnswer((_) async => null);
+      when(mockService.deleteTransaction('1')).thenAnswer((_) async {});
 
       // ACT
       await provider.deleteTransaction('1');

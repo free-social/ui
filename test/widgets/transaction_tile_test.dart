@@ -230,7 +230,7 @@ void main() {
 
       // Assert
       final dismissible = tester.widget<Dismissible>(find.byType(Dismissible));
-      expect(dismissible.key, Key('t123'));
+      expect(dismissible.key, const Key('t123'));
     });
 
     testWidgets('displays Card with proper styling', (

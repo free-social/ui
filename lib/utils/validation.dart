@@ -19,14 +19,18 @@ class ValidationUtils {
   static String? validatePassword(String? password) {
     if (password == null || password.isEmpty) return 'Password is required';
     if (password.length < 6) return 'Password must be at least 6 characters';
-    if (!password.contains(RegExp(r'[a-z]')))
+    if (!password.contains(RegExp(r'[a-z]'))) {
       return 'Password must contain lowercase letter';
-    if (!password.contains(RegExp(r'[A-Z]')))
+    }
+    if (!password.contains(RegExp(r'[A-Z]'))) {
       return 'Password must contain uppercase letter';
-    if (!password.contains(RegExp(r'[0-9]')))
+    }
+    if (!password.contains(RegExp(r'[0-9]'))) {
       return 'Password must contain number';
-    if (!password.contains(RegExp(r'[!@#\$%^&*]')))
+    }
+    if (!password.contains(RegExp(r'[!@#\$%^&*]'))) {
       return 'Password must contain special character (!@#\$%^&*)';
+    }
     return null;
   }
 
