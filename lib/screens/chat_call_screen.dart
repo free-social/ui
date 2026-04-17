@@ -139,14 +139,6 @@ class ChatCallScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (chatProvider.isCallLoading)
-                    const Positioned.fill(
-                      child: IgnorePointer(
-                        child: Center(
-                          child: CircularProgressIndicator(color: Colors.white),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),

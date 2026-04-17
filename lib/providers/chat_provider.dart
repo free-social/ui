@@ -35,13 +35,15 @@ class ChatProvider with ChangeNotifier {
       onConversationUpdated: _handleConversationUpdated,
       onTypingChanged: _handleTypingChanged,
     );
-    _bootstrap();
+    unawaited(_bootstrapIfNeeded());
   }
 
   bool _isLoading = false;
   bool _isSendingMessage = false;
   bool _isUpdatingMessage = false;
   bool _isCallLoading = false;
+  bool _isBootstrapping = false;
+  bool _isSessionReady = false;
   bool _isMicEnabled = true;
   bool _isCameraEnabled = true;
   bool _hasRemoteVideo = false;
@@ -148,6 +150,25 @@ class ChatProvider with ChangeNotifier {
       default:
         return call.status;
     }
+  }
+
+  Future<void> syncAuthState(bool isAuthenticated) async {
+    if (isAuthenticated) {
+      await _bootstrapIfNeeded(forceReconnect: !_isSessionReady);
+      return;
+    }
+
+    _isSessionReady = false;
+    _currentUserId = '';
+    _activeConversationId = null;
+    _searchResults = [];
+    _receivedRequests = [];
+    _sentRequests = [];
+    _conversations = [];
+    _messages = [];
+    await _resetCallState();
+    _chatSocketService.disconnect();
+    notifyListeners();
   }
 
   bool isFriend(String userId) {
@@ -581,16 +602,38 @@ class ChatProvider with ChangeNotifier {
     _chatSocketService.stopTyping(conversationId);
   }
 
-  Future<void> _bootstrap() async {
-    await _ensureCurrentUserId();
-    await _ensureRenderersReady();
-    final iceServers = await _chatService.getRtcIceServers();
-    _chatWebRtcService.configureIceServers(iceServers);
-    await _chatSocketService.connect();
+  Future<void> _bootstrapIfNeeded({bool forceReconnect = false}) async {
+    if (_isBootstrapping) {
+      return;
+    }
+
+    if (_isSessionReady && !forceReconnect) {
+      return;
+    }
+
+    _isBootstrapping = true;
+    if (forceReconnect) {
+      _chatSocketService.disconnect();
+    }
+
     try {
-      await loadInbox();
-    } catch (_) {
-      // Keep global call signaling alive even if inbox prefetch fails.
+      await _ensureCurrentUserId();
+      if (_currentUserId.isEmpty) {
+        return;
+      }
+
+      await _ensureRenderersReady();
+      final iceServers = await _chatService.getRtcIceServers();
+      _chatWebRtcService.configureIceServers(iceServers);
+      await _chatSocketService.connect();
+      _isSessionReady = true;
+      try {
+        await loadInbox();
+      } catch (_) {
+        // Keep global call signaling alive even if inbox prefetch fails.
+      }
+    } finally {
+      _isBootstrapping = false;
     }
   }
 
