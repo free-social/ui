@@ -1147,8 +1147,8 @@ class ChatProvider with ChangeNotifier {
     _callRouteVisible = true;
     try {
       await navigator.pushNamed('/chat-call');
-    } catch (_) {
-      // Ignore navigation errors.
+    } catch (e, st) {
+      debugPrint('[Call] _openCallScreen Error: $e\n$st');
     } finally {
       _callRouteVisible = false;
     }
@@ -1165,6 +1165,13 @@ class ChatProvider with ChangeNotifier {
     _isCameraEnabled = true;
     _activeCall = null;
     _renderersReady = false;
+
+    if (_incomingCallDialogVisible) {
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        Navigator.of(context).pop();
+      }
+    }
 
     final pendingLock = _signalLock;
     _signalLock = null;

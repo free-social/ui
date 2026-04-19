@@ -22,7 +22,7 @@ class CallSoundService {
       await _ringtonePlayer.setLoopMode(LoopMode.one);
       await _ringtonePlayer.setAsset('assets/sounds/video_call_sound.mp3');
       await _ringtonePlayer.seek(Duration.zero);
-      await _ringtonePlayer.play();
+      _ringtonePlayer.play(); // Do not await since just_audio play() blocks until playback finishes
       _isRingtoneActive = true;
     } catch (error) {
       debugPrint('Call ringtone playback failed: $error');
@@ -48,7 +48,7 @@ class CallSoundService {
       await _effectPlayer.stop();
       await _effectPlayer.setAsset('assets/sounds/end_call.mp3');
       await _effectPlayer.seek(Duration.zero);
-      await _effectPlayer.play();
+      _effectPlayer.play(); // Do not await
     } catch (error) {
       debugPrint('End call sound playback failed: $error');
     }
