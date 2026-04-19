@@ -15,6 +15,9 @@ class CallSoundService {
       return;
     }
 
+    debugPrint('[CallSound] startRingtone called');
+    debugPrintStack(label: '[CallSound] startRingtone stack');
+
     try {
       await _ringtonePlayer.setLoopMode(LoopMode.one);
       await _ringtonePlayer.setAsset('assets/sounds/video_call_sound.mp3');
@@ -27,10 +30,10 @@ class CallSoundService {
   }
 
   Future<void> stopRingtone() async {
-    if (!_isRingtoneActive) {
-      return;
-    }
-
+    debugPrint('[CallSound] stopRingtone called, active=$_isRingtoneActive');
+    // Always attempt to stop the player even if the flag is already false,
+    // to guard against cases where stop() previously threw and left the
+    // flag reset but the player still playing.
     try {
       await _ringtonePlayer.stop();
     } catch (error) {

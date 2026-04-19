@@ -13,7 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 
 import '../core/theme/app_colors.dart';
-import '../core/theme/app_radii.dart';
+
 import '../core/theme/app_spacing.dart';
 import '../models/chat_models.dart';
 import '../providers/auth_provider.dart';
@@ -566,6 +566,23 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
+  // ── Telegram colour tokens ───────────────────────────────────────────────
+  static const Color _lightBg        = Color(0xFFDAE8F5); // wallpaper blue-gray
+  static const Color _darkBg         = Color(0xFF17212B);
+  static const Color _lightSenderBubble  = AppColors.seed; // App primary color
+  static const Color _darkSenderBubble   = AppColors.seed; // App primary color
+  static const Color _lightReceiverBubble = Colors.white;
+  static const Color _darkReceiverBubble  = Color(0xFF182533);
+
+  String _dateLabel(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(dt.year, dt.month, dt.day);
+    if (d == today) return 'Today';
+    if (d == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    return DateFormat('MMMM d, y').format(dt);
+  }
+
   @override
   Widget build(BuildContext context) {
     final friend = widget.conversation.friend;
@@ -573,20 +590,29 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     final isCallLoading = context.watch<ChatProvider>().isCallLoading;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final bgColor = isDark ? _darkBg : _lightBg;
+    final senderColor = isDark ? _darkSenderBubble : _lightSenderBubble;
+    final receiverColor = isDark ? _darkReceiverBubble : _lightReceiverBubble;
+    final inputSurface = isDark ? const Color(0xFF1C2733) : Colors.white;
+    final inputBg = isDark ? const Color(0xFF131D26) : const Color(0xFFF0F2F5);
 
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: isDark ? const Color(0xFF17212B) : scheme.primary,
+        foregroundColor: Colors.white,
         titleSpacing: 0,
         title: Row(
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: scheme.surfaceContainerHighest,
+              backgroundColor: Colors.white24,
               backgroundImage: friend.avatar.isNotEmpty
                   ? NetworkImage(friend.avatar)
                   : null,
               child: friend.avatar.isEmpty
-                  ? Icon(Icons.person_rounded, size: 20, color: scheme.primary)
+                  ? const Icon(Icons.person_rounded, size: 20, color: Colors.white)
                   : null,
             ),
             const SizedBox(width: AppSpacing.md),
@@ -596,9 +622,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                 children: [
                   Text(
                     friend.username.isNotEmpty ? friend.username : friend.email,
-                    style: theme.textTheme.titleLarge?.copyWith(fontSize: 18),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  Text(friend.email, style: theme.textTheme.bodyMedium),
+                  Text(
+                    friend.email,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -608,12 +641,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           IconButton(
             tooltip: 'Audio call',
             onPressed: isCallLoading ? null : () => _startCall('audio'),
-            icon: const Icon(Icons.call_outlined),
+            icon: const Icon(Icons.call_outlined, color: Colors.white),
           ),
           IconButton(
             tooltip: 'Video call',
             onPressed: isCallLoading ? null : () => _startCall('video'),
-            icon: const Icon(Icons.videocam_outlined),
+            icon: const Icon(Icons.videocam_outlined, color: Colors.white),
           ),
         ],
       ),
@@ -624,201 +657,304 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             _scrollToBottom();
           }
 
+          final messages = chatProvider.messages;
+
+          // Build a flat list: date separators + message items
+          final items = <_ChatListItem>[];
+          for (int i = 0; i < messages.length; i++) {
+            final msg = messages[i];
+            final prev = i > 0 ? messages[i - 1] : null;
+            final next = i < messages.length - 1 ? messages[i + 1] : null;
+
+            // Date separator
+            if (msg.createdAt != null) {
+              final prevDate = prev?.createdAt;
+              if (prevDate == null ||
+                  !_sameDay(prevDate, msg.createdAt!)) {
+                items.add(_ChatListItem.separator(_dateLabel(msg.createdAt!)));
+              }
+            }
+
+            final isMine = msg.sender.id == currentUserId;
+            final sameSenderAsPrev = prev != null && prev.sender.id == msg.sender.id;
+            final sameSenderAsNext = next != null && next.sender.id == msg.sender.id;
+            // isFirst / isLast in a contiguous same-sender group
+            final isFirst = !sameSenderAsPrev;
+            final isLast = !sameSenderAsNext;
+            items.add(_ChatListItem.message(
+              msg, isMine, isFirst, isLast,
+              senderColor, receiverColor, friend.avatar,
+            ));
+          }
+
+          // Typing indicator
+          if (chatProvider.isActiveConversationTyping) {
+            items.add(_ChatListItem.typing(receiverColor));
+          }
+
           return Column(
             children: [
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () => chatProvider.refreshConversation(),
-                  child: chatProvider.isLoading && chatProvider.messages.isEmpty
+                  child: chatProvider.isLoading && messages.isEmpty
                       ? const Center(child: CircularProgressIndicator())
                       : ListView.builder(
                           controller: _scrollController,
                           physics: const AlwaysScrollableScrollPhysics(
                             parent: BouncingScrollPhysics(),
                           ),
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.lg,
-                            AppSpacing.lg,
-                            AppSpacing.lg,
-                            AppSpacing.sm,
-                          ),
-                          itemCount:
-                              chatProvider.messages.length +
-                              (chatProvider.isActiveConversationTyping ? 1 : 0),
+                          padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+                          itemCount: items.length,
                           itemBuilder: (context, index) {
-                            if (index == chatProvider.messages.length) {
-                              return _TypingIndicatorBubble(
-                                color: scheme.surfaceContainerHighest,
+                            final item = items[index];
+                            if (item.isSeparator) {
+                              return _DateSeparator(label: item.separatorLabel!);
+                            }
+                            if (item.isTyping) {
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 44),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: _TypingIndicatorBubble(color: item.receiverColor!),
+                                ),
                               );
                             }
-
-                            final message = chatProvider.messages[index];
-                            final isMine = message.sender.id == currentUserId;
-                            return _MessageBubble(
-                              message: message,
-                              isMine: isMine,
-                              onLongPress: isMine
-                                  ? () => _showMessageActions(message)
-                                  : null,
+                            return _TelegramBubble(
+                              message: item.message!,
+                              isMine: item.isMine!,
+                              isFirst: item.isFirst!,
+                              isLast: item.isLast!,
+                              senderColor: item.senderColor!,
+                              receiverColor: item.receiverColor!,
+                              senderAvatarUrl: item.senderAvatarUrl!,
+                              onLongPress: item.isMine! ? () => _showMessageActions(item.message!) : null,
                               onOpenImage: _openImagePreview,
                             );
                           },
                         ),
                 ),
               ),
+
+              // ── Telegram-style input bar ───────────────────────────────
               Container(
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  border: Border(top: BorderSide(color: theme.dividerColor)),
-                ),
+                color: inputBg,
                 child: SafeArea(
                   top: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.md,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 6,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Recording banner
                         if (_isRecordingVoice)
                           Container(
                             width: double.infinity,
-                            margin: const EdgeInsets.only(
-                              bottom: AppSpacing.sm,
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: 10,
                             ),
-                            padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
                               color: scheme.errorContainer,
-                              borderRadius: BorderRadius.circular(AppRadii.md),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               children: [
-                                Icon(
-                                  Icons.mic_rounded,
-                                  color: scheme.onErrorContainer,
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
+                                Icon(Icons.mic_rounded, color: scheme.onErrorContainer, size: 18),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Recording voice note ${_formatClock(_recordingElapsedSeconds)}',
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(
-                                          color: scheme.onErrorContainer,
-                                        ),
+                                    'Recording ${_formatClock(_recordingElapsedSeconds)}',
+                                    style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
                                   ),
                                 ),
                                 Text(
                                   'Tap mic to send',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: scheme.onErrorContainer.withValues(
-                                      alpha: 0.8,
-                                    ),
+                                  style: TextStyle(
+                                    color: scheme.onErrorContainer.withValues(alpha: 0.7),
+                                    fontSize: 12,
                                   ),
                                 ),
                               ],
                             ),
                           ),
+
+                        // Editing banner
                         if (_editingMessageId != null)
                           Container(
                             width: double.infinity,
-                            margin: const EdgeInsets.only(
-                              bottom: AppSpacing.sm,
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: 8,
                             ),
-                            padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
-                              color: scheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(AppRadii.md),
+                              color: inputSurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border(
+                                left: BorderSide(
+                                  color: scheme.primary,
+                                  width: 3,
+                                ),
+                              ),
                             ),
                             child: Row(
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    'Editing message',
-                                    style: theme.textTheme.titleMedium,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Edit message',
+                                        style: TextStyle(
+                                          color: scheme.primary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _messageController.text,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: isDark ? Colors.white70 : Colors.black54,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                IconButton(
-                                  onPressed: _cancelEditing,
-                                  icon: const Icon(Icons.close_rounded),
+                                GestureDetector(
+                                  onTap: _cancelEditing,
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: isDark ? Colors.white54 : Colors.black45,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
+
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            IconButton.filledTonal(
-                              onPressed: chatProvider.isSendingMessage
-                                  ? null
-                                  : _handlePickImage,
-                              icon: const Icon(Icons.image_outlined),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            IconButton.filledTonal(
-                              onPressed:
-                                  chatProvider.isSendingMessage ||
-                                      chatProvider.isUpdatingMessage
-                                  ? null
-                                  : _toggleVoiceRecording,
-                              icon: Icon(
-                                _isRecordingVoice
-                                    ? Icons.stop_circle_outlined
-                                    : Icons.mic_none_rounded,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: TextField(
-                                controller: _messageController,
-                                minLines: 1,
-                                maxLines: 4,
-                                onChanged: _handleMessageChanged,
-                                decoration: InputDecoration(
-                                  hintText: _editingMessageId != null
-                                      ? 'Edit message'
-                                      : 'Type a message',
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 0,
-                                  ),
+                            // Attachment button
+                            GestureDetector(
+                              onTap: chatProvider.isSendingMessage ? null : _handlePickImage,
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: inputSurface,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.attach_file_rounded,
+                                  color: isDark ? Colors.white60 : Colors.black45,
+                                  size: 20,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.sm),
-                            FilledButton(
-                              onPressed:
-                                  chatProvider.isSendingMessage ||
-                                      chatProvider.isUpdatingMessage
+                            const SizedBox(width: 6),
+
+                            // Text field pill
+                            Expanded(
+                              child: Container(
+                                constraints: const BoxConstraints(minHeight: 40),
+                                decoration: BoxDecoration(
+                                  color: inputSurface,
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(14, 0, 8, 0),
+                                        child: TextField(
+                                          controller: _messageController,
+                                          minLines: 1,
+                                          maxLines: 5,
+                                          onChanged: _handleMessageChanged,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
+                                          decoration: InputDecoration(
+                                            hintText: _editingMessageId != null
+                                                ? 'Edit message…'
+                                                : 'Message',
+                                            hintStyle: TextStyle(
+                                              color: isDark ? Colors.white38 : Colors.black38,
+                                              fontSize: 15,
+                                            ),
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            disabledBorder: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Mic inside the pill
+                                    if (_editingMessageId == null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 4, bottom: 4),
+                                        child: GestureDetector(
+                                          onTap: (chatProvider.isSendingMessage || chatProvider.isUpdatingMessage)
+                                              ? null
+                                              : _toggleVoiceRecording,
+                                          child: Icon(
+                                            _isRecordingVoice
+                                                ? Icons.stop_circle_outlined
+                                                : Icons.mic_none_rounded,
+                                            color: isDark ? Colors.white54 : Colors.black45,
+                                            size: 22,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+
+                            // Send / confirm button
+                            GestureDetector(
+                              onTap: (chatProvider.isSendingMessage || chatProvider.isUpdatingMessage)
                                   ? null
                                   : _handleSend,
-                              style: FilledButton.styleFrom(
-                                minimumSize: const Size(40, 40),
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadii.lg,
-                                  ),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  shape: BoxShape.circle,
                                 ),
-                              ),
-                              child:
-                                  chatProvider.isSendingMessage ||
-                                      chatProvider.isUpdatingMessage
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.4,
+                                child: (chatProvider.isSendingMessage || chatProvider.isUpdatingMessage)
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(10),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Icon(
+                                        _editingMessageId != null
+                                            ? Icons.check_rounded
+                                            : Icons.send_rounded,
                                         color: Colors.white,
+                                        size: 20,
                                       ),
-                                    )
-                                  : Icon(
-                                      _editingMessageId != null
-                                          ? Icons.check_rounded
-                                          : Icons.send_rounded,
-                                    ),
+                              ),
                             ),
                           ],
                         ),
@@ -833,6 +969,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       ),
     );
   }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+
 
   Future<void> _startCall(String type) async {
     try {
@@ -854,7 +995,406 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Data model for the flat chat list (separators + messages + typing)
+// ═══════════════════════════════════════════════════════════════════════════
+class _ChatListItem {
+  final bool isSeparator;
+  final bool isTyping;
+  final String? separatorLabel;
+  final ChatMessageModel? message;
+  final bool? isMine;
+  final bool? isFirst;
+  final bool? isLast;
+  final Color? senderColor;
+  final Color? receiverColor;
+  final String? senderAvatarUrl;
+
+  const _ChatListItem._({
+    required this.isSeparator,
+    required this.isTyping,
+    this.separatorLabel,
+    this.message,
+    this.isMine,
+    this.isFirst,
+    this.isLast,
+    this.senderColor,
+    this.receiverColor,
+    this.senderAvatarUrl,
+  });
+
+  factory _ChatListItem.separator(String label) => _ChatListItem._(
+        isSeparator: true,
+        isTyping: false,
+        separatorLabel: label,
+      );
+
+  factory _ChatListItem.typing(Color receiverColor) => _ChatListItem._(
+        isSeparator: false,
+        isTyping: true,
+        receiverColor: receiverColor,
+      );
+
+  factory _ChatListItem.message(
+    ChatMessageModel msg,
+    bool isMine,
+    bool isFirst,
+    bool isLast,
+    Color senderColor,
+    Color receiverColor,
+    String senderAvatarUrl,
+  ) =>
+      _ChatListItem._(
+        isSeparator: false,
+        isTyping: false,
+        message: msg,
+        isMine: isMine,
+        isFirst: isFirst,
+        isLast: isLast,
+        senderColor: senderColor,
+        receiverColor: receiverColor,
+        senderAvatarUrl: senderAvatarUrl,
+      );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Date separator pill  ("Today", "Yesterday", "January 1, 2025")
+// ═══════════════════════════════════════════════════════════════════════════
+class _DateSeparator extends StatelessWidget {
+  final String label;
+  const _DateSeparator({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.12)
+                : Colors.black.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Telegram-style message bubble
+// ═══════════════════════════════════════════════════════════════════════════
+class _TelegramBubble extends StatelessWidget {
+  final ChatMessageModel message;
+  final bool isMine;
+  final bool isFirst;
+  final bool isLast;
+  final Color senderColor;
+  final Color receiverColor;
+  final String senderAvatarUrl;
+  final VoidCallback? onLongPress;
+  final Future<void> Function(String) onOpenImage;
+
+  const _TelegramBubble({
+    required this.message,
+    required this.isMine,
+    required this.isFirst,
+    required this.isLast,
+    required this.senderColor,
+    required this.receiverColor,
+    required this.senderAvatarUrl,
+    required this.onLongPress,
+    required this.onOpenImage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final bubbleColor = isMine ? senderColor : receiverColor;
+    final textColor = isMine
+        ? Colors.white // Force white on dark teal sender bubble
+        : (isDark ? Colors.white : const Color(0xFF1A1A1A));
+    final metaColor = isMine
+        ? Colors.white.withValues(alpha: 0.65) // Readable white meta text
+        : const Color(0xFF9E9E9E);
+
+    // Telegram tail: large radius on all corners except the "tail" corner
+    final topLeft = const Radius.circular(18);
+    final topRight = const Radius.circular(18);
+    final bottomLeft =
+        isMine ? const Radius.circular(18) : const Radius.circular(4);
+    final bottomRight =
+        isMine ? const Radius.circular(4) : const Radius.circular(18);
+    final borderRadius = BorderRadius.only(
+      topLeft: isFirst && !isMine ? const Radius.circular(4) : topLeft,
+      topRight: isFirst && isMine ? const Radius.circular(4) : topRight,
+      bottomLeft: bottomLeft,
+      bottomRight: bottomRight,
+    );
+
+    final timeStr = message.createdAt != null
+        ? DateFormat('HH:mm').format(message.createdAt!)
+        : '';
+
+    // ── Shared meta widgets ────────────────────────────────────────────────
+    // Pill for image overlay (semi-transparent dark background)
+    Widget _overlayPill(Widget child) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: child,
+        );
+
+    Widget timeWidget = Text(
+      timeStr,
+      style: TextStyle(fontSize: 11, color: metaColor),
+    );
+
+    Widget? tickWidget = isMine
+        ? Icon(
+            message.isSeen ? Icons.done_all_rounded : Icons.check_rounded,
+            size: 14,
+            color: message.isSeen
+                ? (isDark
+                    ? const Color(0xFF6BCFF8)
+                    : theme.colorScheme.primary)
+                : metaColor,
+          )
+        : null;
+
+    Widget editedWidget = Text(
+      'edited',
+      style: TextStyle(
+        fontSize: 10,
+        color: metaColor,
+        fontStyle: FontStyle.italic,
+      ),
+    );
+
+    // Inline meta: time [edited] [tick] — aligned to bottom-right
+    Widget inlineMeta = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (message.editedAt != null) ...[
+          editedWidget,
+          const SizedBox(width: 3),
+        ],
+        timeWidget,
+        if (tickWidget != null) ...[
+          const SizedBox(width: 3),
+          tickWidget,
+        ],
+      ],
+    );
+
+    final hasImage = message.imageUrl.isNotEmpty;
+    final hasText = message.content.isNotEmpty;
+    final hasAudio = message.audioUrl.isNotEmpty;
+
+    // ── Image-only: overlay time top-right, tick bottom-right ─────────────
+    Widget imageWidget(bool isOverlay) => GestureDetector(
+          onTap: () => onOpenImage(message.imageUrl),
+          child: Stack(
+            children: [
+              Image.network(
+                message.imageUrl,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                loadingBuilder: (_, child, progress) => progress == null
+                    ? child
+                    : Container(
+                        height: 180,
+                        alignment: Alignment.center,
+                        color: isDark
+                            ? Colors.white10
+                            : Colors.black.withValues(alpha: 0.05),
+                        child:
+                            const CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                errorBuilder: (_, __, ___) => Container(
+                  height: 120,
+                  color: isDark
+                      ? Colors.white10
+                      : Colors.black.withValues(alpha: 0.05),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.broken_image_outlined, size: 32),
+                ),
+              ),
+              if (isOverlay) ...[
+                // Time — top-right
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: _overlayPill(
+                    Text(
+                      timeStr,
+                      style: const TextStyle(fontSize: 11, color: Colors.white),
+                    ),
+                  ),
+                ),
+                // Tick — bottom-right
+                if (tickWidget != null)
+                  Positioned(
+                    bottom: 6,
+                    right: 6,
+                    child: _overlayPill(
+                      Icon(
+                        message.isSeen
+                            ? Icons.done_all_rounded
+                            : Icons.check_rounded,
+                        size: 14,
+                        color: message.isSeen
+                            ? const Color(0xFF6BCFF8)
+                            : Colors.white70,
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        );
+
+    // ── Build bubble content ───────────────────────────────────────────────
+    Widget bubbleContent;
+
+    if (hasImage && !hasText && !hasAudio) {
+      // Pure image: overlay everything, no extra rows
+      bubbleContent = imageWidget(true);
+    } else {
+      // Has text and/or audio (may also have image)
+      final contentCol = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasImage) imageWidget(false),
+          // Text + audio + inline meta row
+          Padding(
+            padding: EdgeInsets.fromLTRB(10, hasImage ? 6 : 6, 6, 5),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Content (audio + text)
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasAudio) ...[
+                        _AudioMessageView(
+                          audioUrl: message.audioUrl,
+                          durationSeconds: message.audioDurationSeconds,
+                          isMine: isMine,
+                        ),
+                        if (hasText) const SizedBox(height: 4),
+                      ],
+                      if (hasText)
+                        Text(
+                          message.content,
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.35,
+                            color: textColor,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Meta inline to the right, pinned to bottom
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: inlineMeta,
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+      bubbleContent = contentCol;
+    }
+
+    final bubble = GestureDetector(
+      onLongPress: onLongPress,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.72,
+          minWidth: 80,
+        ),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.10),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: bubbleContent,
+      ),
+    );
+
+    // Wrap in row with avatar space
+    return Padding(
+      padding: EdgeInsets.only(
+        top: isFirst ? 6 : 2,
+        bottom: isLast ? 2 : 0,
+        left: isMine ? 48 : 0,
+        right: isMine ? 0 : 48,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment:
+            isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          if (!isMine) ...[
+            // Avatar (only on last in group, blank placeholder otherwise)
+            SizedBox(
+              width: 32,
+              child: isLast
+                  ? CircleAvatar(
+                      radius: 16,
+                      backgroundImage: senderAvatarUrl.isNotEmpty
+                          ? NetworkImage(senderAvatarUrl)
+                          : null,
+                      backgroundColor:
+                          theme.colorScheme.primary.withValues(alpha: 0.2),
+                      child: senderAvatarUrl.isEmpty
+                          ? const Icon(Icons.person_rounded,
+                              size: 16, color: Colors.white)
+                          : null,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 6),
+          ],
+          bubble,
+          if (isMine) const SizedBox(width: 2),
+        ],
+      ),
+    );
+  }
+}
+
 class _TypingIndicatorBubble extends StatefulWidget {
+
   final Color color;
 
   const _TypingIndicatorBubble({required this.color});
@@ -918,138 +1458,7 @@ class _TypingIndicatorBubbleState extends State<_TypingIndicatorBubble> {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
-  static const Color _previewBackground = Color(0xFFF5F7FA);
-  final ChatMessageModel message;
-  final bool isMine;
-  final VoidCallback? onLongPress;
-  final Future<void> Function(String imageUrl) onOpenImage;
 
-  const _MessageBubble({
-    required this.message,
-    required this.isMine,
-    required this.onLongPress,
-    required this.onOpenImage,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final bubbleColor = isMine
-        ? scheme.primary
-        : scheme.surfaceContainerHighest;
-    final textColor = isMine ? Colors.white : scheme.onSurface;
-    final metaColor = isMine
-        ? Colors.white.withValues(alpha: 0.72)
-        : theme.textTheme.bodyMedium?.color;
-
-    return GestureDetector(
-      onLongPress: onLongPress,
-      child: Align(
-        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.74,
-          ),
-          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: bubbleColor,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(20),
-              topRight: const Radius.circular(20),
-              bottomLeft: Radius.circular(isMine ? 20 : 6),
-              bottomRight: Radius.circular(isMine ? 6 : 20),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (message.imageUrl.isNotEmpty)
-                GestureDetector(
-                  onTap: () => onOpenImage(message.imageUrl),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      width: 220,
-                      height: 220,
-                      color: _previewBackground,
-                      child: Image.network(
-                        message.imageUrl,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            alignment: Alignment.center,
-                            color: _previewBackground,
-                            child: const Icon(Icons.broken_image_outlined),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              if (message.audioUrl.isNotEmpty) ...[
-                if (message.imageUrl.isNotEmpty)
-                  const SizedBox(height: AppSpacing.sm),
-                _AudioMessageView(
-                  audioUrl: message.audioUrl,
-                  durationSeconds: message.audioDurationSeconds,
-                  isMine: isMine,
-                ),
-              ],
-              if ((message.imageUrl.isNotEmpty ||
-                      message.audioUrl.isNotEmpty) &&
-                  message.content.isNotEmpty)
-                const SizedBox(height: AppSpacing.sm),
-              if (message.content.isNotEmpty)
-                Text(
-                  message.content,
-                  style: theme.textTheme.bodyLarge?.copyWith(color: textColor),
-                ),
-              const SizedBox(height: AppSpacing.xs),
-              Wrap(
-                spacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    message.createdAt != null
-                        ? DateFormat('HH:mm').format(message.createdAt!)
-                        : '',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: metaColor,
-                      fontSize: 11,
-                    ),
-                  ),
-                  if (message.editedAt != null)
-                    Text(
-                      'edited',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: metaColor,
-                        fontSize: 11,
-                      ),
-                    ),
-                  if (isMine)
-                    Text(
-                      message.isSeen ? 'Seen' : 'Sent',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: metaColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _AudioMessageView extends StatefulWidget {
   final String audioUrl;
@@ -1076,21 +1485,17 @@ class _AudioMessageViewState extends State<_AudioMessageView> {
   @override
   void initState() {
     super.initState();
-    _player.positionStream.listen((position) {
+    _player.positionStream.listen((p) {
       if (!mounted) return;
-      setState(() {
-        _position = position;
-      });
+      setState(() => _position = p);
     });
-    _player.durationStream.listen((duration) {
+    _player.durationStream.listen((d) {
       if (!mounted) return;
-      setState(() {
-        _duration = duration;
-      });
+      setState(() => _duration = d);
     });
-    _player.playerStateStream.listen((state) {
+    _player.playerStateStream.listen((s) {
       if (!mounted) return;
-      if (state.processingState == ProcessingState.completed) {
+      if (s.processingState == ProcessingState.completed) {
         _player.seek(Duration.zero);
       }
       setState(() {});
@@ -1104,114 +1509,134 @@ class _AudioMessageViewState extends State<_AudioMessageView> {
   }
 
   Future<void> _togglePlayback() async {
-    if (_isLoading) {
-      return;
-    }
-
+    if (_isLoading) return;
     if (_player.playing) {
       await _player.pause();
       return;
     }
-
     try {
       if (!_isPrepared) {
-        setState(() {
-          _isLoading = true;
-        });
+        setState(() => _isLoading = true);
         await _player.setUrl(widget.audioUrl);
         _isPrepared = true;
       }
-
       await _player.play();
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  String _formatDuration(Duration duration) {
-    final totalSeconds = duration.inSeconds;
-    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
-    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
+  String _fmt(Duration d) {
+    final m = (d.inSeconds ~/ 60).toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final foregroundColor = widget.isMine ? Colors.white : scheme.onSurface;
-    final progressColor = widget.isMine
-        ? Colors.white.withValues(alpha: 0.28)
-        : scheme.primary.withValues(alpha: 0.18);
-    final totalDuration =
-        _duration ?? Duration(seconds: widget.durationSeconds ?? 0);
-    final safePosition = _position > totalDuration ? totalDuration : _position;
-    final progressValue = totalDuration.inMilliseconds == 0
-        ? 0.0
-        : safePosition.inMilliseconds / totalDuration.inMilliseconds;
+    final isDark = theme.brightness == Brightness.dark;
+    
+    // Sender uses the primary color (dark teal), so enforce white text/tracks
+    final fg = widget.isMine 
+        ? Colors.white
+        : (isDark ? Colors.white : const Color(0xFF1A1A1A));
+        
+    final trackBg = widget.isMine
+        ? Colors.white.withValues(alpha: 0.25)
+        : (isDark ? Colors.white.withValues(alpha: 0.28) : scheme.primary.withValues(alpha: 0.15));
+        
+    final trackFg = widget.isMine 
+        ? Colors.white
+        : (isDark ? Colors.white : scheme.primary);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: widget.isMine
-            ? Colors.white.withValues(alpha: 0.12)
-            : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            onPressed: _togglePlayback,
-            icon: _isLoading
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: foregroundColor,
-                    ),
-                  )
-                : Icon(
-                    _player.playing
-                        ? Icons.pause_circle_filled_rounded
-                        : Icons.play_circle_fill_rounded,
-                    color: foregroundColor,
-                    size: 30,
-                  ),
-            visualDensity: VisualDensity.compact,
-          ),
-          SizedBox(
-            width: 120,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LinearProgressIndicator(
-                  value: progressValue,
-                  minHeight: 4,
-                  borderRadius: BorderRadius.circular(999),
-                  backgroundColor: progressColor,
-                  valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${_formatDuration(safePosition)} / ${_formatDuration(totalDuration)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: foregroundColor.withValues(alpha: 0.82),
-                  ),
-                ),
-              ],
+    final total = _duration ?? Duration(seconds: widget.durationSeconds ?? 0);
+    final safePos = _position > total ? total : _position;
+    final progress =
+        total.inMilliseconds == 0
+            ? 0.0
+            : safePos.inMilliseconds / total.inMilliseconds;
+    final isPlaying = _player.playing;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Circular play/pause button
+        SizedBox(
+          width: 36,
+          height: 36,
+          child: Material(
+            color: widget.isMine
+                ? Colors.white.withValues(alpha: 0.20)
+                : scheme.primary.withValues(alpha: 0.12),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: _togglePlayback,
+              child: Center(
+                child: _isLoading
+                    ? SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.8,
+                          color: fg,
+                        ),
+                      )
+                    : Icon(
+                        isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: widget.isMine ? Colors.white : scheme.primary,
+                        size: 20,
+                      ),
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        // Progress + timer
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 3,
+                  backgroundColor: trackBg,
+                  valueColor: AlwaysStoppedAnimation<Color>(trackFg),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  Icon(
+                    Icons.mic_rounded,
+                    size: 10,
+                    color: fg.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    isPlaying || _position > Duration.zero
+                        ? '${_fmt(safePos)} / ${_fmt(total)}'
+                        : _fmt(total),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: fg.withValues(alpha: 0.7),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
+
+

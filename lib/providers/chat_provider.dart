@@ -66,6 +66,7 @@ class ChatProvider with ChangeNotifier {
   String _currentUserId = '';
   String? _activeConversationId;
   String? _lastNegotiatedCallId;
+  String? _lastEndedCallId; // tracks last locally-torn-down call to ignore stale incoming events
   FriendRequestStatusFilter _requestStatusFilter =
       FriendRequestStatusFilter.pending;
   Timer? _ringingTimer;
@@ -572,9 +573,9 @@ class ChatProvider with ChangeNotifier {
         _hasRemoteVideo = false;
         _isMicEnabled = true;
         _isCameraEnabled = existingActiveCall.isVideo;
-        await _openCallScreen();
 
         if (existingActiveCall.status == 'ringing') {
+          await _prepareLocalMedia(existingActiveCall);
           await CallSoundService.instance.startRingtone();
           _startRingingTimeout();
         } else {
@@ -586,6 +587,7 @@ class ChatProvider with ChangeNotifier {
           }
         }
 
+        await _openCallScreen();
         return;
       }
 
@@ -595,11 +597,15 @@ class ChatProvider with ChangeNotifier {
       _hasRemoteVideo = false;
       _isMicEnabled = true;
       _isCameraEnabled = call.isVideo;
-      await _openCallScreen();
 
+      // Prepare media + start ringtone BEFORE opening the screen.
+      // _openCallScreen awaits pushNamed which only resolves when the route
+      // is POPPED — anything after it runs after the call has already ended.
       await _prepareLocalMedia(call);
       await CallSoundService.instance.startRingtone();
       _startRingingTimeout();
+
+      await _openCallScreen();
     } finally {
       _isCallLoading = false;
       notifyListeners();
@@ -832,10 +838,19 @@ class ChatProvider with ChangeNotifier {
       return;
     }
 
+    // Ignore a duplicate call:incoming that arrives after we already
+    // tore down this call (server emits to both userRoom AND
+    // conversationRoom so the client can receive two deliveries).
+    if (call.id == _lastEndedCallId) {
+      debugPrint('[Call] _handleIncomingCall ignored — call ${call.id} already ended locally');
+      return;
+    }
+
     if (_activeCall != null && _activeCall!.id != call.id) {
       return;
     }
 
+    debugPrint('[Call] _handleIncomingCall: id=${call.id}');
     _activeCall = call;
     _lastNegotiatedCallId = null;
     notifyListeners();
@@ -873,11 +888,17 @@ class ChatProvider with ChangeNotifier {
     }
 
     if (call.status == 'rejected') {
-      await _callKitService.endCall(call.id);
-      await CallSoundService.instance.stopRingtone();
-      await CallSoundService.instance.playEndCall();
-      await _resetCallState();
-      notifyListeners();
+      debugPrint('[Call] _handleCallStatus: rejected, tearing down');
+      _isCallLoading = true;
+      try {
+        await _callKitService.endCall(call.id);
+        await CallSoundService.instance.stopRingtone();
+        await CallSoundService.instance.playEndCall();
+        await _resetCallState();
+      } finally {
+        _isCallLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -885,17 +906,26 @@ class ChatProvider with ChangeNotifier {
     await _ensureCurrentUserId();
     // Ignore if we've already torn down this call locally.
     if (_activeCall == null || _activeCall!.id != call.id) {
+      debugPrint('[Call] _handleCallEnded ignored — activeCall=${_activeCall?.id}, incoming=${call.id}');
       return;
     }
     if (!_isParticipantInCall(call)) {
       return;
     }
 
-    await _callKitService.endCall(call.id);
-    await CallSoundService.instance.stopRingtone();
-    await CallSoundService.instance.playEndCall();
-    await _resetCallState();
-    notifyListeners();
+    debugPrint('[Call] _handleCallEnded: tearing down call ${call.id}');
+    // Set _isCallLoading so that the actionCallEnded native event that
+    // _callKitService.endCall() triggers does NOT re-enter endCurrentCall.
+    _isCallLoading = true;
+    try {
+      await _callKitService.endCall(call.id);
+      await CallSoundService.instance.stopRingtone();
+      await CallSoundService.instance.playEndCall();
+      await _resetCallState();
+    } finally {
+      _isCallLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> _handleCallSignal({
@@ -1128,6 +1158,7 @@ class ChatProvider with ChangeNotifier {
     _cancelRingingTimeout();
     _stopCallDurationTimer();
     await CallSoundService.instance.stopRingtone();
+    _lastEndedCallId = _activeCall?.id; // remember this call so stale events are ignored
     _lastNegotiatedCallId = null;
     _hasRemoteVideo = false;
     _isMicEnabled = true;
