@@ -169,18 +169,23 @@ class ChatService {
     File? imageFile,
     File? audioFile,
     int? audioDurationSeconds,
+    String? replyTo,
   }) async {
     try {
       final attachmentFile = imageFile ?? audioFile;
       final response = await _apiService.client.post(
         '/chat/conversations/$conversationId/messages',
         data: attachmentFile == null
-            ? {'content': content}
+            ? {
+                'content': content, 
+                if (replyTo != null) 'replyTo': replyTo
+              }
             : await _buildMessageFormData(
                 content,
                 imageFile: imageFile,
                 audioFile: audioFile,
                 audioDurationSeconds: audioDurationSeconds,
+                replyTo: replyTo,
               ),
         options: attachmentFile == null
             ? null
@@ -212,6 +217,26 @@ class ChatService {
       );
     } catch (e) {
       _handleError(e, 'Failed to update message');
+      rethrow;
+    }
+  }
+
+  Future<ChatMessageModel> reactToMessage(
+    String conversationId,
+    String messageId,
+    String? reaction,
+  ) async {
+    try {
+      final response = await _apiService.client.patch(
+        '/chat/conversations/$conversationId/messages/$messageId/react',
+        data: {'reaction': reaction},
+      );
+
+      return ChatMessageModel.fromJson(
+        response.data['data'] as Map<String, dynamic>,
+      );
+    } catch (e) {
+      _handleError(e, 'Failed to react to message');
       rethrow;
     }
   }
@@ -341,6 +366,7 @@ class ChatService {
     File? imageFile,
     File? audioFile,
     int? audioDurationSeconds,
+    String? replyTo,
   }) async {
     final file = imageFile ?? audioFile;
     if (file == null) {
@@ -354,6 +380,7 @@ class ChatService {
       'content': content,
       if (audioDurationSeconds != null)
         'audioDurationSeconds': audioDurationSeconds.toString(),
+      if (replyTo != null) 'replyTo': replyTo,
       isAudio ? 'audio' : 'image': await MultipartFile.fromFile(
         file.path,
         filename: fileName,

@@ -426,7 +426,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> sendMessage(String conversationId, String content) async {
+  Future<void> sendMessage(String conversationId, String content, {String? replyTo}) async {
     _isSendingMessage = true;
     stopTyping(conversationId);
     notifyListeners();
@@ -435,6 +435,7 @@ class ChatProvider with ChangeNotifier {
       final sentMessage = await _chatService.sendMessage(
         conversationId,
         content,
+        replyTo: replyTo,
       );
       _upsertMessage(sentMessage);
       _upsertConversationPreview(
@@ -455,6 +456,7 @@ class ChatProvider with ChangeNotifier {
     String conversationId, {
     required File imageFile,
     String content = '',
+    String? replyTo,
   }) async {
     _isSendingMessage = true;
     stopTyping(conversationId);
@@ -465,6 +467,7 @@ class ChatProvider with ChangeNotifier {
         conversationId,
         content,
         imageFile: imageFile,
+        replyTo: replyTo,
       );
       _upsertMessage(sentMessage);
       _upsertConversationPreview(
@@ -486,6 +489,7 @@ class ChatProvider with ChangeNotifier {
     required File audioFile,
     required int durationSeconds,
     String content = '',
+    String? replyTo,
   }) async {
     _isSendingMessage = true;
     stopTyping(conversationId);
@@ -497,6 +501,7 @@ class ChatProvider with ChangeNotifier {
         content,
         audioFile: audioFile,
         audioDurationSeconds: durationSeconds,
+        replyTo: replyTo,
       );
       _upsertMessage(sentMessage);
       _upsertConversationPreview(
@@ -511,6 +516,24 @@ class ChatProvider with ChangeNotifier {
       _isSendingMessage = false;
       notifyListeners();
     }
+  }
+
+  Future<void> reactToMessage(
+    String conversationId,
+    String messageId,
+    String? reaction,
+  ) async {
+    try {
+      final updatedMessage = await _chatService.reactToMessage(
+        conversationId,
+        messageId,
+        reaction,
+      );
+      _upsertMessage(updatedMessage);
+      if (_activeConversationId == conversationId) {
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   Future<void> updateMessage(

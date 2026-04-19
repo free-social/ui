@@ -42,6 +42,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   bool _isTyping = false;
   bool _isRecordingVoice = false;
   String? _editingMessageId;
+  ChatMessageModel? _replyingToMessage;
   int _recordingElapsedSeconds = 0;
   Timer? _typingTimer;
   Timer? _recordingTimer;
@@ -84,11 +85,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         await context.read<ChatProvider>().sendMessage(
           widget.conversation.id,
           text,
+          replyTo: _replyingToMessage?.id,
         );
       }
       _messageController.clear();
       setState(() {
         _editingMessageId = null;
+        _replyingToMessage = null;
       });
       _scrollToBottom();
     } catch (e) {
@@ -116,7 +119,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       await context.read<ChatProvider>().sendImageMessage(
         widget.conversation.id,
         imageFile: imageFile,
+        replyTo: _replyingToMessage?.id,
       );
+      setState(() {
+        _replyingToMessage = null;
+      });
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
@@ -203,7 +210,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         widget.conversation.id,
         audioFile: audioFile,
         durationSeconds: _recordingElapsedSeconds,
+        replyTo: _replyingToMessage?.id,
       );
+      setState(() {
+        _replyingToMessage = null;
+      });
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
@@ -340,13 +351,29 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     _messageController.clear();
   }
 
+  void _cancelReplying() {
+    setState(() {
+      _replyingToMessage = null;
+    });
+  }
+
+  void _startReplying(ChatMessageModel message) {
+    setState(() {
+      _replyingToMessage = message;
+      _editingMessageId = null;
+    });
+  }
+
   String _formatClock(int totalSeconds) {
     final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
     final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
   }
 
-  Future<void> _showMessageActions(ChatMessageModel message) async {
+  Future<void> _showMessageActions(
+    ChatMessageModel message, {
+    required bool isMine,
+  }) async {
     final action = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -362,20 +389,36 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (message.content.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.reply),
+                  title: const Text('Reply'),
+                  onTap: () => Navigator.of(context).pop('reply'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.check_circle_outline),
+                  title: const Text('React Ok'),
+                  onTap: () => Navigator.of(context).pop('react_ok'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.cancel_outlined),
+                  title: const Text('React No'),
+                  onTap: () => Navigator.of(context).pop('react_no'),
+                ),
+                if (isMine && message.content.isNotEmpty)
                   ListTile(
                     leading: const Icon(Icons.edit_outlined),
                     title: const Text('Edit message'),
                     onTap: () => Navigator.of(context).pop('edit'),
                   ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.danger,
+                if (isMine)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: AppColors.danger,
+                    ),
+                    title: const Text('Delete message'),
+                    onTap: () => Navigator.of(context).pop('delete'),
                   ),
-                  title: const Text('Delete message'),
-                  onTap: () => Navigator.of(context).pop('delete'),
-                ),
               ],
             ),
           ),
@@ -384,6 +427,29 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
 
     if (!mounted || action == null) return;
+
+    if (action == 'reply') {
+      _startReplying(message);
+      return;
+    }
+
+    if (action == 'react_ok') {
+      await context.read<ChatProvider>().reactToMessage(
+        widget.conversation.id,
+        message.id,
+        'Ok',
+      );
+      return;
+    }
+
+    if (action == 'react_no') {
+      await context.read<ChatProvider>().reactToMessage(
+        widget.conversation.id,
+        message.id,
+        'No',
+      );
+      return;
+    }
 
     if (action == 'edit') {
       _startEditing(message);
@@ -457,7 +523,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                               width: 240,
                               height: 240,
                               child: Center(
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             ),
                             errorWidget: (context, url, error) {
@@ -553,7 +621,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       );
 
       final isSuccess =
-          result is Map && (result['isSuccess'] == true || result['success'] == true);
+          result is Map &&
+          (result['isSuccess'] == true || result['success'] == true);
       if (!isSuccess) {
         throw Exception('Failed to save image');
       }
@@ -575,12 +644,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   }
 
   // ── Telegram colour tokens ───────────────────────────────────────────────
-  static const Color _lightBg        = Color(0xFFDAE8F5); // wallpaper blue-gray
-  static const Color _darkBg         = Color(0xFF17212B);
-  static const Color _lightSenderBubble  = AppColors.seed; // App primary color
-  static const Color _darkSenderBubble   = AppColors.seed; // App primary color
+  static const Color _lightBg = Color(0xFFDAE8F5); // wallpaper blue-gray
+  static const Color _darkBg = Color(0xFF17212B);
+  static const Color _lightSenderBubble = AppColors.seed; // App primary color
+  static const Color _darkSenderBubble = AppColors.seed; // App primary color
   static const Color _lightReceiverBubble = Colors.white;
-  static const Color _darkReceiverBubble  = Color(0xFF182533);
+  static const Color _darkReceiverBubble = Color(0xFF182533);
 
   String _dateLabel(DateTime dt) {
     final now = DateTime.now();
@@ -625,7 +694,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                   ? CachedNetworkImageProvider(friend.avatar)
                   : null,
               child: friend.avatar.isEmpty
-                  ? const Icon(Icons.person_rounded, size: 20, color: Colors.white)
+                  ? const Icon(
+                      Icons.person_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    )
                   : null,
             ),
             const SizedBox(width: AppSpacing.md),
@@ -677,22 +750,30 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             // Date separator
             if (msg.createdAt != null) {
               final prevDate = prev?.createdAt;
-              if (prevDate == null ||
-                  !_sameDay(prevDate, msg.createdAt!)) {
+              if (prevDate == null || !_sameDay(prevDate, msg.createdAt!)) {
                 items.add(_ChatListItem.separator(_dateLabel(msg.createdAt!)));
               }
             }
 
             final isMine = msg.sender.id == currentUserId;
-            final sameSenderAsPrev = prev != null && prev.sender.id == msg.sender.id;
-            final sameSenderAsNext = next != null && next.sender.id == msg.sender.id;
+            final sameSenderAsPrev =
+                prev != null && prev.sender.id == msg.sender.id;
+            final sameSenderAsNext =
+                next != null && next.sender.id == msg.sender.id;
             // isFirst / isLast in a contiguous same-sender group
             final isFirst = !sameSenderAsPrev;
             final isLast = !sameSenderAsNext;
-            items.add(_ChatListItem.message(
-              msg, isMine, isFirst, isLast,
-              senderColor, receiverColor, friend.avatar,
-            ));
+            items.add(
+              _ChatListItem.message(
+                msg,
+                isMine,
+                isFirst,
+                isLast,
+                senderColor,
+                receiverColor,
+                friend.avatar,
+              ),
+            );
           }
 
           // Typing indicator
@@ -717,14 +798,18 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           itemBuilder: (context, index) {
                             final item = items[index];
                             if (item.isSeparator) {
-                              return _DateSeparator(label: item.separatorLabel!);
+                              return _DateSeparator(
+                                label: item.separatorLabel!,
+                              );
                             }
                             if (item.isTyping) {
                               return Padding(
                                 padding: const EdgeInsets.only(left: 44),
                                 child: Align(
                                   alignment: Alignment.centerLeft,
-                                  child: _TypingIndicatorBubble(color: item.receiverColor!),
+                                  child: _TypingIndicatorBubble(
+                                    color: item.receiverColor!,
+                                  ),
                                 ),
                               );
                             }
@@ -736,7 +821,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                               senderColor: item.senderColor!,
                               receiverColor: item.receiverColor!,
                               senderAvatarUrl: item.senderAvatarUrl!,
-                              onLongPress: item.isMine! ? () => _showMessageActions(item.message!) : null,
+                              onLongPress: () => _showMessageActions(
+                                item.message!,
+                                isMine: item.isMine!,
+                              ),
                               onOpenImage: _openImagePreview,
                             );
                           },
@@ -757,6 +845,70 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (_replyingToMessage != null)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(
+                              bottom: 4,
+                              left: 12,
+                              right: 12,
+                            ),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.reply,
+                                  size: 20,
+                                  color: AppColors.seed,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Replying to ${_replyingToMessage!.sender.username}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: AppColors.seed,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _replyingToMessage!.content.isNotEmpty
+                                            ? _replyingToMessage!.content
+                                            : (_replyingToMessage!
+                                                      .imageUrl
+                                                      .isNotEmpty
+                                                  ? 'Image'
+                                                  : 'Voice message'),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 20),
+                                  onPressed: _cancelReplying,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          ),
                         // Recording banner
                         if (_isRecordingVoice)
                           Container(
@@ -772,18 +924,27 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.mic_rounded, color: scheme.onErrorContainer, size: 18),
+                                Icon(
+                                  Icons.mic_rounded,
+                                  color: scheme.onErrorContainer,
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     'Recording ${_formatClock(_recordingElapsedSeconds)}',
-                                    style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
+                                    style: TextStyle(
+                                      color: scheme.onErrorContainer,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                                 Text(
                                   'Tap mic to send',
                                   style: TextStyle(
-                                    color: scheme.onErrorContainer.withValues(alpha: 0.7),
+                                    color: scheme.onErrorContainer.withValues(
+                                      alpha: 0.7,
+                                    ),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -814,7 +975,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Edit message',
@@ -830,7 +992,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          color: isDark ? Colors.white70 : Colors.black54,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.black54,
                                           fontSize: 13,
                                         ),
                                       ),
@@ -842,7 +1006,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   child: Icon(
                                     Icons.close_rounded,
                                     size: 18,
-                                    color: isDark ? Colors.white54 : Colors.black45,
+                                    color: isDark
+                                        ? Colors.white54
+                                        : Colors.black45,
                                   ),
                                 ),
                               ],
@@ -854,7 +1020,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           children: [
                             // Attachment button
                             GestureDetector(
-                              onTap: chatProvider.isSendingMessage ? null : _handlePickImage,
+                              onTap: chatProvider.isSendingMessage
+                                  ? null
+                                  : _handlePickImage,
                               child: Container(
                                 width: 40,
                                 height: 40,
@@ -864,7 +1032,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                 ),
                                 child: Icon(
                                   Icons.attach_file_rounded,
-                                  color: isDark ? Colors.white60 : Colors.black45,
+                                  color: isDark
+                                      ? Colors.white60
+                                      : Colors.black45,
                                   size: 20,
                                 ),
                               ),
@@ -874,7 +1044,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                             // Text field pill
                             Expanded(
                               child: Container(
-                                constraints: const BoxConstraints(minHeight: 40),
+                                constraints: const BoxConstraints(
+                                  minHeight: 40,
+                                ),
                                 decoration: BoxDecoration(
                                   color: inputSurface,
                                   borderRadius: BorderRadius.circular(22),
@@ -884,7 +1056,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   children: [
                                     Expanded(
                                       child: Padding(
-                                        padding: const EdgeInsets.fromLTRB(14, 0, 8, 0),
+                                        padding: const EdgeInsets.fromLTRB(
+                                          14,
+                                          0,
+                                          8,
+                                          0,
+                                        ),
                                         child: TextField(
                                           controller: _messageController,
                                           minLines: 1,
@@ -892,14 +1069,18 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                           onChanged: _handleMessageChanged,
                                           style: TextStyle(
                                             fontSize: 15,
-                                            color: isDark ? Colors.white : Colors.black87,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black87,
                                           ),
                                           decoration: InputDecoration(
                                             hintText: _editingMessageId != null
                                                 ? 'Edit message…'
                                                 : 'Message',
                                             hintStyle: TextStyle(
-                                              color: isDark ? Colors.white38 : Colors.black38,
+                                              color: isDark
+                                                  ? Colors.white38
+                                                  : Colors.black38,
                                               fontSize: 15,
                                             ),
                                             border: InputBorder.none,
@@ -907,7 +1088,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                             focusedBorder: InputBorder.none,
                                             disabledBorder: InputBorder.none,
                                             isDense: true,
-                                            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  vertical: 10,
+                                                ),
                                           ),
                                         ),
                                       ),
@@ -915,16 +1099,24 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                     // Mic inside the pill
                                     if (_editingMessageId == null)
                                       Padding(
-                                        padding: const EdgeInsets.only(right: 8, bottom: 8),
+                                        padding: const EdgeInsets.only(
+                                          right: 8,
+                                          bottom: 8,
+                                        ),
                                         child: GestureDetector(
-                                          onTap: (chatProvider.isSendingMessage || chatProvider.isUpdatingMessage)
+                                          onTap:
+                                              (chatProvider.isSendingMessage ||
+                                                  chatProvider
+                                                      .isUpdatingMessage)
                                               ? null
                                               : _toggleVoiceRecording,
                                           child: Icon(
                                             _isRecordingVoice
                                                 ? Icons.stop_circle_outlined
                                                 : Icons.mic_none_rounded,
-                                            color: isDark ? Colors.white54 : Colors.black45,
+                                            color: isDark
+                                                ? Colors.white54
+                                                : Colors.black45,
                                             size: 22,
                                           ),
                                         ),
@@ -937,7 +1129,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
                             // Send / confirm button
                             GestureDetector(
-                              onTap: (chatProvider.isSendingMessage || chatProvider.isUpdatingMessage)
+                              onTap:
+                                  (chatProvider.isSendingMessage ||
+                                      chatProvider.isUpdatingMessage)
                                   ? null
                                   : _handleSend,
                               child: Container(
@@ -947,7 +1141,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   color: scheme.primary,
                                   shape: BoxShape.circle,
                                 ),
-                                child: (chatProvider.isSendingMessage || chatProvider.isUpdatingMessage)
+                                child:
+                                    (chatProvider.isSendingMessage ||
+                                        chatProvider.isUpdatingMessage)
                                     ? const Padding(
                                         padding: EdgeInsets.all(10),
                                         child: CircularProgressIndicator(
@@ -980,8 +1176,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   static bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
-
-
 
   Future<void> _startCall(String type) async {
     try {
@@ -1032,16 +1226,16 @@ class _ChatListItem {
   });
 
   factory _ChatListItem.separator(String label) => _ChatListItem._(
-        isSeparator: true,
-        isTyping: false,
-        separatorLabel: label,
-      );
+    isSeparator: true,
+    isTyping: false,
+    separatorLabel: label,
+  );
 
   factory _ChatListItem.typing(Color receiverColor) => _ChatListItem._(
-        isSeparator: false,
-        isTyping: true,
-        receiverColor: receiverColor,
-      );
+    isSeparator: false,
+    isTyping: true,
+    receiverColor: receiverColor,
+  );
 
   factory _ChatListItem.message(
     ChatMessageModel msg,
@@ -1051,18 +1245,17 @@ class _ChatListItem {
     Color senderColor,
     Color receiverColor,
     String senderAvatarUrl,
-  ) =>
-      _ChatListItem._(
-        isSeparator: false,
-        isTyping: false,
-        message: msg,
-        isMine: isMine,
-        isFirst: isFirst,
-        isLast: isLast,
-        senderColor: senderColor,
-        receiverColor: receiverColor,
-        senderAvatarUrl: senderAvatarUrl,
-      );
+  ) => _ChatListItem._(
+    isSeparator: false,
+    isTyping: false,
+    message: msg,
+    isMine: isMine,
+    isFirst: isFirst,
+    isLast: isLast,
+    senderColor: senderColor,
+    receiverColor: receiverColor,
+    senderAvatarUrl: senderAvatarUrl,
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1132,7 +1325,8 @@ class _TelegramBubble extends StatelessWidget {
     final theme = Theme.of(context);
     final bubbleColor = isMine ? senderColor : receiverColor;
     final textColor = isMine
-        ? Colors.white // Force white on dark teal sender bubble
+        ? Colors
+              .white // Force white on dark teal sender bubble
         : (isDark ? Colors.white : const Color(0xFF1A1A1A));
     final metaColor = isMine
         ? Colors.white.withValues(alpha: 0.65) // Readable white meta text
@@ -1141,10 +1335,12 @@ class _TelegramBubble extends StatelessWidget {
     // Telegram tail: large radius on all corners except the "tail" corner
     final topLeft = const Radius.circular(18);
     final topRight = const Radius.circular(18);
-    final bottomLeft =
-        isMine ? const Radius.circular(18) : const Radius.circular(4);
-    final bottomRight =
-        isMine ? const Radius.circular(4) : const Radius.circular(18);
+    final bottomLeft = isMine
+        ? const Radius.circular(18)
+        : const Radius.circular(4);
+    final bottomRight = isMine
+        ? const Radius.circular(4)
+        : const Radius.circular(18);
     final borderRadius = BorderRadius.only(
       topLeft: isFirst && !isMine ? const Radius.circular(4) : topLeft,
       topRight: isFirst && isMine ? const Radius.circular(4) : topRight,
@@ -1159,13 +1355,13 @@ class _TelegramBubble extends StatelessWidget {
     // ── Shared meta widgets ────────────────────────────────────────────────
     // Pill for image overlay (semi-transparent dark background)
     Widget _overlayPill(Widget child) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: child,
-        );
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: child,
+    );
 
     Widget timeWidget = Text(
       timeStr,
@@ -1177,9 +1373,7 @@ class _TelegramBubble extends StatelessWidget {
             message.isSeen ? Icons.done_all_rounded : Icons.check_rounded,
             size: 14,
             color: message.isSeen
-                ? (isDark
-                    ? const Color(0xFF6BCFF8)
-                    : theme.colorScheme.primary)
+                ? (isDark ? const Color(0xFF6BCFF8) : theme.colorScheme.primary)
                 : metaColor,
           )
         : null;
@@ -1203,10 +1397,7 @@ class _TelegramBubble extends StatelessWidget {
           const SizedBox(width: 3),
         ],
         timeWidget,
-        if (tickWidget != null) ...[
-          const SizedBox(width: 3),
-          tickWidget,
-        ],
+        if (tickWidget != null) ...[const SizedBox(width: 3), tickWidget],
       ],
     );
 
@@ -1216,68 +1407,96 @@ class _TelegramBubble extends StatelessWidget {
 
     // ── Image-only: overlay time top-right, tick bottom-right ─────────────
     Widget imageWidget(bool isOverlay) => GestureDetector(
-          onTap: () => onOpenImage(message.imageUrl),
-          child: Stack(
-            children: [
-              CachedNetworkImage(
-                imageUrl: message.imageUrl,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  height: 180,
-                  alignment: Alignment.center,
-                  color: isDark
-                      ? Colors.white10
-                      : Colors.black.withValues(alpha: 0.05),
-                  child: const CircularProgressIndicator(strokeWidth: 2),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  height: 120,
-                  color: isDark
-                      ? Colors.white10
-                      : Colors.black.withValues(alpha: 0.05),
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.broken_image_outlined, size: 32),
+      onTap: () => onOpenImage(message.imageUrl),
+      child: Stack(
+        children: [
+          CachedNetworkImage(
+            imageUrl: message.imageUrl,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              height: 180,
+              alignment: Alignment.center,
+              color: isDark
+                  ? Colors.white10
+                  : Colors.black.withValues(alpha: 0.05),
+              child: const CircularProgressIndicator(strokeWidth: 2),
+            ),
+            errorWidget: (context, url, error) => Container(
+              height: 120,
+              color: isDark
+                  ? Colors.white10
+                  : Colors.black.withValues(alpha: 0.05),
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined, size: 32),
+            ),
+          ),
+          if (isOverlay) ...[
+            // Time — top-right
+            Positioned(
+              top: 6,
+              right: 6,
+              child: _overlayPill(
+                Text(
+                  timeStr,
+                  style: const TextStyle(fontSize: 11, color: Colors.white),
                 ),
               ),
-              if (isOverlay) ...[
-                // Time — top-right
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: _overlayPill(
-                    Text(
-                      timeStr,
-                      style: const TextStyle(fontSize: 11, color: Colors.white),
-                    ),
+            ),
+            // Tick — bottom-right
+            if (tickWidget != null)
+              Positioned(
+                bottom: 6,
+                right: 6,
+                child: _overlayPill(
+                  Icon(
+                    message.isSeen
+                        ? Icons.done_all_rounded
+                        : Icons.check_rounded,
+                    size: 14,
+                    color: message.isSeen
+                        ? const Color(0xFF6BCFF8)
+                        : Colors.white70,
                   ),
                 ),
-                // Tick — bottom-right
-                if (tickWidget != null)
-                  Positioned(
-                    bottom: 6,
-                    right: 6,
-                    child: _overlayPill(
-                      Icon(
-                        message.isSeen
-                            ? Icons.done_all_rounded
-                            : Icons.check_rounded,
-                        size: 14,
-                        color: message.isSeen
-                            ? const Color(0xFF6BCFF8)
-                            : Colors.white70,
-                      ),
-                    ),
-                  ),
-              ],
-            ],
-          ),
-        );
+              ),
+          ],
+        ],
+      ),
+    );
 
-    // ── Build bubble content ───────────────────────────────────────────────
     Widget bubbleContent;
+    Widget? replyQuoteWidget;
+    if (message.replyTo != null) {
+      final rm = message.replyTo!;
+      replyQuoteWidget = Container(
+        margin: EdgeInsets.fromLTRB(10, 8, 10, hasImage ? 6 : 0),
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border(left: BorderSide(color: isDark ? Colors.white54 : Colors.black54, width: 3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              rm.sender.username.isNotEmpty ? rm.sender.username : 'User',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textColor),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              rm.content.isNotEmpty ? rm.content : (rm.imageUrl.isNotEmpty ? 'Photo' : 'Voice Message'),
+              style: TextStyle(fontSize: 12, color: textColor.withValues(alpha: 0.85)),
+              maxLines: 1, 
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      );
+    }
 
-    if (hasImage && !hasText && !hasAudio) {
+    if (hasImage && !hasText && !hasAudio && replyQuoteWidget == null) {
       // Pure image: overlay everything, no extra rows
       bubbleContent = imageWidget(true);
     } else {
@@ -1286,6 +1505,7 @@ class _TelegramBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (replyQuoteWidget != null) replyQuoteWidget,
           if (hasImage) imageWidget(false),
           // Text + audio + inline meta row
           Padding(
@@ -1356,18 +1576,53 @@ class _TelegramBubble extends StatelessWidget {
       ),
     );
 
+    Widget fullBubble = bubble;
+    if (message.reaction != null && message.reaction!.isNotEmpty) {
+      fullBubble = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          bubble,
+          Positioned(
+            bottom: -10,
+            right: isMine ? 10 : null,
+            left: isMine ? null : 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E2C3A) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 1)),
+                ],
+              ),
+              child: Text(
+                message.reaction == 'Ok' ? 'Ok' : 'No',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: message.reaction == 'Ok' ? Colors.green : Colors.red,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     // Wrap in row with avatar space
     return Padding(
       padding: EdgeInsets.only(
         top: isFirst ? 6 : 2,
-        bottom: isLast ? 2 : 0,
+        bottom: isLast ? (message.reaction != null ? 14 : 2) : 0,
         left: isMine ? 48 : 0,
         right: isMine ? 0 : 48,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment:
-            isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMine
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           if (!isMine) ...[
             // Avatar (only on last in group, blank placeholder otherwise)
@@ -1379,18 +1634,22 @@ class _TelegramBubble extends StatelessWidget {
                       backgroundImage: senderAvatarUrl.isNotEmpty
                           ? CachedNetworkImageProvider(senderAvatarUrl)
                           : null,
-                      backgroundColor:
-                          theme.colorScheme.primary.withValues(alpha: 0.2),
+                      backgroundColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
                       child: senderAvatarUrl.isEmpty
-                          ? const Icon(Icons.person_rounded,
-                              size: 16, color: Colors.white)
+                          ? const Icon(
+                              Icons.person_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            )
                           : null,
                     )
                   : null,
             ),
             const SizedBox(width: 6),
           ],
-          bubble,
+          fullBubble,
           if (isMine) const SizedBox(width: 2),
         ],
       ),
@@ -1399,7 +1658,6 @@ class _TelegramBubble extends StatelessWidget {
 }
 
 class _TypingIndicatorBubble extends StatefulWidget {
-
   final Color color;
 
   const _TypingIndicatorBubble({required this.color});
@@ -1462,8 +1720,6 @@ class _TypingIndicatorBubbleState extends State<_TypingIndicatorBubble> {
     );
   }
 }
-
-
 
 class _AudioMessageView extends StatefulWidget {
   final String audioUrl;
@@ -1542,26 +1798,27 @@ class _AudioMessageViewState extends State<_AudioMessageView> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // Sender uses the primary color (dark teal), so enforce white text/tracks
-    final fg = widget.isMine 
+    final fg = widget.isMine
         ? Colors.white
         : (isDark ? Colors.white : const Color(0xFF1A1A1A));
-        
+
     final trackBg = widget.isMine
         ? Colors.white.withValues(alpha: 0.25)
-        : (isDark ? Colors.white.withValues(alpha: 0.28) : scheme.primary.withValues(alpha: 0.15));
-        
-    final trackFg = widget.isMine 
+        : (isDark
+              ? Colors.white.withValues(alpha: 0.28)
+              : scheme.primary.withValues(alpha: 0.15));
+
+    final trackFg = widget.isMine
         ? Colors.white
         : (isDark ? Colors.white : scheme.primary);
 
     final total = _duration ?? Duration(seconds: widget.durationSeconds ?? 0);
     final safePos = _position > total ? total : _position;
-    final progress =
-        total.inMilliseconds == 0
-            ? 0.0
-            : safePos.inMilliseconds / total.inMilliseconds;
+    final progress = total.inMilliseconds == 0
+        ? 0.0
+        : safePos.inMilliseconds / total.inMilliseconds;
     final isPlaying = _player.playing;
 
     return Row(
@@ -1643,5 +1900,3 @@ class _AudioMessageViewState extends State<_AudioMessageView> {
     );
   }
 }
-
-

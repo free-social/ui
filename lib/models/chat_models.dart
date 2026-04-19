@@ -252,6 +252,8 @@ class ChatMessageModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? editedAt;
+  final ChatMessageModel? replyTo;
+  final String? reaction;
 
   const ChatMessageModel({
     required this.id,
@@ -266,6 +268,8 @@ class ChatMessageModel {
     this.createdAt,
     this.updatedAt,
     this.editedAt,
+    this.replyTo,
+    this.reaction,
   });
 
   factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
@@ -305,6 +309,10 @@ class ChatMessageModel {
       createdAt: _parseLocalDateTime(json['createdAt']),
       updatedAt: _parseLocalDateTime(json['updatedAt']),
       editedAt: _parseLocalDateTime(json['editedAt']),
+      replyTo: json['replyTo'] is Map<String, dynamic>
+          ? ChatMessageModel.fromJson(json['replyTo'])
+          : null,
+      reaction: json['reaction']?.toString(),
     );
   }
 
@@ -321,6 +329,8 @@ class ChatMessageModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? editedAt,
+    ChatMessageModel? replyTo,
+    String? reaction,
   }) {
     return ChatMessageModel(
       id: id ?? this.id,
@@ -335,6 +345,8 @@ class ChatMessageModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       editedAt: editedAt ?? this.editedAt,
+      replyTo: replyTo ?? this.replyTo,
+      reaction: reaction ?? this.reaction,
     );
   }
 }
