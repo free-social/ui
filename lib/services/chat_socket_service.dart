@@ -174,16 +174,16 @@ class ChatSocketService {
             .toString()
             .trim();
         final rawMessageIds = payload['messageIds'];
-        if (conversationId.isEmpty || rawMessageIds is! List) {
+        if (conversationId.isEmpty) {
           return;
         }
 
-        final messageIds = rawMessageIds
-            .map((item) => item.toString().trim())
-            .where((item) => item.isNotEmpty)
-            .toList();
-        if (messageIds.isEmpty) {
-          return;
+        List<String> messageIds = [];
+        if (rawMessageIds is List) {
+          messageIds = rawMessageIds
+              .map((item) => item.toString().trim())
+              .where((item) => item.isNotEmpty)
+              .toList();
         }
 
         _onMessagesSeen?.call(

@@ -1379,19 +1379,19 @@ class ChatProvider with ChangeNotifier {
     List<String> messageIds,
     DateTime? seenAt,
   ) {
-    if (_activeConversationId != conversationId || messageIds.isEmpty) {
+    if (_activeConversationId != conversationId) {
       return false;
     }
 
     final targetIds = messageIds.toSet();
     var hasChanges = false;
     final updatedMessages = _messages.map((message) {
-      if (!targetIds.contains(message.id) || message.isSeen) {
+      if (message.isSeen || (targetIds.isNotEmpty && !targetIds.contains(message.id))) {
         return message;
       }
 
       hasChanges = true;
-      return message.copyWith(isSeen: true, seenAt: seenAt ?? message.seenAt);
+      return message.copyWith(isSeen: true, seenAt: seenAt ?? message.seenAt ?? DateTime.now());
     }).toList();
 
     if (!hasChanges) {
