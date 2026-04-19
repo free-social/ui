@@ -395,13 +395,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                   onTap: () => Navigator.of(context).pop('reply'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.check_circle_outline),
-                  title: const Text('React Ok'),
+                  title: const Text('Ok'),
                   onTap: () => Navigator.of(context).pop('react_ok'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.cancel_outlined),
-                  title: const Text('React No'),
+                  title: const Text('No'),
                   onTap: () => Navigator.of(context).pop('react_no'),
                 ),
                 if (isMine && message.content.isNotEmpty)
