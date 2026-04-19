@@ -15,6 +15,7 @@ import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/callkit_service.dart';
 import 'services/push_notification_service.dart';
+import 'core/widgets/network_aware_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,7 +64,11 @@ class MyApp extends StatelessWidget {
             '/main': (_) => const MainScreen(),
             '/splash': (_) => const SplashScreen(),
           },
-
+          builder: (context, child) {
+            return NetworkAwareWidget(
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: themeProvider.themeMode,
