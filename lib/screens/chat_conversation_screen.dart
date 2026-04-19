@@ -907,7 +907,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                     // Mic inside the pill
                                     if (_editingMessageId == null)
                                       Padding(
-                                        padding: const EdgeInsets.only(right: 4, bottom: 4),
+                                        padding: const EdgeInsets.only(right: 8, bottom: 8),
                                         child: GestureDetector(
                                           onTap: (chatProvider.isSendingMessage || chatProvider.isUpdatingMessage)
                                               ? null
