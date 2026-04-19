@@ -472,17 +472,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                       decoration: const BoxDecoration(
                         color: Colors.white,
-                        border: Border(top: BorderSide(color: Color(0xFFE6E9EF))),
+                        // border: Border(top: BorderSide(color: Color(0xFFE6E9EF))),
                       ),
                       child: Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton.icon(
+                            child: FilledButton.tonal(
                               onPressed: isSaving
                                   ? null
                                   : () => Navigator.of(dialogContext).pop(),
-                              icon: const Icon(Icons.close_rounded),
-                              label: const Text('Close'),
+                              child: const Text('Close'),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -571,6 +570,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   Widget build(BuildContext context) {
     final friend = widget.conversation.friend;
     final currentUserId = context.watch<AuthProvider>().user?.id ?? '';
+    final isCallLoading = context.watch<ChatProvider>().isCallLoading;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
@@ -607,12 +607,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         actions: [
           IconButton(
             tooltip: 'Audio call',
-            onPressed: () => _startCall('audio'),
+            onPressed: isCallLoading ? null : () => _startCall('audio'),
             icon: const Icon(Icons.call_outlined),
           ),
           IconButton(
             tooltip: 'Video call',
-            onPressed: () => _startCall('video'),
+            onPressed: isCallLoading ? null : () => _startCall('video'),
             icon: const Icon(Icons.videocam_outlined),
           ),
         ],
@@ -936,7 +936,9 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final bubbleColor = isMine ? scheme.primary : scheme.surface;
+    final bubbleColor = isMine
+        ? scheme.primary
+        : scheme.surfaceContainerHighest;
     final textColor = isMine ? Colors.white : scheme.onSurface;
     final metaColor = isMine
         ? Colors.white.withValues(alpha: 0.72)
@@ -963,9 +965,6 @@ class _MessageBubble extends StatelessWidget {
               bottomLeft: Radius.circular(isMine ? 20 : 6),
               bottomRight: Radius.circular(isMine ? 6 : 20),
             ),
-            border: isMine
-                ? null
-                : Border.all(color: theme.dividerColor.withValues(alpha: 0.8)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -410,7 +410,7 @@ class _ChatScreenState extends State<ChatScreen> {
       children: [
         ListTile(
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
+            horizontal: 0,
             vertical: 2,
           ),
           leading: _Avatar(
@@ -661,7 +661,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final sender = request.sender;
 
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
       child: Column(
         children: [
           Row(
@@ -761,7 +761,7 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       },
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
+        horizontal: 0,
         vertical: AppSpacing.sm,
       ),
       leading: _Avatar(
@@ -800,7 +800,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
+        horizontal: 0,
         vertical: AppSpacing.sm,
       ),
       leading: _Avatar(
@@ -848,7 +848,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
+        horizontal: 0,
         vertical: AppSpacing.sm,
       ),
       leading: _Avatar(

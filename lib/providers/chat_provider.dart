@@ -554,6 +554,10 @@ class ChatProvider with ChangeNotifier {
     String conversationId, {
     required String type,
   }) async {
+    if (_isCallLoading) {
+      return;
+    }
+
     _isCallLoading = true;
     notifyListeners();
 
@@ -576,6 +580,10 @@ class ChatProvider with ChangeNotifier {
         } else {
           await CallSoundService.instance.stopRingtone();
           _cancelRingingTimeout();
+          await _prepareLocalMedia(existingActiveCall);
+          if (existingActiveCall.initiator.id == _currentUserId) {
+            await _startNegotiationAsCaller(existingActiveCall);
+          }
         }
 
         return;
@@ -616,7 +624,6 @@ class ChatProvider with ChangeNotifier {
       _isCameraEnabled = updatedCall.isVideo;
       _hasRemoteVideo = false;
 
-      await _callKitService.endCall(updatedCall.id);
       await _callKitService.setCallConnected(updatedCall.id);
       await CallSoundService.instance.stopRingtone();
       await _prepareLocalMedia(updatedCall);
@@ -832,18 +839,22 @@ class ChatProvider with ChangeNotifier {
     _activeCall = call;
     _lastNegotiatedCallId = null;
     notifyListeners();
-    await CallSoundService.instance.startRingtone();
     if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
       await _callKitService.showIncomingCall(call);
       _startRingingTimeout();
       return;
     }
+    await CallSoundService.instance.startRingtone();
     _startRingingTimeout();
     await _showIncomingCallDialog(call);
   }
 
   Future<void> _handleCallStatus(ChatCallModel call) async {
     await _ensureCurrentUserId();
+    // Ignore updates for calls we've already torn down locally.
+    if (_activeCall == null || _activeCall!.id != call.id) {
+      return;
+    }
     if (!_isParticipantInCall(call)) {
       return;
     }
@@ -853,7 +864,6 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     if (call.status == 'accepted' && call.initiator.id == _currentUserId) {
-      await _callKitService.endCall(call.id);
       await _callKitService.setCallConnected(call.id);
       await CallSoundService.instance.stopRingtone();
       await _startNegotiationAsCaller(call);
@@ -873,6 +883,10 @@ class ChatProvider with ChangeNotifier {
 
   Future<void> _handleCallEnded(ChatCallModel call) async {
     await _ensureCurrentUserId();
+    // Ignore if we've already torn down this call locally.
+    if (_activeCall == null || _activeCall!.id != call.id) {
+      return;
+    }
     if (!_isParticipantInCall(call)) {
       return;
     }
@@ -1032,7 +1046,6 @@ class ChatProvider with ChangeNotifier {
     _isMicEnabled = true;
     _isCameraEnabled = updatedCall.isVideo;
     _hasRemoteVideo = false;
-    await _callKitService.endCall(updatedCall.id);
     await _callKitService.setCallConnected(updatedCall.id);
     await CallSoundService.instance.stopRingtone();
     await _prepareLocalMedia(updatedCall);
@@ -1041,6 +1054,13 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> _handleNativeCallDecline(String callId) async {
+    // If we're already tearing down (rejectIncomingCall/endCurrentCall is in
+    // progress), this event was triggered by our own _callKitService.endCall
+    // call — ignore it to avoid re-entrant teardown.
+    if (_isCallLoading) {
+      return;
+    }
+
     final activeCall = _activeCall;
     if (activeCall != null && activeCall.id == callId) {
       await rejectIncomingCall();
@@ -1052,6 +1072,14 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> _handleNativeCallEnd(String callId) async {
+    await CallSoundService.instance.stopRingtone();
+
+    // If endCurrentCall is already running it called _callKitService.endCall
+    // which echoes this native event back — don't re-enter it.
+    if (_isCallLoading) {
+      return;
+    }
+
     final activeCall = _activeCall;
     if (activeCall == null || activeCall.id != callId) {
       return;
@@ -1105,6 +1133,7 @@ class ChatProvider with ChangeNotifier {
     _isMicEnabled = true;
     _isCameraEnabled = true;
     _activeCall = null;
+    _renderersReady = false;
 
     final pendingLock = _signalLock;
     _signalLock = null;
