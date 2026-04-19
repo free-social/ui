@@ -7,10 +7,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'callkit_service.dart';
 import 'notification_sound_service.dart';
+import '../core/navigation/app_navigator.dart';
+import '../screens/chat_conversation_screen.dart';
+import '../providers/chat_provider.dart';
+import 'package:provider/provider.dart';
 
 const _pushTokenPrefsKey = 'pushToken';
 const _deviceIdPrefsKey = 'deviceId';
@@ -97,6 +101,7 @@ class PushNotificationService {
 
       FirebaseMessaging.onMessageOpenedApp.listen((message) {
         debugPrint('FCM opened app: ${jsonEncode(message.data)}');
+        _handleNotificationTap(message.data);
       });
 
       _isFirebaseAvailable = true;
@@ -157,6 +162,16 @@ class PushNotificationService {
 
     await _localNotifications.initialize(
       const InitializationSettings(android: androidSettings, iOS: iosSettings),
+      onDidReceiveNotificationResponse: (response) {
+        if (response.payload != null) {
+          try {
+            final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+            _handleNotificationTap(data);
+          } catch (e) {
+            debugPrint('Error parsing notification payload: $e');
+          }
+        }
+      },
     );
 
     final androidPlugin = _localNotifications
@@ -208,7 +223,36 @@ class PushNotificationService {
           presentSound: true,
         ),
       ),
+      payload: jsonEncode(message.data),
     );
+  }
+
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    if (data['type'] == 'CHAT_MESSAGE' && data['conversationId'] != null) {
+      final conversationId = data['conversationId'] as String;
+      final context = navigatorKey.currentContext;
+
+      if (context != null) {
+        final chatProvider = context.read<ChatProvider>();
+        
+        // Find existing conversation in inbox
+        final existingConv = chatProvider.conversations
+            .where((c) => c.id == conversationId)
+            .firstOrNull;
+            
+        if (existingConv != null) {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => ChatConversationScreen(conversation: existingConv),
+            ),
+          );
+        } else {
+          // If we don't have the conversation loaded yet, we could trigger a fetch, 
+          // but for now let's just refresh the inbox and let the user see it.
+          chatProvider.loadInbox(forceSearchRefresh: true);
+        }
+      }
+    }
   }
 
   Future<void> _persistPushToken(String? token) async {
