@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -449,10 +450,17 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       child: InteractiveViewer(
                         child: Padding(
                           padding: const EdgeInsets.all(12),
-                          child: Image.network(
-                            imageUrl,
+                          child: CachedNetworkImage(
+                            imageUrl: imageUrl,
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
+                            placeholder: (context, url) => const SizedBox(
+                              width: 240,
+                              height: 240,
+                              child: Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) {
                               return const SizedBox(
                                 width: 240,
                                 height: 240,
@@ -614,7 +622,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               radius: 20,
               backgroundColor: Colors.white24,
               backgroundImage: friend.avatar.isNotEmpty
-                  ? NetworkImage(friend.avatar)
+                  ? CachedNetworkImageProvider(friend.avatar)
                   : null,
               child: friend.avatar.isEmpty
                   ? const Icon(Icons.person_rounded, size: 20, color: Colors.white)
@@ -1211,22 +1219,19 @@ class _TelegramBubble extends StatelessWidget {
           onTap: () => onOpenImage(message.imageUrl),
           child: Stack(
             children: [
-              Image.network(
-                message.imageUrl,
+              CachedNetworkImage(
+                imageUrl: message.imageUrl,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                loadingBuilder: (_, child, progress) => progress == null
-                    ? child
-                    : Container(
-                        height: 180,
-                        alignment: Alignment.center,
-                        color: isDark
-                            ? Colors.white10
-                            : Colors.black.withValues(alpha: 0.05),
-                        child:
-                            const CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                errorBuilder: (_, __, ___) => Container(
+                placeholder: (context, url) => Container(
+                  height: 180,
+                  alignment: Alignment.center,
+                  color: isDark
+                      ? Colors.white10
+                      : Colors.black.withValues(alpha: 0.05),
+                  child: const CircularProgressIndicator(strokeWidth: 2),
+                ),
+                errorWidget: (context, url, error) => Container(
                   height: 120,
                   color: isDark
                       ? Colors.white10
@@ -1372,7 +1377,7 @@ class _TelegramBubble extends StatelessWidget {
                   ? CircleAvatar(
                       radius: 16,
                       backgroundImage: senderAvatarUrl.isNotEmpty
-                          ? NetworkImage(senderAvatarUrl)
+                          ? CachedNetworkImageProvider(senderAvatarUrl)
                           : null,
                       backgroundColor:
                           theme.colorScheme.primary.withValues(alpha: 0.2),

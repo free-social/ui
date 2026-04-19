@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class IncomingCallPopup extends StatelessWidget {
   final String callerName;
@@ -43,7 +44,7 @@ class IncomingCallPopup extends StatelessWidget {
               CircleAvatar(
                 radius: 25,
                 backgroundColor: Colors.white10,
-                backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
+                backgroundImage: hasAvatar ? CachedNetworkImageProvider(avatarUrl) : null,
                 child: hasAvatar
                     ? null
                     : const Icon(Icons.person, color: Colors.white70, size: 28),

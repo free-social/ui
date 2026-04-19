@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../core/theme/app_radii.dart';
 import '../core/theme/app_spacing.dart';
@@ -118,7 +119,7 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                               ? FileImage(_imageFile!)
                               : (user?.avatar != null &&
                                       user!.avatar.isNotEmpty)
-                                  ? NetworkImage(user.avatar)
+                                  ? CachedNetworkImageProvider(user.avatar)
                                   : null,
                           child: (_imageFile == null &&
                                   (user?.avatar == null || user!.avatar.isEmpty))

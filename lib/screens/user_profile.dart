@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radii.dart';
@@ -100,7 +101,7 @@ class UserProfileScreen extends StatelessWidget {
                                   backgroundImage:
                                       (user?.avatar != null &&
                                           user!.avatar.isNotEmpty)
-                                      ? NetworkImage(user.avatar)
+                                      ? CachedNetworkImageProvider(user.avatar)
                                       : null,
                                   child:
                                       (user?.avatar == null ||
