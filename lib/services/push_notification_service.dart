@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_sound_service.dart';
 
 const _pushTokenPrefsKey = 'pushToken';
 const _deviceIdPrefsKey = 'deviceId';
@@ -74,6 +75,7 @@ class PushNotificationService {
 
       FirebaseMessaging.onMessage.listen((message) {
         debugPrint('FCM foreground message: ${jsonEncode(message.data)}');
+        NotificationSoundService.instance.playNotification();
         _showForegroundNotification(message);
       });
 

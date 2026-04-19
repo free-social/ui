@@ -34,4 +34,13 @@ class User {
       avatar: json['avatar'] ?? '', 
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'username': username,
+      'avatar': avatar,
+    };
+  }
 }

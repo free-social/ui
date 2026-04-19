@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/transaction_model.dart';
 import '../services/expense_service.dart';
+import '../services/local_cache_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   final ExpenseService _expenseService;
-  ExpenseProvider({ExpenseService? expenseService})
-    : _expenseService = expenseService ?? ExpenseService();
+  final LocalCacheService _cacheService;
+  ExpenseProvider({
+    ExpenseService? expenseService,
+    LocalCacheService? cacheService,
+  }) : _expenseService = expenseService ?? ExpenseService(),
+       _cacheService = cacheService ?? LocalCacheService();
+
+  LocalCacheService get cacheService => _cacheService;
 
   List<TransactionModel> _transactions = [];
   bool _isLoading = false;
@@ -21,6 +29,11 @@ class ExpenseProvider with ChangeNotifier {
   // Track Sort State
   String _currentSortBy = 'date';
   String _currentSortOrder = 'desc';
+
+  Future<String?> _getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('userId');
+  }
 
   List<TransactionModel> get transactions => _transactions;
   dynamic get monthlySummary => _monthlySummary;
@@ -55,6 +68,23 @@ class ExpenseProvider with ChangeNotifier {
     if (sortOrder != null) _currentSortOrder = sortOrder;
 
     try {
+      final userId = await _getUserId();
+      if (userId != null && userId.isNotEmpty && _currentPage == 1) {
+        final cachedTransactions = await _cacheService.getTransactions(
+          userId,
+          page: _currentPage,
+          limit: _currentLimit,
+          category: _currentCategory,
+          sortBy: _currentSortBy,
+          sortOrder: _currentSortOrder,
+        );
+        if (cachedTransactions != null && cachedTransactions.isNotEmpty) {
+          _transactions = cachedTransactions;
+          _isLoading = false;
+          notifyListeners();
+        }
+      }
+
       final newData = await _expenseService.getAllTransactions(
         page: _currentPage,
         limit: _currentLimit,
@@ -68,6 +98,18 @@ class ExpenseProvider with ChangeNotifier {
         _transactions = newData; // Replace list (New Filter or Refresh)
       } else {
         _transactions.addAll(newData); // Append to list (Load More)
+      }
+
+      if (userId != null && userId.isNotEmpty) {
+        await _cacheService.saveTransactions(
+          userId,
+          _transactions,
+          page: _currentPage,
+          limit: _currentLimit,
+          category: _currentCategory,
+          sortBy: _currentSortBy,
+          sortOrder: _currentSortOrder,
+        );
       }
     } catch (e) {
       debugPrint('Error fetching transactions: $e');
@@ -102,6 +144,10 @@ class ExpenseProvider with ChangeNotifier {
         date: date,
       );
       await _expenseService.createTransaction(newTransaction);
+      final userId = await _getUserId();
+      if (userId != null && userId.isNotEmpty) {
+        await _cacheService.clearTransactionCaches(userId);
+      }
       await fetchTransactions();
     } catch (e) {
       debugPrint('Error adding transaction: $e');
@@ -119,6 +165,10 @@ class ExpenseProvider with ChangeNotifier {
   ) async {
     try {
       await _expenseService.updateTransaction(id, updates);
+      final userId = await _getUserId();
+      if (userId != null && userId.isNotEmpty) {
+        await _cacheService.clearTransactionCaches(userId);
+      }
       await fetchTransactions();
     } catch (e) {
       debugPrint('Error updating transaction: $e');
@@ -130,6 +180,10 @@ class ExpenseProvider with ChangeNotifier {
   Future<void> deleteTransaction(String id) async {
     try {
       await _expenseService.deleteTransaction(id);
+      final userId = await _getUserId();
+      if (userId != null && userId.isNotEmpty) {
+        await _cacheService.clearTransactionCaches(userId);
+      }
       _transactions.removeWhere((t) => t.id == id);
       notifyListeners();
     } catch (e) {
@@ -143,7 +197,24 @@ class ExpenseProvider with ChangeNotifier {
     _isStatsLoading = true;
     notifyListeners();
     try {
+      final userId = await _getUserId();
+      if (userId != null && userId.isNotEmpty) {
+        final cachedSummary = await _cacheService.getMonthlySummary(
+          userId,
+          month,
+          year,
+        );
+        if (cachedSummary != null) {
+          _monthlySummary = cachedSummary;
+          _isStatsLoading = false;
+          notifyListeners();
+        }
+      }
+
       _monthlySummary = await _expenseService.getMonthlyExpenses(month, year);
+      if (userId != null && userId.isNotEmpty && _monthlySummary != null) {
+        await _cacheService.saveMonthlySummary(userId, month, year, _monthlySummary);
+      }
     } catch (e) {
       debugPrint('Error fetching monthly report: $e');
     } finally {
@@ -157,7 +228,20 @@ class ExpenseProvider with ChangeNotifier {
     _isStatsLoading = true;
     notifyListeners();
     try {
+      final userId = await _getUserId();
+      if (userId != null && userId.isNotEmpty) {
+        final cachedSummary = await _cacheService.getDailySummary(userId);
+        if (cachedSummary != null) {
+          _dailySummary = cachedSummary;
+          _isStatsLoading = false;
+          notifyListeners();
+        }
+      }
+
       _dailySummary = await _expenseService.getDailyExpenses(date: date);
+      if (userId != null && userId.isNotEmpty && _dailySummary != null) {
+        await _cacheService.saveDailySummary(userId, _dailySummary);
+      }
     } catch (e) {
       debugPrint('Error fetching daily report: $e');
     } finally {

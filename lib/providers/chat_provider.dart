@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/navigation/app_navigator.dart';
 import '../models/chat_models.dart';
+import '../services/call_sound_service.dart';
 import '../services/chat_service.dart';
 import '../services/chat_socket_service.dart';
 import '../services/chat_webrtc_service.dart';
@@ -557,6 +558,7 @@ class ChatProvider with ChangeNotifier {
       _isCameraEnabled = call.isVideo;
 
       await _prepareLocalMedia(call);
+      await CallSoundService.instance.startRingtone();
       _startRingingTimeout();
       await _openCallScreen();
     } finally {
@@ -583,6 +585,7 @@ class ChatProvider with ChangeNotifier {
       _isCameraEnabled = updatedCall.isVideo;
       _hasRemoteVideo = false;
 
+      await CallSoundService.instance.stopRingtone();
       await _prepareLocalMedia(updatedCall);
       // Peer connection is created when the caller's offer arrives
       // in _processCallSignal — creating it here too early causes
@@ -604,6 +607,8 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      await CallSoundService.instance.stopRingtone();
+      await CallSoundService.instance.playEndCall();
       await _chatService.respondToCall(call.id, 'rejected');
       await _resetCallState();
     } finally {
@@ -628,10 +633,12 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      await CallSoundService.instance.stopRingtone();
       await _chatService.endCall(call.id, status);
     } catch (_) {
       // Still tear down local state if the call already ended remotely.
     } finally {
+      await CallSoundService.instance.playEndCall();
       await _resetCallState();
       _isCallLoading = false;
       notifyListeners();
@@ -790,6 +797,7 @@ class ChatProvider with ChangeNotifier {
     _activeCall = call;
     _lastNegotiatedCallId = null;
     notifyListeners();
+    await CallSoundService.instance.startRingtone();
     _startRingingTimeout();
     await _showIncomingCallDialog(call);
   }
@@ -805,6 +813,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     if (call.status == 'accepted' && call.initiator.id == _currentUserId) {
+      await CallSoundService.instance.stopRingtone();
       await _startNegotiationAsCaller(call);
       await _openCallScreen();
       notifyListeners();
@@ -812,6 +821,8 @@ class ChatProvider with ChangeNotifier {
     }
 
     if (call.status == 'rejected') {
+      await CallSoundService.instance.stopRingtone();
+      await CallSoundService.instance.playEndCall();
       await _resetCallState();
       notifyListeners();
     }
@@ -823,6 +834,8 @@ class ChatProvider with ChangeNotifier {
       return;
     }
 
+    await CallSoundService.instance.stopRingtone();
+    await CallSoundService.instance.playEndCall();
     await _resetCallState();
     notifyListeners();
   }
@@ -978,6 +991,7 @@ class ChatProvider with ChangeNotifier {
   Future<void> _resetCallState() async {
     _cancelRingingTimeout();
     _stopCallDurationTimer();
+    await CallSoundService.instance.stopRingtone();
     _lastNegotiatedCallId = null;
     _hasRemoteVideo = false;
     _isMicEnabled = true;
@@ -1264,6 +1278,7 @@ class ChatProvider with ChangeNotifier {
   @override
   void dispose() {
     _chatSocketService.disconnect();
+    CallSoundService.instance.stopRingtone();
     _chatWebRtcService.close(
       localRenderer: _localRenderer,
       remoteRenderer: _remoteRenderer,

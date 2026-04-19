@@ -81,9 +81,9 @@ class _ChatScreenState extends State<ChatScreen> {
               labelColor: textColor,
               unselectedLabelColor: textColor.withValues(alpha: 0.62),
               tabs: const [
+                Tab(text: 'Chats'),
                 Tab(text: 'Find'),
                 Tab(text: 'Requests'),
-                Tab(text: 'Chats'),
               ],
             ),
           ),

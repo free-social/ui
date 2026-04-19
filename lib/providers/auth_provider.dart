@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
+import '../services/local_cache_service.dart';
 import '../models/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
+  final LocalCacheService _cacheService;
 
   // Constructor Injection
   AuthProvider({AuthService? authService})
-    : _authService = authService ?? AuthService();
+    : _authService = authService ?? AuthService(),
+      _cacheService = LocalCacheService();
 
   User? _user;
   bool _isAuthenticated = false;
@@ -27,10 +30,13 @@ class AuthProvider with ChangeNotifier {
 
     if (token != null && userId != null) {
       _isAuthenticated = true;
+      _user = await _cacheService.getUserProfile(userId);
+      notifyListeners();
       try {
         final responseData = await _authService.getProfile(userId);
         if (responseData.containsKey('user')) {
           _user = User.fromJson(responseData['user']);
+          await _cacheService.saveUserProfile(userId, _user!);
         }
       } catch (e) {
         // Profile sync failed, continue with cached auth state
@@ -46,6 +52,7 @@ class AuthProvider with ChangeNotifier {
       await _authService.updateUsername(userId, newUsername);
       if (_user != null) {
         _user = _user!.copyWith(username: newUsername);
+        await _cacheService.saveUserProfile(userId, _user!);
       }
       notifyListeners();
     } catch (e) {
@@ -65,6 +72,7 @@ class AuthProvider with ChangeNotifier {
         final String newAvatarUrl = response['user']['avatar'];
         if (_user != null) {
           _user = _user!.copyWith(avatar: newAvatarUrl);
+          await _cacheService.saveUserProfile(userId, _user!);
         }
       }
       notifyListeners();
@@ -94,11 +102,13 @@ class AuthProvider with ChangeNotifier {
           final profileData = await _authService.getProfile(userId);
           if (profileData.containsKey('user')) {
             _user = User.fromJson(profileData['user']);
+            await _cacheService.saveUserProfile(userId, _user!);
           }
         } catch (e) {
           // If profile fetch fails, fall back to basic login data
           if (responseData.containsKey('user')) {
             _user = User.fromJson(responseData['user']);
+            await _cacheService.saveUserProfile(userId, _user!);
           }
         }
       }
@@ -157,6 +167,7 @@ class AuthProvider with ChangeNotifier {
         currentPassword,
         newPassword,
       );
+      await _cacheService.clearUserProfile(userId);
       _user = null;
       _isAuthenticated = false;
       notifyListeners();
@@ -183,7 +194,13 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    final userId = _user?.id;
     await _authService.logout();
+    if (userId != null && userId.isNotEmpty) {
+      await _cacheService.clearUserProfile(userId);
+      await _cacheService.clearWalletData(userId);
+      await _cacheService.clearTransactionCaches(userId);
+    }
     _user = null;
     _isAuthenticated = false;
     notifyListeners();

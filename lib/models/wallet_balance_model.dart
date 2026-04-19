@@ -16,4 +16,12 @@ class WalletBalanceModel {
       userId: json['user'] ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'balance': balance,
+      'user': userId,
+    };
+  }
 }
