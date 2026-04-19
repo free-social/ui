@@ -644,11 +644,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Audio call',
-            onPressed: isCallLoading ? null : () => _startCall('audio'),
-            icon: const Icon(Icons.call_outlined, color: Colors.white),
-          ),
-          IconButton(
             tooltip: 'Video call',
             onPressed: isCallLoading ? null : () => _startCall('video'),
             icon: const Icon(Icons.videocam_outlined, color: Colors.white),
