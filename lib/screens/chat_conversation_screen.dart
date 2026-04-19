@@ -602,7 +602,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF17212B) : scheme.primary,
         foregroundColor: Colors.white,
-        titleSpacing: 0,
+        leadingWidth: 60,
+        leading: BackButton(
+          color: Colors.white,
+          onPressed: () => Navigator.pop(context),
+        ),
+        titleSpacing: 4,
         title: Row(
           children: [
             CircleAvatar(
