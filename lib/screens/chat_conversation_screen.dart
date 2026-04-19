@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
@@ -424,33 +427,144 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   Future<void> _openImagePreview(String imageUrl) async {
     await showDialog<void>(
       context: context,
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.all(16),
-        backgroundColor: Colors.transparent,
-        child: InteractiveViewer(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              color: _imagePreviewBackground,
-              padding: const EdgeInsets.all(12),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return const SizedBox(
-                    width: 240,
-                    height: 240,
-                    child: Center(
-                      child: Icon(Icons.broken_image_outlined, size: 28),
+      builder: (dialogContext) {
+        var isSaving = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) => Dialog(
+            insetPadding: const EdgeInsets.all(16),
+            backgroundColor: Colors.transparent,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                color: _imagePreviewBackground,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxHeight: 520,
+                        minHeight: 240,
+                      ),
+                      child: InteractiveViewer(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Image.network(
+                            imageUrl,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const SizedBox(
+                                width: 240,
+                                height: 240,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.broken_image_outlined,
+                                    size: 28,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
                     ),
-                  );
-                },
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(top: BorderSide(color: Color(0xFFE6E9EF))),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: isSaving
+                                  ? null
+                                  : () => Navigator.of(dialogContext).pop(),
+                              icon: const Icon(Icons.close_rounded),
+                              label: const Text('Close'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: isSaving
+                                  ? null
+                                  : () async {
+                                      setDialogState(() {
+                                        isSaving = true;
+                                      });
+                                      await _saveImageToGallery(imageUrl);
+                                      if (mounted) {
+                                        setDialogState(() {
+                                          isSaving = false;
+                                        });
+                                      }
+                                    },
+                              icon: isSaving
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.download_rounded),
+                              label: Text(isSaving ? 'Saving...' : 'Save'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
+  }
+
+  Future<void> _saveImageToGallery(String imageUrl) async {
+    try {
+      final response = await Dio().get<List<int>>(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) {
+        throw Exception('Image download failed');
+      }
+
+      final fileName = 'chat-image-${DateTime.now().millisecondsSinceEpoch}';
+      final result = await ImageGallerySaverPlus.saveImage(
+        Uint8List.fromList(bytes),
+        name: fileName,
+      );
+
+      final isSuccess =
+          result is Map && (result['isSuccess'] == true || result['success'] == true);
+      if (!isSuccess) {
+        throw Exception('Failed to save image');
+      }
+
+      if (!mounted) return;
+      showSuccessSnackBar(
+        context,
+        'Image saved to gallery',
+        topOffset: _chatSnackTopOffset,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackBar(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        topOffset: _chatSnackTopOffset,
+      );
+    }
   }
 
   @override

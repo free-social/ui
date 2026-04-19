@@ -13,11 +13,13 @@ import 'screens/chat_call_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/callkit_service.dart';
 import 'services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PushNotificationService.instance.initialize();
+  await CallKitService.instance.initialize();
 
   // Initialize AuthProvider
   final authProvider = AuthProvider();

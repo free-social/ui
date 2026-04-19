@@ -8,22 +8,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/navigation/app_navigator.dart';
 import '../models/chat_models.dart';
 import '../services/call_sound_service.dart';
+import '../services/callkit_service.dart';
 import '../services/chat_service.dart';
 import '../services/chat_socket_service.dart';
 import '../services/chat_webrtc_service.dart';
+import '../widgets/chat/incoming_call_popup.dart';
 
 class ChatProvider with ChangeNotifier {
   final ChatService _chatService;
   final ChatSocketService _chatSocketService;
   final ChatWebRtcService _chatWebRtcService;
+  final CallKitService _callKitService;
 
   ChatProvider({
     ChatService? chatService,
     ChatSocketService? chatSocketService,
     ChatWebRtcService? chatWebRtcService,
+    CallKitService? callKitService,
   }) : _chatService = chatService ?? ChatService(),
        _chatSocketService = chatSocketService ?? ChatSocketService(),
-       _chatWebRtcService = chatWebRtcService ?? ChatWebRtcService() {
+       _chatWebRtcService = chatWebRtcService ?? ChatWebRtcService(),
+       _callKitService = callKitService ?? CallKitService.instance {
     _chatSocketService.configure(
       onMessage: _handleIncomingMessage,
       onMessageUpdated: _handleUpdatedMessage,
@@ -35,6 +40,12 @@ class ChatProvider with ChangeNotifier {
       onCallSignal: _handleCallSignal,
       onConversationUpdated: _handleConversationUpdated,
       onTypingChanged: _handleTypingChanged,
+    );
+    _callKitService.configure(
+      onAccept: _handleNativeCallAccept,
+      onDecline: _handleNativeCallDecline,
+      onEnded: _handleNativeCallEnd,
+      onTimeout: _handleNativeCallTimeout,
     );
     unawaited(_bootstrapIfNeeded());
   }
@@ -550,17 +561,37 @@ class ChatProvider with ChangeNotifier {
       await _ensureCurrentUserId();
       await _ensureRenderersReady();
 
+      final existingActiveCall = await _chatService.getActiveCall(conversationId);
+      if (existingActiveCall != null) {
+        _activeCall = existingActiveCall;
+        _lastNegotiatedCallId = null;
+        _hasRemoteVideo = false;
+        _isMicEnabled = true;
+        _isCameraEnabled = existingActiveCall.isVideo;
+        await _openCallScreen();
+
+        if (existingActiveCall.status == 'ringing') {
+          await CallSoundService.instance.startRingtone();
+          _startRingingTimeout();
+        } else {
+          await CallSoundService.instance.stopRingtone();
+          _cancelRingingTimeout();
+        }
+
+        return;
+      }
+
       final call = await _chatService.startCall(conversationId, type);
       _activeCall = call;
       _lastNegotiatedCallId = null;
       _hasRemoteVideo = false;
       _isMicEnabled = true;
       _isCameraEnabled = call.isVideo;
+      await _openCallScreen();
 
       await _prepareLocalMedia(call);
       await CallSoundService.instance.startRingtone();
       _startRingingTimeout();
-      await _openCallScreen();
     } finally {
       _isCallLoading = false;
       notifyListeners();
@@ -585,6 +616,8 @@ class ChatProvider with ChangeNotifier {
       _isCameraEnabled = updatedCall.isVideo;
       _hasRemoteVideo = false;
 
+      await _callKitService.endCall(updatedCall.id);
+      await _callKitService.setCallConnected(updatedCall.id);
       await CallSoundService.instance.stopRingtone();
       await _prepareLocalMedia(updatedCall);
       // Peer connection is created when the caller's offer arrives
@@ -607,6 +640,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      await _callKitService.endCall(call.id);
       await CallSoundService.instance.stopRingtone();
       await CallSoundService.instance.playEndCall();
       await _chatService.respondToCall(call.id, 'rejected');
@@ -634,6 +668,7 @@ class ChatProvider with ChangeNotifier {
 
     try {
       await CallSoundService.instance.stopRingtone();
+      await _callKitService.endCall(call.id);
       await _chatService.endCall(call.id, status);
     } catch (_) {
       // Still tear down local state if the call already ended remotely.
@@ -798,6 +833,11 @@ class ChatProvider with ChangeNotifier {
     _lastNegotiatedCallId = null;
     notifyListeners();
     await CallSoundService.instance.startRingtone();
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      await _callKitService.showIncomingCall(call);
+      _startRingingTimeout();
+      return;
+    }
     _startRingingTimeout();
     await _showIncomingCallDialog(call);
   }
@@ -813,6 +853,8 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     if (call.status == 'accepted' && call.initiator.id == _currentUserId) {
+      await _callKitService.endCall(call.id);
+      await _callKitService.setCallConnected(call.id);
       await CallSoundService.instance.stopRingtone();
       await _startNegotiationAsCaller(call);
       await _openCallScreen();
@@ -821,6 +863,7 @@ class ChatProvider with ChangeNotifier {
     }
 
     if (call.status == 'rejected') {
+      await _callKitService.endCall(call.id);
       await CallSoundService.instance.stopRingtone();
       await CallSoundService.instance.playEndCall();
       await _resetCallState();
@@ -834,6 +877,7 @@ class ChatProvider with ChangeNotifier {
       return;
     }
 
+    await _callKitService.endCall(call.id);
     await CallSoundService.instance.stopRingtone();
     await CallSoundService.instance.playEndCall();
     await _resetCallState();
@@ -935,37 +979,101 @@ class ChatProvider with ChangeNotifier {
     final caller = call.initiator.username.isNotEmpty
         ? call.initiator.username
         : call.initiator.email;
+    final subtitle = call.isVideo ? 'Incoming video call' : 'Incoming audio call';
 
-    await showDialog<void>(
+    await showGeneralDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            call.isVideo ? 'Incoming video call' : 'Incoming audio call',
+      barrierLabel: 'Incoming call',
+      barrierColor: Colors.black38,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return IncomingCallPopup(
+          callerName: caller,
+          callerSubtitle: subtitle,
+          avatarUrl: call.initiator.avatar,
+          onDecline: () async {
+            Navigator.of(dialogContext).pop();
+            await rejectIncomingCall();
+          },
+          onAccept: () async {
+            Navigator.of(dialogContext).pop();
+            await acceptIncomingCall();
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: Tween<double>(
+              begin: 0.96,
+              end: 1,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+            child: child,
           ),
-          content: Text('$caller is calling you.'),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.of(dialogContext).pop();
-                await rejectIncomingCall();
-              },
-              child: const Text('Decline'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                Navigator.of(dialogContext).pop();
-                await acceptIncomingCall();
-              },
-              child: const Text('Answer'),
-            ),
-          ],
         );
       },
     );
 
     _incomingCallDialogVisible = false;
+  }
+
+  Future<void> _handleNativeCallAccept(String callId) async {
+    final activeCall = _activeCall;
+    if (activeCall != null && activeCall.id == callId) {
+      await acceptIncomingCall();
+      return;
+    }
+
+    await _ensureRenderersReady();
+    final updatedCall = await _chatService.respondToCall(callId, 'accepted');
+    _activeCall = updatedCall;
+    _isMicEnabled = true;
+    _isCameraEnabled = updatedCall.isVideo;
+    _hasRemoteVideo = false;
+    await _callKitService.endCall(updatedCall.id);
+    await _callKitService.setCallConnected(updatedCall.id);
+    await CallSoundService.instance.stopRingtone();
+    await _prepareLocalMedia(updatedCall);
+    await _openCallScreen();
+    notifyListeners();
+  }
+
+  Future<void> _handleNativeCallDecline(String callId) async {
+    final activeCall = _activeCall;
+    if (activeCall != null && activeCall.id == callId) {
+      await rejectIncomingCall();
+      return;
+    }
+
+    await _chatService.respondToCall(callId, 'rejected');
+    await _callKitService.endCall(callId);
+  }
+
+  Future<void> _handleNativeCallEnd(String callId) async {
+    final activeCall = _activeCall;
+    if (activeCall == null || activeCall.id != callId) {
+      return;
+    }
+
+    await endCurrentCall();
+  }
+
+  Future<void> _handleNativeCallTimeout(String callId) async {
+    await _ensureCurrentUserId();
+    final activeCall = _activeCall;
+    if (activeCall != null && activeCall.id == callId) {
+      final status = activeCall.initiator.id == _currentUserId
+          ? 'cancelled'
+          : 'missed';
+      await endCurrentCall(forcedStatus: status);
+      return;
+    }
+
+    // Without the active call payload we cannot safely infer whether the
+    // current user is the caller or recipient, so avoid sending an invalid
+    // terminal status that would leave the server call active.
   }
 
   Future<void> _openCallScreen() async {

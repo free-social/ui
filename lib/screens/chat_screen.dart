@@ -91,9 +91,9 @@ class _ChatScreenState extends State<ChatScreen> {
             builder: (context, chatProvider, child) {
               return TabBarView(
                 children: [
+                  _buildChatsTab(context, chatProvider),
                   _buildFindPeopleTab(context, chatProvider),
                   _buildRequestsTab(context, chatProvider),
-                  _buildChatsTab(context, chatProvider),
                 ],
               );
             },

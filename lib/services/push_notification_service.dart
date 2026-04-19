@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -6,7 +7,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'callkit_service.dart';
 import 'notification_sound_service.dart';
 
 const _pushTokenPrefsKey = 'pushToken';
@@ -22,6 +25,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp();
     }
+    await CallKitService.instance.showIncomingCallFromRemoteData(message.data);
   } catch (error) {
     debugPrint('FCM background init failed: $error');
   }
@@ -75,6 +79,18 @@ class PushNotificationService {
 
       FirebaseMessaging.onMessage.listen((message) {
         debugPrint('FCM foreground message: ${jsonEncode(message.data)}');
+        final lifecycleState = WidgetsBinding.instance.lifecycleState;
+        final shouldUseNativeCallUi =
+            lifecycleState != AppLifecycleState.resumed &&
+            message.data.isNotEmpty;
+        if (shouldUseNativeCallUi) {
+          unawaited(
+            CallKitService.instance.showIncomingCallFromRemoteData(message.data),
+          );
+        }
+        if (CallKitService.instance.isIncomingCallPayload(message.data)) {
+          return;
+        }
         NotificationSoundService.instance.playNotification();
         _showForegroundNotification(message);
       });
