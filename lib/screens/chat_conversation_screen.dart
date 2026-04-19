@@ -1475,20 +1475,34 @@ class _TelegramBubble extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(6),
-          border: Border(left: BorderSide(color: isDark ? Colors.white54 : Colors.black54, width: 3)),
+          border: Border(
+            left: BorderSide(
+              color: isDark ? Colors.white54 : Colors.black54,
+              width: 3,
+            ),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               rm.sender.username.isNotEmpty ? rm.sender.username : 'User',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textColor),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: textColor,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
-              rm.content.isNotEmpty ? rm.content : (rm.imageUrl.isNotEmpty ? 'Photo' : 'Voice Message'),
-              style: TextStyle(fontSize: 12, color: textColor.withValues(alpha: 0.85)),
-              maxLines: 1, 
+              rm.content.isNotEmpty
+                  ? rm.content
+                  : (rm.imageUrl.isNotEmpty ? 'Photo' : 'Voice Message'),
+              style: TextStyle(
+                fontSize: 12,
+                color: textColor.withValues(alpha: 0.85),
+              ),
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ],
@@ -1578,30 +1592,44 @@ class _TelegramBubble extends StatelessWidget {
 
     Widget fullBubble = bubble;
     if (message.reaction != null && message.reaction!.isNotEmpty) {
-      fullBubble = Stack(
-        clipBehavior: Clip.none,
+      fullBubble = Column(
+        crossAxisAlignment: isMine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           bubble,
-          Positioned(
-            bottom: -10,
-            right: isMine ? 10 : null,
-            left: isMine ? null : 10,
+          Transform.translate(
+            offset: const Offset(0, -6), // move up
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              margin: EdgeInsets.only(
+                top: 0,
+                right: isMine ? 6 : 0,
+                left: isMine ? 0 : 6,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E2C3A) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                border: Border.all(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 1)),
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
                 ],
               ),
               child: Text(
                 message.reaction == 'Ok' ? 'Ok' : 'No',
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: message.reaction == 'Ok' ? Colors.green : Colors.red,
+                  fontWeight: FontWeight.w700,
+                  color: message.reaction == 'Ok'
+                      ? const Color.fromARGB(255, 80, 212, 91)
+                      : Colors.redAccent,
                 ),
               ),
             ),
@@ -1614,7 +1642,7 @@ class _TelegramBubble extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(
         top: isFirst ? 6 : 2,
-        bottom: isLast ? (message.reaction != null ? 14 : 2) : 0,
+        bottom: (isLast || message.reaction != null) ? 6 : 2,
         left: isMine ? 48 : 0,
         right: isMine ? 0 : 48,
       ),
