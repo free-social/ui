@@ -48,20 +48,29 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   Timer? _typingTimer;
   Timer? _recordingTimer;
 
+  // ── Swipe-to-pop state ───────────────────────────────────────────────────
+  double _swipeDx = 0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final chatProvider = context.read<ChatProvider>();
+
+      // Register the listener BEFORE opening so we catch the instant
+      // cache-hydration notifyListeners() that fires inside openConversation
+      // when cached messages are available. _initialScrollDone guards it from
+      // triggering animate-scroll during the initial load phase.
+      chatProvider.addListener(_onChatProviderChanged);
+
       await chatProvider.openConversation(widget.conversation.id);
-      // Jump instantly to bottom after initial load — no animation needed
-      // because there is nothing to scroll from yet.
-      _jumpToBottom();
+
+      // Jump to bottom once after full open (covers both cache-hit and cold
+      // load paths). Use jumpTo — no animation — so there is zero visible
+      // scroll travel on open.
       _lastRenderedMessageCount = chatProvider.messages.length;
       _initialScrollDone = true;
-      // Listen for future messages so we can animate-scroll without
-      // touching the build method.
-      chatProvider.addListener(_onChatProviderChanged);
+      _jumpToBottom();
     });
   }
 
@@ -78,14 +87,27 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     super.dispose();
   }
 
+  /// Returns true if the scroll controller is positioned near the bottom
+  /// (within [threshold] pixels). Used to decide whether auto-scroll should
+  /// fire when a new message arrives.
+  bool _isNearBottom({double threshold = 120}) {
+    if (!_scrollController.hasClients) return true;
+    final pos = _scrollController.position;
+    return pos.pixels >= pos.maxScrollExtent - threshold;
+  }
+
   /// Called by the ChatProvider listener whenever its state changes.
-  /// Only scrolls to the bottom when a genuinely new message has arrived.
+  /// Only scrolls to the bottom when a genuinely new message has arrived
+  /// AND the user is already near the bottom (i.e. not reading history).
   void _onChatProviderChanged() {
     if (!mounted || !_initialScrollDone) return;
     final newCount = context.read<ChatProvider>().messages.length;
     if (newCount != _lastRenderedMessageCount) {
       _lastRenderedMessageCount = newCount;
-      _scrollToBottom();
+      // Only auto-scroll if the user hasn't scrolled up to read history.
+      if (_isNearBottom()) {
+        _scrollToBottom();
+      }
     }
   }
 
@@ -694,7 +716,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   @override
   Widget build(BuildContext context) {
     final friend = widget.conversation.friend;
-    final currentUserId = context.watch<AuthProvider>().user?.id ?? '';
+    // Resolve current user: prefer AuthProvider (always up to date after login),
+    // fall back to ChatProvider._currentUserId for the brief transition window
+    // where AuthProvider._user is null (during logout / before the new user
+    // profile arrives) — prevents all messages losing their tick icons.
+    final authUserId = context.watch<AuthProvider>().user?.id ?? '';
+    final chatUserId = context.watch<ChatProvider>().currentUserId;
+    final currentUserId = authUserId.isNotEmpty ? authUserId : chatUserId;
     final isCallLoading = context.watch<ChatProvider>().isCallLoading;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -705,8 +733,33 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     final inputSurface = isDark ? const Color(0xFF1C2733) : Colors.white;
     final inputBg = isDark ? const Color(0xFF131D26) : const Color(0xFFF0F2F5);
 
-    return Scaffold(
-      backgroundColor: bgColor,
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return GestureDetector(
+      // Only claim the gesture if it starts moving horizontally (rightward).
+      // The ListView is vertical so it won't fight for the same gesture.
+      onHorizontalDragUpdate: (details) {
+        if (details.delta.dx > 0) {
+          setState(() {
+            _swipeDx = (_swipeDx + details.delta.dx).clamp(0.0, screenWidth);
+          });
+        }
+      },
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        final threshold = screenWidth * 0.40;
+        if (velocity > 400 || _swipeDx > threshold) {
+          Navigator.pop(context);
+        } else {
+          // Snap back
+          setState(() => _swipeDx = 0);
+        }
+      },
+      onHorizontalDragCancel: () => setState(() => _swipeDx = 0),
+      child: Transform.translate(
+        offset: Offset(_swipeDx * 0.35, 0), // subtle pull: 35% of raw drag
+        child: Scaffold(
+          backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF17212B) : scheme.primary,
         foregroundColor: Colors.white,
@@ -1197,7 +1250,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             ],
           );
         },
-      ),
+      ), // Consumer
+        ), // Transform.translate
+      ), // GestureDetector
     );
   }
 

@@ -86,6 +86,9 @@ class ChatProvider with ChangeNotifier {
   List<ChatConversation> _conversations = [];
   List<ChatMessageModel> _messages = [];
   ChatCallModel? _activeCall;
+  // In-memory message cache: conversationId → last known message list.
+  // Enables stale-while-revalidate so the chat opens instantly.
+  final Map<String, List<ChatMessageModel>> _messageCache = {};
 
   bool get isLoading => _isLoading;
   bool get isSendingMessage => _isSendingMessage;
@@ -177,7 +180,7 @@ class ChatProvider with ChangeNotifier {
     }
 
     _isSessionReady = false;
-    _currentUserId = '';
+    _currentUserId = ''; // reset so _ensureCurrentUserId re-reads on next login
     _activeConversationId = null;
     _searchResults = [];
     _receivedRequests = [];
@@ -186,6 +189,7 @@ class ChatProvider with ChangeNotifier {
     _pendingSentRequests = [];
     _conversations = [];
     _messages = [];
+    _messageCache.clear(); // clear per-account cache on logout
     await _resetCallState();
     _chatSocketService.disconnect();
     notifyListeners();
@@ -394,15 +398,43 @@ class ChatProvider with ChangeNotifier {
   Future<void> openConversation(String conversationId) async {
     _activeConversationId = conversationId;
     _clearTypingUsers(conversationId);
-    _isLoading = true;
-    notifyListeners();
+
+    // ── Stale-while-revalidate ────────────────────────────────────────────
+    // 1. Immediately serve cached messages so the list renders at once
+    //    (no spinner, no blank screen, no visible scroll jump).
+    final cached = _messageCache[conversationId];
+    if (cached != null && cached.isNotEmpty) {
+      _messages = cached;
+      notifyListeners(); // render instantly from cache
+    } else {
+      // No cache yet — show the loading indicator as usual.
+      _isLoading = true;
+      notifyListeners();
+    }
 
     try {
       await _chatSocketService.syncConversationSubscriptions({
         ..._conversations.map((conversation) => conversation.id),
         conversationId,
       });
-      _messages = await _chatService.getMessages(conversationId);
+
+      // Fetch fresh messages in the background (silent if cache was available).
+      final freshMessages = await _chatService.getMessages(conversationId);
+
+      // Preserve any isSeen=true that arrived via socket BEFORE the API
+      // response returned (the API may still return isSeen:false for those).
+      final seenById = <String, bool>{};
+      for (final m in _messages) {
+        if (m.isSeen) seenById[m.id] = true;
+      }
+      _messages = freshMessages.map((m) {
+        if (!m.isSeen && seenById[m.id] == true) {
+          return m.copyWith(isSeen: true);
+        }
+        return m;
+      }).toList();
+      _messageCache[conversationId] = _messages; // update cache
+
       await _chatService.markConversationAsSeen(conversationId);
       final activeCall = await _chatService.getActiveCall(conversationId);
       if (activeCall != null &&
@@ -422,6 +454,7 @@ class ChatProvider with ChangeNotifier {
     }
 
     _messages = await _chatService.getMessages(conversationId);
+    _messageCache[conversationId] = _messages; // keep cache in sync
     await _chatService.markConversationAsSeen(conversationId);
     notifyListeners();
   }
@@ -789,7 +822,12 @@ class ChatProvider with ChangeNotifier {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    _currentUserId = prefs.getString('userId')?.trim() ?? '';
+    // Only update if the stored value is non-empty — prevents wiping
+    // _currentUserId back to '' during the brief logout→login window.
+    final stored = prefs.getString('userId')?.trim() ?? '';
+    if (stored.isNotEmpty) {
+      _currentUserId = stored;
+    }
   }
 
   Future<void> _ensureRenderersReady() async {
@@ -1274,13 +1312,9 @@ class ChatProvider with ChangeNotifier {
     );
 
     if (_activeConversationId == message.conversationId) {
-      final previousLength = _messages.length;
       _upsertMessage(message);
       _markConversationAsSeen(message.conversationId);
-      if (_messages.length != previousLength ||
-          _messages.any((item) => item.id == message.id)) {
-        notifyListeners();
-      }
+      notifyListeners();
       return;
     }
 
@@ -1386,15 +1420,19 @@ class ChatProvider with ChangeNotifier {
       final updatedMessages = [..._messages];
       updatedMessages[existingIndex] = message;
       _messages = updatedMessages;
-      return;
+    } else {
+      _messages = [..._messages, message]
+        ..sort((a, b) {
+          final left = a.createdAt?.millisecondsSinceEpoch ?? 0;
+          final right = b.createdAt?.millisecondsSinceEpoch ?? 0;
+          return left.compareTo(right);
+        });
     }
-
-    _messages = [..._messages, message]
-      ..sort((a, b) {
-        final left = a.createdAt?.millisecondsSinceEpoch ?? 0;
-        final right = b.createdAt?.millisecondsSinceEpoch ?? 0;
-        return left.compareTo(right);
-      });
+    // Keep cache in sync so reopening shows the latest messages.
+    final convId = _activeConversationId;
+    if (convId != null) {
+      _messageCache[convId] = _messages;
+    }
   }
 
   bool _markMessagesAsSeen(
@@ -1422,6 +1460,8 @@ class ChatProvider with ChangeNotifier {
     }
 
     _messages = updatedMessages;
+    // Keep cache in sync so isSeen persists when the conversation is re-opened.
+    _messageCache[conversationId] = _messages;
     return true;
   }
 
@@ -1432,7 +1472,12 @@ class ChatProvider with ChangeNotifier {
 
     final previousLength = _messages.length;
     _messages = _messages.where((item) => item.id != messageId).toList();
-    return _messages.length != previousLength;
+    final changed = _messages.length != previousLength;
+    // Keep cache in sync.
+    if (changed) {
+      _messageCache[conversationId] = _messages;
+    }
+    return changed;
   }
 
   void _upsertConversationPreview(
