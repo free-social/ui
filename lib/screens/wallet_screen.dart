@@ -280,19 +280,6 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Text(
-                              'Wallet',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: walletProvider.refreshData,
-                              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                            ),
                           ],
                         ),
                       ),

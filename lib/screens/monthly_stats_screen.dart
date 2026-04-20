@@ -86,7 +86,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  height: 160.0,
+                  height: 180.0,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,

@@ -62,7 +62,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    height: 154.0,
+                    height: 180.0,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
