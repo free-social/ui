@@ -39,6 +39,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   static const Duration _typingIdleTimeout = Duration(milliseconds: 1200);
   static const Color _imagePreviewBackground = Color(0xFFF5F7FA);
   int _lastRenderedMessageCount = 0;
+  bool _initialScrollDone = false;
   bool _isTyping = false;
   bool _isRecordingVoice = false;
   String? _editingMessageId;
@@ -51,10 +52,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<ChatProvider>().openConversation(
-        widget.conversation.id,
-      );
-      _scrollToBottom();
+      final chatProvider = context.read<ChatProvider>();
+      await chatProvider.openConversation(widget.conversation.id);
+      // Jump instantly to bottom after initial load — no animation needed
+      // because there is nothing to scroll from yet.
+      _jumpToBottom();
+      _lastRenderedMessageCount = chatProvider.messages.length;
+      _initialScrollDone = true;
+      // Listen for future messages so we can animate-scroll without
+      // touching the build method.
+      chatProvider.addListener(_onChatProviderChanged);
     });
   }
 
@@ -63,10 +70,23 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     _typingTimer?.cancel();
     _recordingTimer?.cancel();
     _audioRecorder.dispose();
-    context.read<ChatProvider>().stopTyping(widget.conversation.id);
+    final chatProvider = context.read<ChatProvider>();
+    chatProvider.removeListener(_onChatProviderChanged);
+    chatProvider.stopTyping(widget.conversation.id);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Called by the ChatProvider listener whenever its state changes.
+  /// Only scrolls to the bottom when a genuinely new message has arrived.
+  void _onChatProviderChanged() {
+    if (!mounted || !_initialScrollDone) return;
+    final newCount = context.read<ChatProvider>().messages.length;
+    if (newCount != _lastRenderedMessageCount) {
+      _lastRenderedMessageCount = newCount;
+      _scrollToBottom();
+    }
   }
 
   Future<void> _handleSend() async {
@@ -330,6 +350,17 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
+      );
+    });
+  }
+
+  /// Instantly positions the list at the bottom without animation.
+  /// Used only for the very first load so `maxScrollExtent` is always valid.
+  void _jumpToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(
+        _scrollController.position.maxScrollExtent,
       );
     });
   }
@@ -733,10 +764,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       ),
       body: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
-          if (chatProvider.messages.length != _lastRenderedMessageCount) {
-            _lastRenderedMessageCount = chatProvider.messages.length;
-            _scrollToBottom();
-          }
 
           final messages = chatProvider.messages;
 
