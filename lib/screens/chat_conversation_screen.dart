@@ -48,8 +48,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   Timer? _typingTimer;
   Timer? _recordingTimer;
 
-  // ── Swipe-to-pop state ───────────────────────────────────────────────────
-  double _swipeDx = 0;
   // ── Pagination state ──────────────────────────────────────────────────
   /// The count of messages BEFORE the last load-more so we can compute
   /// how many were prepended and preserve the viewport position.
@@ -779,33 +777,15 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     final inputSurface = isDark ? const Color(0xFF1C2733) : Colors.white;
     final inputBg = isDark ? const Color(0xFF131D26) : const Color(0xFFF0F2F5);
 
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return GestureDetector(
-      // Only claim the gesture if it starts moving horizontally (rightward).
-      // The ListView is vertical so it won't fight for the same gesture.
-      onHorizontalDragUpdate: (details) {
-        if (details.delta.dx > 0) {
-          setState(() {
-            _swipeDx = (_swipeDx + details.delta.dx).clamp(0.0, screenWidth);
-          });
-        }
-      },
       onHorizontalDragEnd: (details) {
         final velocity = details.primaryVelocity ?? 0;
-        final threshold = screenWidth * 0.40;
-        if (velocity > 400 || _swipeDx > threshold) {
+        if (velocity > 400) {
           Navigator.pop(context);
-        } else {
-          // Snap back
-          setState(() => _swipeDx = 0);
         }
       },
-      onHorizontalDragCancel: () => setState(() => _swipeDx = 0),
-      child: Transform.translate(
-        offset: Offset(_swipeDx * 0.35, 0), // subtle pull: 35% of raw drag
-        child: Scaffold(
-          backgroundColor: bgColor,
+      child: Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF17212B) : scheme.primary,
         foregroundColor: Colors.white,
@@ -1333,7 +1313,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           );
         },
       ), // Consumer
-        ), // Transform.translate
       ), // GestureDetector
     );
   }
