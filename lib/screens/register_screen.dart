@@ -58,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               AppTextField(
                 controller: _userController,
                 label: 'Full name',
-                hintText: 'John Doe',
+                hintText: 'Name',
                 prefixIcon: Icons.person_outline_rounded,
                 validator: ValidationUtils.validateUsername,
               ),
@@ -66,7 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               AppTextField(
                 controller: _emailController,
                 label: 'Email',
-                hintText: 'hello@example.com',
+                hintText: 'abc@gmail.com',
                 prefixIcon: Icons.alternate_email_rounded,
                 keyboardType: TextInputType.emailAddress,
                 validator: ValidationUtils.validateEmail,

@@ -13,6 +13,11 @@ import 'change_password_screen.dart';
 import 'login_screen.dart';
 import 'update_user_profile.dart';
 
+// How far the profile card hangs below the gradient band.
+const double _cardOverlap = 56.0;
+// Height of the teal gradient band.
+const double _headerHeight = 180.0;
+
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
 
@@ -25,15 +30,13 @@ class UserProfileScreen extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    final overlayStyle = isDark
-        ? SystemUiOverlayStyle.light.copyWith(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.light,
-          )
-        : SystemUiOverlayStyle.dark.copyWith(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.dark,
-          );
+    SystemChrome.setSystemUIOverlayStyle(
+      isDark
+          ? SystemUiOverlayStyle.light
+              .copyWith(statusBarColor: Colors.transparent)
+          : SystemUiOverlayStyle.dark
+              .copyWith(statusBarColor: Colors.transparent),
+    );
 
     final displayName = (user?.username.trim().isNotEmpty ?? false)
         ? user!.username
@@ -41,93 +44,120 @@ class UserProfileScreen extends StatelessWidget {
     final email = (user?.email.trim().isNotEmpty ?? false)
         ? user!.email
         : 'No email available';
-    final hasAvatar = user?.avatar != null && (user?.avatar.isNotEmpty ?? false);
+    final hasAvatar =
+        user?.avatar != null && (user?.avatar.isNotEmpty ?? false);
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: overlayStyle,
-      child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // ── Hero header ──────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Gradient backdrop
-                  Container(
-                    height: 210,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [scheme.primary, AppColors.accent],
-                      ),
-                    ),
-                  ),
-                  // SafeArea title row
-                  SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.xl,
-                        AppSpacing.md,
-                        AppSpacing.xl,
-                        0,
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Profile',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 22,
-                            ),
-                          ),
-                          const Spacer(),
-                          // Quick edit FAB
-                          _GlassButton(
-                            icon: Icons.edit_outlined,
-                            label: 'Edit',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const UpdateUserProfile(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Avatar card (overlaps the gradient) ──────────────────────
-            SliverToBoxAdapter(
-              child: Transform.translate(
-                offset: const Offset(0, -48),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                  child: _ProfileCard(
-                    displayName: displayName,
-                    email: email,
-                    hasAvatar: hasAvatar,
-                    avatarUrl: user?.avatar ?? '',
-                    scheme: scheme,
-                    theme: theme,
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Fixed header (never scrolls) ─────────────────────────────
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Teal gradient band
+              Container(
+                height: _headerHeight,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [scheme.primary, AppColors.accent],
                   ),
                 ),
               ),
-            ),
+              // Title + Edit button
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl,
+                    vertical: AppSpacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Profile',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      _GlassButton(
+                        icon: Icons.edit_outlined,
+                        label: 'Edit',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const UpdateUserProfile(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Small loading badge — only during auth operations
+              if (authProvider.isLoading)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        top: AppSpacing.sm,
+                        right: AppSpacing.sm,
+                      ),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(6),
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              // Profile card — hangs below the gradient
+              Positioned(
+                left: AppSpacing.xl,
+                right: AppSpacing.xl,
+                bottom: -_cardOverlap,
+                child: _ProfileCard(
+                  displayName: displayName,
+                  email: email,
+                  hasAvatar: hasAvatar,
+                  avatarUrl: user?.avatar ?? '',
+                  scheme: scheme,
+                  theme: theme,
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
 
-            // ── Body sections ─────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Transform.translate(
-                offset: const Offset(0, -32),
+          // Space reserved for the overlapping card
+          const SizedBox(height: _cardOverlap + AppSpacing.xl),
+
+          // ── Scrollable body (only sections scroll) ───────────────────
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => authProvider.refreshProfile(),
+              color: scheme.primary,
+              displacement: 40,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.xl,
@@ -138,7 +168,11 @@ class UserProfileScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Preferences ──────────────────────────────────
+                      // Logout now at the top
+                      _LogoutButton(authProvider: authProvider),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // Preferences
                       _SectionLabel('Preferences'),
                       const SizedBox(height: AppSpacing.sm),
                       _Card(
@@ -166,7 +200,7 @@ class UserProfileScreen extends StatelessWidget {
                               themeProvider.isDarkMode ? 'On' : 'Off',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.55),
+                                    .withValues(alpha: 0.5),
                               ),
                             ),
                             activeThumbColor: scheme.primary,
@@ -178,7 +212,7 @@ class UserProfileScreen extends StatelessWidget {
 
                       const SizedBox(height: AppSpacing.xl),
 
-                      // ── Account ───────────────────────────────────────
+                      // Account
                       _SectionLabel('Account'),
                       const SizedBox(height: AppSpacing.sm),
                       _Card(
@@ -199,7 +233,7 @@ class UserProfileScreen extends StatelessWidget {
 
                       const SizedBox(height: AppSpacing.xl),
 
-                      // ── Support ───────────────────────────────────────
+                      // Support
                       _SectionLabel('Support'),
                       const SizedBox(height: AppSpacing.sm),
                       _Card(
@@ -228,27 +262,22 @@ class UserProfileScreen extends StatelessWidget {
                         ],
                       ),
 
-                      const SizedBox(height: AppSpacing.xxl),
-
-                      // ── Logout ────────────────────────────────────────
-                      _LogoutButton(authProvider: authProvider),
-
                       const SizedBox(height: 100),
                     ],
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Profile card — sits below the gradient header
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Profile card
+// ─────────────────────────────────────────────────────────────────────────────
 class _ProfileCard extends StatelessWidget {
   final String displayName;
   final String email;
@@ -256,6 +285,7 @@ class _ProfileCard extends StatelessWidget {
   final String avatarUrl;
   final ColorScheme scheme;
   final ThemeData theme;
+  final bool isDark;
 
   const _ProfileCard({
     required this.displayName,
@@ -264,36 +294,31 @@ class _ProfileCard extends StatelessWidget {
     required this.avatarUrl,
     required this.scheme,
     required this.theme,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = theme.brightness == Brightness.dark;
     final cardColor = isDark ? const Color(0xFF10201D) : Colors.white;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.xl,
-        AppSpacing.xl,
-        AppSpacing.lg,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-            blurRadius: 24,
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.10),
+            blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Row(
         children: [
-          // Avatar with ring
+          // Avatar with gradient ring
           Container(
-            padding: const EdgeInsets.all(3),
+            padding: const EdgeInsets.all(2.5),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
@@ -301,17 +326,15 @@ class _ProfileCard extends StatelessWidget {
               ),
             ),
             child: CircleAvatar(
-              radius: 36,
-              backgroundColor:
-                  scheme.primary.withValues(alpha: 0.15),
-              backgroundImage: hasAvatar
-                  ? CachedNetworkImageProvider(avatarUrl)
-                  : null,
+              radius: 32,
+              backgroundColor: scheme.primary.withValues(alpha: 0.12),
+              backgroundImage:
+                  hasAvatar ? CachedNetworkImageProvider(avatarUrl) : null,
               child: !hasAvatar
                   ? Icon(
                       Icons.person_rounded,
                       color: scheme.primary,
-                      size: 36,
+                      size: 32,
                     )
                   : null,
             ),
@@ -320,34 +343,32 @@ class _ProfileCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   displayName,
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    fontSize: 20,
-                    letterSpacing: -0.3,
+                    fontSize: 17,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   email,
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color:
                         theme.colorScheme.onSurface.withValues(alpha: 0.55),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                // Active badge
+                const SizedBox(height: 8),
+                // Active pill
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -356,8 +377,8 @@ class _ProfileCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 7,
-                        height: 7,
+                        width: 6,
+                        height: 6,
                         decoration: const BoxDecoration(
                           color: AppColors.success,
                           shape: BoxShape.circle,
@@ -383,9 +404,9 @@ class _ProfileCard extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Small helpers
-// ──────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _GlassButton extends StatelessWidget {
   final IconData icon;
@@ -407,18 +428,16 @@ class _GlassButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(AppRadii.pill),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.25),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white, size: 16),
+            Icon(icon, color: Colors.white, size: 15),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
+            const Text(
+              'Edit',
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -443,7 +462,7 @@ class _SectionLabel extends StatelessWidget {
       style: theme.textTheme.labelSmall?.copyWith(
         fontWeight: FontWeight.w700,
         letterSpacing: 1.1,
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.40),
       ),
     );
   }
@@ -462,9 +481,9 @@ class _Card extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -522,7 +541,7 @@ class _Tile extends StatelessWidget {
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
-        vertical: 4,
+        vertical: 2,
       ),
       leading: _TileIcon(icon: icon, color: iconColor),
       title: Text(
@@ -539,10 +558,10 @@ class _Tile extends StatelessWidget {
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),
-      trailing: showChevron && onTap != null
+      trailing: (showChevron && onTap != null)
           ? Icon(
               Icons.chevron_right_rounded,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.28),
             )
           : null,
     );
@@ -568,6 +587,30 @@ class _LogoutButtonState extends State<_LogoutButton> {
   bool _loading = false;
 
   Future<void> _logout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out'),
+        content: const Text('Are you sure you want to log out of your account?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout != true) return;
+
     setState(() => _loading = true);
     try {
       await widget.authProvider.logout();
@@ -593,7 +636,7 @@ class _LogoutButtonState extends State<_LogoutButton> {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.danger,
           side: BorderSide(
-            color: AppColors.danger.withValues(alpha: 0.6),
+            color: AppColors.danger.withValues(alpha: 0.55),
             width: 1.5,
           ),
           shape: RoundedRectangleBorder(

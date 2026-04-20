@@ -97,21 +97,10 @@ class AuthScreenShell extends StatelessWidget {
                     const SizedBox(height: AppSpacing.md),
                     Text(subtitle!, style: theme.textTheme.bodyLarge),
                   ],
-                  const SizedBox(height: AppSpacing.sm),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      borderRadius: BorderRadius.circular(AppRadii.lg),
-                      border: Border.all(
-                        color: theme.dividerTheme.color!.withValues(alpha: 0.9),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: children,
-                    ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: children,
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   Align(alignment: Alignment.center, child: footer),

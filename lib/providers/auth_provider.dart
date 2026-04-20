@@ -45,6 +45,26 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Silently re-fetches the user profile from the API.
+  /// Does NOT set _isLoading so no full-screen spinner is shown.
+  /// The profile screen shows a small badge spinner via the existing
+  /// isLoading state only when triggered by other operations.
+  Future<void> refreshProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    if (userId == null) return;
+    try {
+      final responseData = await _authService.getProfile(userId);
+      if (responseData.containsKey('user')) {
+        _user = User.fromJson(responseData['user']);
+        await _cacheService.saveUserProfile(userId, _user!);
+        notifyListeners();
+      }
+    } catch (_) {
+      // Silently swallow — user already sees cached data
+    }
+  }
+
   // --- UPDATE USERNAME ---
   Future<void> updateUsername(String userId, String newUsername) async {
     _setLoading(true);

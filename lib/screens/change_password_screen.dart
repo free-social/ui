@@ -5,7 +5,7 @@ import '../core/theme/app_radii.dart';
 import '../core/theme/app_spacing.dart';
 import '../core/widgets/app_text_field.dart';
 import '../core/widgets/primary_button.dart';
-import '../core/widgets/section_card.dart';
+
 import '../providers/auth_provider.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/validation.dart';
@@ -101,83 +101,80 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                SectionCard(
-                  title: 'Password details',
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Column(
-                        children: [
-                          AppTextField(
-                            controller: _currentPasswordController,
-                            label: 'Current password',
-                            hintText: 'Enter current password',
-                            prefixIcon: Icons.lock_clock_outlined,
-                            obscureText: _obscureCurrent,
-                            suffixIcon: IconButton(
-                              onPressed: () => setState(() {
-                                _obscureCurrent = !_obscureCurrent;
-                              }),
-                              icon: Icon(
-                                _obscureCurrent
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                              ),
-                            ),
-                            validator: (value) => value == null || value.isEmpty
-                                ? 'Current password is required'
-                                : null,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField(
-                            controller: _newPasswordController,
-                            label: 'New password',
-                            hintText: 'Create a new password',
-                            prefixIcon: Icons.lock_outline_rounded,
-                            obscureText: _obscureNew,
-                            suffixIcon: IconButton(
-                              onPressed: () => setState(() {
-                                _obscureNew = !_obscureNew;
-                              }),
-                              icon: Icon(
-                                _obscureNew
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                              ),
-                            ),
-                            validator: ValidationUtils.validatePassword,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField(
-                            controller: _confirmPasswordController,
-                            label: 'Confirm new password',
-                            hintText: 'Re-enter the new password',
-                            prefixIcon: Icons.lock_reset_outlined,
-                            obscureText: _obscureConfirm,
-                            suffixIcon: IconButton(
-                              onPressed: () => setState(() {
-                                _obscureConfirm = !_obscureConfirm;
-                              }),
-                              icon: Icon(
-                                _obscureConfirm
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please confirm your new password';
-                              }
-                              if (value != _newPasswordController.text) {
-                                return 'Passwords do not match';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
+                Text(
+                  'PASSWORD DETAILS',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.40),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  controller: _currentPasswordController,
+                  label: 'Current password',
+                  hintText: 'Enter current password',
+                  prefixIcon: Icons.lock_clock_outlined,
+                  obscureText: _obscureCurrent,
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() {
+                      _obscureCurrent = !_obscureCurrent;
+                    }),
+                    icon: Icon(
+                      _obscureCurrent
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                     ),
-                  ],
+                  ),
+                  validator: (value) => value == null || value.isEmpty
+                      ? 'Current password is required'
+                      : null,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(
+                  controller: _newPasswordController,
+                  label: 'New password',
+                  hintText: 'Create a new password',
+                  prefixIcon: Icons.lock_outline_rounded,
+                  obscureText: _obscureNew,
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() {
+                      _obscureNew = !_obscureNew;
+                    }),
+                    icon: Icon(
+                      _obscureNew
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                  ),
+                  validator: ValidationUtils.validatePassword,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(
+                  controller: _confirmPasswordController,
+                  label: 'Confirm new password',
+                  hintText: 'Re-enter the new password',
+                  prefixIcon: Icons.lock_reset_outlined,
+                  obscureText: _obscureConfirm,
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() {
+                      _obscureConfirm = !_obscureConfirm;
+                    }),
+                    icon: Icon(
+                      _obscureConfirm
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please confirm your new password';
+                    }
+                    if (value != _newPasswordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 PrimaryButton(
