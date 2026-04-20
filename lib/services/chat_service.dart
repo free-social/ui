@@ -138,10 +138,10 @@ class ChatService {
     }
   }
 
-  Future<List<ChatMessageModel>> getMessages(
+  Future<MessagesPage> getMessages(
     String conversationId, {
     int page = 1,
-    int limit = 50,
+    int limit = 40,
   }) async {
     try {
       final response = await _apiService.client.get(
@@ -149,16 +149,31 @@ class ChatService {
         queryParameters: {'page': page, 'limit': limit},
       );
 
-      return (response.data['messages'] as List<dynamic>? ?? [])
+      final data = response.data as Map<String, dynamic>;
+      final messages = (data['messages'] as List<dynamic>? ?? [])
           .map(
             (item) => ChatMessageModel.fromJson(item as Map<String, dynamic>),
           )
           .toList();
+
+      return MessagesPage(
+        messages: messages,
+        page: (data['page'] as num?)?.toInt() ?? page,
+        limit: (data['limit'] as num?)?.toInt() ?? limit,
+        total: (data['total'] as num?)?.toInt() ?? messages.length,
+        totalPages: (data['totalPages'] as num?)?.toInt() ?? 1,
+      );
     } catch (e) {
-      return _handleFetchError<List<ChatMessageModel>>(
+      return _handleFetchError<MessagesPage>(
         e,
         'Failed to fetch messages',
-        [],
+        MessagesPage(
+          messages: const [],
+          page: page,
+          limit: limit,
+          total: 0,
+          totalPages: 1,
+        ),
       );
     }
   }

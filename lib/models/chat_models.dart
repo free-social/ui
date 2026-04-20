@@ -50,6 +50,25 @@ class ChatUser {
   }
 }
 
+/// Holds a single page of messages plus API pagination metadata.
+class MessagesPage {
+  final List<ChatMessageModel> messages;
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+
+  const MessagesPage({
+    required this.messages,
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+  });
+
+  bool get hasMore => page < totalPages;
+}
+
 enum FriendRequestStatusFilter { pending, accepted, rejected }
 
 extension FriendRequestStatusFilterX on FriendRequestStatusFilter {

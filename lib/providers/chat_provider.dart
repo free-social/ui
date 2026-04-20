@@ -62,6 +62,10 @@ class ChatProvider with ChangeNotifier {
   bool _callRouteVisible = false;
   bool _incomingCallDialogVisible = false;
   bool _renderersReady = false;
+  // Pagination
+  bool _isLoadingOlderMessages = false;
+  bool _hasMoreMessages = false;
+  int _currentPage = 1;
   String _searchQuery = '';
   String _currentUserId = '';
   String? _activeConversationId;
@@ -97,6 +101,8 @@ class ChatProvider with ChangeNotifier {
   bool get isMicEnabled => _isMicEnabled;
   bool get isCameraEnabled => _isCameraEnabled;
   bool get hasRemoteVideo => _hasRemoteVideo;
+  bool get hasMoreMessages => _hasMoreMessages;
+  bool get isLoadingOlderMessages => _isLoadingOlderMessages;
   String get searchQuery => _searchQuery;
   String get currentUserId => _currentUserId;
   FriendRequestStatusFilter get requestStatusFilter => _requestStatusFilter;
@@ -398,6 +404,9 @@ class ChatProvider with ChangeNotifier {
   Future<void> openConversation(String conversationId) async {
     _activeConversationId = conversationId;
     _clearTypingUsers(conversationId);
+    // Reset pagination for the new conversation.
+    _currentPage = 1;
+    _hasMoreMessages = false;
 
     // ── Stale-while-revalidate ────────────────────────────────────────────
     // 1. Immediately serve cached messages so the list renders at once
@@ -419,7 +428,7 @@ class ChatProvider with ChangeNotifier {
       });
 
       // Fetch fresh messages in the background (silent if cache was available).
-      final freshMessages = await _chatService.getMessages(conversationId);
+      final page = await _chatService.getMessages(conversationId);
 
       // Preserve any isSeen=true that arrived via socket BEFORE the API
       // response returned (the API may still return isSeen:false for those).
@@ -427,12 +436,14 @@ class ChatProvider with ChangeNotifier {
       for (final m in _messages) {
         if (m.isSeen) seenById[m.id] = true;
       }
-      _messages = freshMessages.map((m) {
+      _messages = page.messages.map((m) {
         if (!m.isSeen && seenById[m.id] == true) {
           return m.copyWith(isSeen: true);
         }
         return m;
       }).toList();
+      _currentPage = page.page;
+      _hasMoreMessages = page.hasMore;
       _messageCache[conversationId] = _messages; // update cache
 
       await _chatService.markConversationAsSeen(conversationId);
@@ -449,14 +460,57 @@ class ChatProvider with ChangeNotifier {
 
   Future<void> refreshConversation() async {
     final conversationId = _activeConversationId;
-    if (conversationId == null) {
-      return;
-    }
+    if (conversationId == null) return;
 
-    _messages = await _chatService.getMessages(conversationId);
-    _messageCache[conversationId] = _messages; // keep cache in sync
+    final page = await _chatService.getMessages(conversationId);
+    _messages = page.messages;
+    _currentPage = page.page;
+    _hasMoreMessages = page.hasMore;
+    _messageCache[conversationId] = _messages;
     await _chatService.markConversationAsSeen(conversationId);
     notifyListeners();
+  }
+
+  /// Loads the next older page of messages and prepends them.
+  /// Returns the number of messages prepended (0 if nothing loaded).
+  Future<int> loadOlderMessages() async {
+    final conversationId = _activeConversationId;
+    if (conversationId == null) return 0;
+    if (!_hasMoreMessages || _isLoadingOlderMessages) return 0;
+
+    _isLoadingOlderMessages = true;
+    notifyListeners();
+
+    try {
+      final nextPage = _currentPage + 1;
+      final page = await _chatService.getMessages(
+        conversationId,
+        page: nextPage,
+      );
+
+      if (page.messages.isEmpty) {
+        _hasMoreMessages = false;
+        return 0;
+      }
+
+      // Prepend older messages, deduplicating by id.
+      final existingIds = _messages.map((m) => m.id).toSet();
+      final newMessages = page.messages
+          .where((m) => !existingIds.contains(m.id))
+          .toList();
+
+      if (newMessages.isNotEmpty) {
+        _messages = [...newMessages, ..._messages];
+        _messageCache[conversationId] = _messages;
+      }
+
+      _currentPage = page.page;
+      _hasMoreMessages = page.hasMore;
+      return newMessages.length;
+    } finally {
+      _isLoadingOlderMessages = false;
+      notifyListeners();
+    }
   }
 
   Future<void> sendMessage(String conversationId, String content, {String? replyTo}) async {
