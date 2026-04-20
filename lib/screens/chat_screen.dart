@@ -47,57 +47,84 @@ class _ChatScreenState extends State<ChatScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final scaffoldBg = theme.scaffoldBackgroundColor;
-    final textColor = isDark ? Colors.white : Colors.black;
-    final overlayStyle = isDark
-        ? SystemUiOverlayStyle.light.copyWith(
-            statusBarColor: scaffoldBg,
-            statusBarIconBrightness: Brightness.light,
-            statusBarBrightness: Brightness.dark,
-          )
-        : SystemUiOverlayStyle.dark.copyWith(
-            statusBarColor: scaffoldBg,
-            statusBarIconBrightness: Brightness.dark,
-            statusBarBrightness: Brightness.light,
-          );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: overlayStyle,
+      value: isDark
+          ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
+          : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
       child: DefaultTabController(
         length: 3,
         child: Scaffold(
-          appBar: AppBar(
-            backgroundColor: scaffoldBg,
-            systemOverlayStyle: overlayStyle,
-            title: Text(
-              'Messages',
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            bottom: TabBar(
-              dividerColor: Colors.transparent,
-              indicatorColor: theme.colorScheme.primary,
-              labelColor: textColor,
-              unselectedLabelColor: textColor.withValues(alpha: 0.62),
-              tabs: const [
-                Tab(text: 'Chats'),
-                Tab(text: 'Find'),
-                Tab(text: 'Requests'),
-              ],
-            ),
-          ),
-          body: Consumer<ChatProvider>(
-            builder: (context, chatProvider, child) {
-              return TabBarView(
+          backgroundColor: scaffoldBg,
+          body: Column(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  _buildChatsTab(context, chatProvider),
-                  _buildFindPeopleTab(context, chatProvider),
-                  _buildRequestsTab(context, chatProvider),
+                  Container(
+                    height: 154.0,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [theme.colorScheme.primary, AppColors.accent],
+                      ),
+                    ),
+                  ),
+                  SafeArea(
+                    bottom: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl,
+                            vertical: AppSpacing.sm,
+                          ),
+                          child: Text(
+                            'Messages',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TabBar(
+                          dividerColor: Colors.transparent,
+                          indicatorColor: Colors.white,
+                          indicatorWeight: 3,
+                          indicatorSize: TabBarIndicatorSize.label,
+                          labelColor: Colors.white,
+                          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
+                          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                          tabs: const [
+                            Tab(text: 'Chats'),
+                            Tab(text: 'Find'),
+                            Tab(text: 'Requests'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-              );
-            },
+              ),
+              Expanded(
+                child: Consumer<ChatProvider>(
+                  builder: (context, chatProvider, child) {
+                    return TabBarView(
+                      children: [
+                        _buildChatsTab(context, chatProvider),
+                        _buildFindPeopleTab(context, chatProvider),
+                        _buildRequestsTab(context, chatProvider),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -416,7 +443,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           leading: _Avatar(
             avatarUrl: user.avatar,
-            size: 46,
+            size: 44,
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
             iconColor: theme.colorScheme.onSurfaceVariant,
           ),
@@ -448,8 +475,8 @@ class _ChatScreenState extends State<ChatScreen> {
             style: FilledButton.styleFrom(
               backgroundColor: actionBackground,
               foregroundColor: actionForeground,
-              minimumSize: const Size(88, 40),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              minimumSize: const Size(72, 32),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -662,14 +689,14 @@ class _ChatScreenState extends State<ChatScreen> {
     final sender = request.sender;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Column(
         children: [
           Row(
             children: [
               _Avatar(
                 avatarUrl: sender.avatar,
-                size: 48,
+                size: 44,
                 backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 iconColor: theme.colorScheme.primary,
               ),
@@ -802,11 +829,11 @@ class _ChatScreenState extends State<ChatScreen> {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 0,
-        vertical: AppSpacing.sm,
+        vertical: 0,
       ),
       leading: _Avatar(
         avatarUrl: receiver.avatar,
-        size: 48,
+        size: 44,
         backgroundColor: theme.colorScheme.surfaceContainerHighest,
         iconColor: theme.colorScheme.primary,
       ),
@@ -850,11 +877,11 @@ class _ChatScreenState extends State<ChatScreen> {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 0,
-        vertical: AppSpacing.sm,
+        vertical: 0,
       ),
       leading: _Avatar(
         avatarUrl: user.avatar,
-        size: 48,
+        size: 44,
         backgroundColor: theme.colorScheme.surfaceContainerHighest,
         iconColor: theme.colorScheme.primary,
       ),

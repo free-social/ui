@@ -124,14 +124,6 @@ class _HomeViewState extends State<HomeView> {
                         ),
                         child: Row(
                           children: [
-                            const Text(
-                              'Home',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
                             const Spacer(),
                           ],
                         ),
@@ -352,7 +344,7 @@ class _HomeHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(AppRadii.lg),
@@ -385,12 +377,6 @@ class _HomeHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Welcome back',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: textColor.withValues(alpha: 0.6),
-                      ),
-                    ),
-                    Text(
                       userName,
                       style: theme.textTheme.titleLarge?.copyWith(
                         color: textColor,
@@ -419,7 +405,7 @@ class _HomeHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.md),
           Text(
             '\$${total.toStringAsFixed(2)}',
             style: theme.textTheme.displaySmall?.copyWith(
@@ -564,12 +550,19 @@ class _TransactionCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.danger,
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
             child: const Text('Delete'),
           ),

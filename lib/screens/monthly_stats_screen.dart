@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_radii.dart';
+import '../core/theme/app_spacing.dart';
 import '../providers/expense_provider.dart';
 
 class MonthlyStatsScreen extends StatefulWidget {
@@ -70,114 +74,152 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         : const Color(0xFFF2F4F7);
     final Color scaffoldBg = theme.scaffoldBackgroundColor;
 
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDark
+          ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
+          : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+      child: Scaffold(
         backgroundColor: scaffoldBg,
-        title: Text(
-          "Spending Summary",
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Builder(
-        builder: (context) {
-          final isStatsLoading = context.select<ExpenseProvider, bool>(
-            (provider) => provider.isStatsLoading,
-          );
-          final rawData = context.select<ExpenseProvider, dynamic>(
-            (provider) =>
-                _isDailyView ? provider.dailySummary : provider.monthlySummary,
-          );
-
-          if (isStatsLoading) {
-            return _buildSkeletonLoading(
-              cardColor,
-              textColor,
-              subTextColor,
-              isDark,
-            );
-          }
-
-          List<dynamic> rawTransactions = [];
-          if (rawData is Map && rawData.containsKey('data')) {
-            rawTransactions = rawData['data']['transactions'] ?? [];
-          }
-
-          Map<String, double> categoryTotals = {};
-          double totalSpent = 0.0;
-
-          for (var tx in rawTransactions) {
-            final double amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
-            final String category =
-                tx['category']?.toString().toLowerCase() ?? 'other';
-
-            if (amount > 0) {
-              totalSpent += amount;
-              categoryTotals[category] =
-                  (categoryTotals[category] ?? 0) + amount;
-            }
-          }
-
-          List<Map<String, dynamic>> uiList = categoryTotals.entries
-              .map(
-                (e) => {
-                  'category': e.key,
-                  'amount': e.value,
-                  'color': _getCategoryColor(e.key),
-                },
-              )
-              .toList();
-          uiList.sort(
-            (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
-          );
-
-          return RefreshIndicator(
-            onRefresh: _fetchData,
-            color: kPrimaryColor,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+        body: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
               children: [
-                _buildToggleBar(cardColor, textColor),
-                const SizedBox(height: 14),
-                _buildDateSelector(textColor, subTextColor),
-                const SizedBox(height: 16),
-                _buildOverviewCard(
-                  categories: uiList,
-                  totalSpent: totalSpent,
-                  textColor: textColor,
-                  subTextColor: subTextColor,
-                  cardColor: cardColor,
-                ),
-                const SizedBox(height: 20),
-                _buildCategoryHeader(textColor, subTextColor, uiList.length),
-                const SizedBox(height: 10),
-                if (uiList.isEmpty)
-                  SizedBox(height: 220, child: _buildEmptyState(subTextColor))
-                else
-                  ...uiList.map(
-                    (item) => _buildStatRow(
-                      item['category'],
-                      item['amount'],
-                      totalSpent,
-                      item['color'],
-                      textColor,
-                      subTextColor,
-                      progressBgColor,
-                      cardColor,
+                Container(
+                  height: 160.0,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [theme.colorScheme.primary, AppColors.accent],
                     ),
                   ),
+                ),
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: Center(
+                      child: Text(
+                        "Spending Summary",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: -25.0,
+                  child: _buildToggleBar(cardColor, textColor),
+                ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 25.0 + AppSpacing.md),
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  final isStatsLoading = context.select<ExpenseProvider, bool>(
+                    (provider) => provider.isStatsLoading,
+                  );
+                  final rawData = context.select<ExpenseProvider, dynamic>(
+                    (provider) =>
+                        _isDailyView ? provider.dailySummary : provider.monthlySummary,
+                  );
+
+                  if (isStatsLoading) {
+                    return _buildSkeletonLoading(
+                      cardColor,
+                      textColor,
+                      subTextColor,
+                      isDark,
+                    );
+                  }
+
+                  List<dynamic> rawTransactions = [];
+                  if (rawData is Map && rawData.containsKey('data')) {
+                    rawTransactions = rawData['data']['transactions'] ?? [];
+                  }
+
+                  Map<String, double> categoryTotals = {};
+                  double totalSpent = 0.0;
+
+                  for (var tx in rawTransactions) {
+                    final double amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+                    final String category =
+                        tx['category']?.toString().toLowerCase() ?? 'other';
+
+                    if (amount > 0) {
+                      totalSpent += amount;
+                      categoryTotals[category] =
+                          (categoryTotals[category] ?? 0) + amount;
+                    }
+                  }
+
+                  List<Map<String, dynamic>> uiList = categoryTotals.entries
+                      .map(
+                        (e) => {
+                          'category': e.key,
+                          'amount': e.value,
+                          'color': _getCategoryColor(e.key),
+                        },
+                      )
+                      .toList();
+                  uiList.sort(
+                    (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
+                  );
+
+                  return RefreshIndicator(
+                    onRefresh: _fetchData,
+                    color: kPrimaryColor,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, 120),
+                      children: [
+                        _buildDateSelector(textColor, subTextColor),
+                        const SizedBox(height: AppSpacing.lg),
+                        _buildOverviewCard(
+                          categories: uiList,
+                          totalSpent: totalSpent,
+                          textColor: textColor,
+                          subTextColor: subTextColor,
+                          cardColor: cardColor,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildCategoryHeader(textColor, subTextColor, uiList.length),
+                        const SizedBox(height: AppSpacing.md),
+                        if (uiList.isEmpty)
+                          SizedBox(height: 220, child: _buildEmptyState(subTextColor))
+                        else
+                          ...uiList.map(
+                            (item) => _buildStatRow(
+                              item['category'],
+                              item['amount'],
+                              totalSpent,
+                              item['color'],
+                              textColor,
+                              subTextColor,
+                              progressBgColor,
+                              cardColor,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -186,7 +228,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
 
   Widget _buildToggleBar(Color bgColor, Color textColor) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 0),
       height: 50,
       decoration: BoxDecoration(
         color: bgColor,
@@ -690,10 +732,8 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
       physics: const AlwaysScrollableScrollPhysics(
         parent: BouncingScrollPhysics(),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, 120),
       children: [
-        _buildToggleBar(cardColor, textColor),
-        const SizedBox(height: 14),
         Center(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),

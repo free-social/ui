@@ -72,6 +72,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   onPressed: isLoading
                       ? null
                       : () => Navigator.of(dialogContext).pop(),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -89,6 +93,11 @@ class _WalletScreenState extends State<WalletScreen> {
                             Navigator.of(dialogContext).pop();
                           }
                         },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
                   child: isLoading
                       ? const SizedBox(
                           width: 18,
@@ -128,6 +137,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   onPressed: isLoading
                       ? null
                       : () => Navigator.of(dialogContext).pop(),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -147,6 +160,9 @@ class _WalletScreenState extends State<WalletScreen> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.danger,
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                   child: isLoading
                       ? const SizedBox(
@@ -353,15 +369,15 @@ class _WalletScreenState extends State<WalletScreen> {
                                     Expanded(
                                       child: _WalletActionCard(
                                         icon: Icons.add_circle_outline_rounded,
-                                        label: 'Add funds',
+                                        label: 'Add',
                                         accentColor: AppColors.success,
                                         onTap: () => _showWalletAmountDialog(
-                                          title: 'Add funds',
+                                          title: 'Add',
                                           description:
                                               'Increase the wallet balance by the amount you enter.',
                                           confirmLabel: 'Add',
                                           onSubmit: (amount) => _processWalletAction(
-                                            actionLabel: 'Add funds',
+                                            actionLabel: 'Add',
                                             action: () => context
                                                 .read<WalletProvider>()
                                                 .topUpWallet(amount),
@@ -373,10 +389,10 @@ class _WalletScreenState extends State<WalletScreen> {
                                     Expanded(
                                       child: _WalletActionCard(
                                         icon: Icons.sync_alt_rounded,
-                                        label: 'Set balance',
+                                        label: 'Set',
                                         accentColor: AppColors.warning,
                                         onTap: () => _showWalletAmountDialog(
-                                          title: 'Set wallet balance',
+                                          title: 'Set',
                                           description:
                                               'Replace the current wallet balance with a new amount.',
                                           confirmLabel: 'Update',
@@ -529,7 +545,7 @@ class _WalletBalanceCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(AppRadii.lg),
@@ -565,7 +581,7 @@ class _WalletBalanceCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.md),
           Text(
             '\$${amount.toStringAsFixed(2)}',
             style: theme.textTheme.displaySmall?.copyWith(
