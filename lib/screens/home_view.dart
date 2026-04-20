@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -81,186 +82,247 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final user = context.watch<AuthProvider>().user;
 
-    return Consumer<ExpenseProvider>(
-      builder: (context, provider, child) {
-        final transactions = provider.transactions;
-        final total = transactions.fold<double>(
-          0,
-          (sum, item) => sum + item.amount,
-        );
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDark
+          ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
+          : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Consumer<ExpenseProvider>(
+          builder: (context, provider, child) {
+            final transactions = provider.transactions;
+            final total = transactions.fold<double>(
+              0,
+              (sum, item) => sum + item.amount,
+            );
 
-        return SafeArea(
-          child: RefreshIndicator(
-            onRefresh: _onRefresh,
-            color: scheme.primary,
-            child: CustomScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
-                      AppSpacing.lg,
-                      AppSpacing.xl,
-                      AppSpacing.lg,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      height: 180.0,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [scheme.primary, AppColors.accent],
+                        ),
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _HomeHeader(
-                          userName: (user?.username.trim().isNotEmpty ?? false)
-                              ? user!.username
-                              : 'User',
-                          avatarUrl: user?.avatar,
-                          total: total,
-                          selectedFilter: _selectedFilter,
+                    SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xl,
+                          vertical: AppSpacing.md,
                         ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text(
-                          'Categories',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        SizedBox(
-                          height: 42,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _filters.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: AppSpacing.sm),
-                            itemBuilder: (context, index) {
-                              final filter = _filters[index];
-                              final isSelected = filter == _selectedFilter;
-                              return FilterChip(
-                                selected: isSelected,
-                                onSelected: (_) {
-                                  setState(() => _selectedFilter = filter);
-                                  _fetchTransactions(category: filter);
-                                },
-                                label: Text(filter),
-                                showCheckmark: false,
-                                side: BorderSide(
-                                  color: isSelected
-                                      ? scheme.primary
-                                      : theme.dividerColor,
-                                ),
-                                backgroundColor: scheme.surface,
-                                selectedColor:
-                                    scheme.primary.withValues(alpha: 0.14),
-                                labelStyle:
-                                    theme.textTheme.bodyMedium?.copyWith(
-                                  color: isSelected
-                                      ? scheme.primary
-                                      : scheme.onSurface,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadii.pill,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Row(
+                        child: Row(
                           children: [
-                            Text(
-                              'Recent activity',
-                              style: theme.textTheme.titleLarge,
+                            const Text(
+                              'Home',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.md,
-                                vertical: AppSpacing.sm,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadii.pill,
-                                ),
-                              ),
-                              child: Text(
-                                '${transactions.length} items',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                      ),
+                    ),
+                    Positioned(
+                      left: AppSpacing.xl,
+                      right: AppSpacing.xl,
+                      bottom: -56.0,
+                      child: _HomeHeader(
+                        userName: (user?.username.trim().isNotEmpty ?? false)
+                            ? user!.username
+                            : 'User',
+                        avatarUrl: user?.avatar,
+                        total: total,
+                        selectedFilter: _selectedFilter,
+                        isDark: isDark,
+                        scheme: scheme,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 56.0 + AppSpacing.xl),
+
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    color: scheme.primary,
+                    displacement: 20,
+                    child: CustomScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.xl,
+                              0,
+                              AppSpacing.xl,
+                              AppSpacing.lg,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Categories',
+                                  style: theme.textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                SizedBox(
+                                  height: 42,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _filters.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(width: AppSpacing.sm),
+                                    itemBuilder: (context, index) {
+                                      final filter = _filters[index];
+                                      final isSelected = filter == _selectedFilter;
+                                      return FilterChip(
+                                        selected: isSelected,
+                                        onSelected: (_) {
+                                          setState(() => _selectedFilter = filter);
+                                          _fetchTransactions(category: filter);
+                                        },
+                                        label: Text(filter),
+                                        showCheckmark: false,
+                                        side: BorderSide(
+                                          color: isSelected
+                                              ? scheme.primary
+                                              : theme.dividerColor,
+                                        ),
+                                        backgroundColor: scheme.surface,
+                                        selectedColor:
+                                            scheme.primary.withValues(alpha: 0.14),
+                                        labelStyle:
+                                            theme.textTheme.bodyMedium?.copyWith(
+                                          color: isSelected
+                                              ? scheme.primary
+                                              : scheme.onSurface,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadii.pill,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xl),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Recent activity',
+                                      style: theme.textTheme.titleLarge,
+                                    ),
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.md,
+                                        vertical: AppSpacing.sm,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: scheme.surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadii.pill,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${transactions.length} items',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (provider.isLoading && provider.currentPage == 1)
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xl,
+                            ),
+                            sliver: SliverList.builder(
+                              itemCount: 5,
+                              itemBuilder: (_, __) => const _TransactionSkeleton(),
+                            ),
+                          )
+                        else if (transactions.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _EmptyTransactionsState(
+                              selectedFilter: _selectedFilter,
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.xl,
+                              0,
+                              AppSpacing.xl,
+                              120,
+                            ),
+                            sliver: SliverList.builder(
+                              itemCount: transactions.length + (provider.isLoading ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index >= transactions.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(AppSpacing.xl),
+                                    child: Center(child: CircularProgressIndicator()),
+                                  );
+                                }
+
+                                final transaction = transactions[index];
+                                return _TransactionCard(
+                                  transaction: transaction,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => TransactionFormScreen(
+                                          transaction: transaction,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  onDelete: () => context
+                                      .read<ExpenseProvider>()
+                                      .deleteTransaction(transaction.id),
+                                );
+                              },
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
-                if (provider.isLoading && provider.currentPage == 1)
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
-                    ),
-                    sliver: SliverList.builder(
-                      itemCount: 5,
-                      itemBuilder: (_, __) => const _TransactionSkeleton(),
-                    ),
-                  )
-                else if (transactions.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _EmptyTransactionsState(
-                      selectedFilter: _selectedFilter,
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
-                      0,
-                      AppSpacing.xl,
-                      120,
-                    ),
-                    sliver: SliverList.builder(
-                      itemCount: transactions.length + (provider.isLoading ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index >= transactions.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(AppSpacing.xl),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-
-                        final transaction = transactions[index];
-                        return _TransactionCard(
-                          transaction: transaction,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => TransactionFormScreen(
-                                  transaction: transaction,
-                                ),
-                              ),
-                            );
-                          },
-                          onDelete: () => context
-                              .read<ExpenseProvider>()
-                              .deleteTransaction(transaction.id),
-                        );
-                      },
-                    ),
-                  ),
               ],
-            ),
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -270,37 +332,35 @@ class _HomeHeader extends StatelessWidget {
   final String? avatarUrl;
   final double total;
   final String selectedFilter;
+  final bool isDark;
+  final ColorScheme scheme;
 
   const _HomeHeader({
     required this.userName,
     required this.avatarUrl,
     required this.total,
     required this.selectedFilter,
+    required this.isDark,
+    required this.scheme,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final cardColor = isDark ? const Color(0xFF10201D) : Colors.white;
+    final textColor = isDark ? Colors.white : scheme.onSurface;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            scheme.primary,
-            AppColors.accent,
-          ],
-        ),
+        color: cardColor,
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary.withValues(alpha: 0.24),
-            blurRadius: 30,
-            offset: const Offset(0, 14),
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -311,12 +371,12 @@ class _HomeHeader extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                backgroundColor: scheme.primary.withValues(alpha: 0.12),
                 backgroundImage: (avatarUrl != null && avatarUrl!.isNotEmpty)
                     ? CachedNetworkImageProvider(avatarUrl!)
                     : null,
                 child: (avatarUrl == null || avatarUrl!.isEmpty)
-                    ? const Icon(Icons.person_rounded, color: Colors.white)
+                    ? Icon(Icons.person_rounded, color: scheme.primary)
                     : null,
               ),
               const SizedBox(width: AppSpacing.md),
@@ -327,13 +387,14 @@ class _HomeHeader extends StatelessWidget {
                     Text(
                       'Welcome back',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.84),
+                        color: textColor.withValues(alpha: 0.6),
                       ),
                     ),
                     Text(
                       userName,
                       style: theme.textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
+                        color: textColor,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -345,13 +406,13 @@ class _HomeHeader extends StatelessWidget {
                   vertical: AppSpacing.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
+                  color: scheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppRadii.pill),
                 ),
                 child: Text(
                   DateFormat('MMM d').format(DateTime.now()),
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white,
+                    color: scheme.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -362,7 +423,8 @@ class _HomeHeader extends StatelessWidget {
           Text(
             '\$${total.toStringAsFixed(2)}',
             style: theme.textTheme.displaySmall?.copyWith(
-              color: Colors.white,
+              color: textColor,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -371,7 +433,7 @@ class _HomeHeader extends StatelessWidget {
                 ? 'Total transactions'
                 : 'Total for $selectedFilter',
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: textColor.withValues(alpha: 0.6),
             ),
           ),
         ],

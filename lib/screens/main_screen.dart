@@ -88,7 +88,7 @@ class _MainScreenState extends State<MainScreen> {
       extendBody: true,
       body: PageView(
         controller: _pageController,
-        physics: const BouncingScrollPhysics(),
+        physics: const ClampingScrollPhysics(),
         onPageChanged: (index) {
           if (_selectedIndex != index) {
             setState(() => _selectedIndex = index);
@@ -96,13 +96,13 @@ class _MainScreenState extends State<MainScreen> {
         },
         children: _items.map((item) => item.screen).toList(),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: _openTransactionForm,
         elevation: 0,
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add expense'),
+        shape: const CircleBorder(),
+        child: const Icon(Icons.add_rounded),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: SafeArea(

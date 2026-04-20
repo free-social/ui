@@ -5,6 +5,7 @@ void showTopSnackBar(
   BuildContext context,
   String message, {
   Color? backgroundColor,
+  IconData icon = Icons.info_outline_rounded,
   Duration duration = const Duration(seconds: 3),
   double topOffset = 10,
 }) {
@@ -16,7 +17,7 @@ void showTopSnackBar(
 
   overlayEntry = OverlayEntry(
     builder: (context) => TopNotification(
-      message: message,
+      icon: icon,
       backgroundColor: backgroundColor ?? Colors.grey.shade800,
       topPadding: topPadding,
       topOffset: topOffset,
@@ -34,7 +35,7 @@ void showTopSnackBar(
   });
 }
 
-/// Success message at top (green)
+/// Success message at top (green tick)
 void showSuccessSnackBar(
   BuildContext context,
   String message, {
@@ -43,12 +44,13 @@ void showSuccessSnackBar(
   showTopSnackBar(
     context,
     message,
+    icon: Icons.check_rounded,
     backgroundColor: Colors.green,
     topOffset: topOffset,
   );
 }
 
-/// Error message at top (red)
+/// Error message at top (red cross)
 void showErrorSnackBar(
   BuildContext context,
   String message, {
@@ -57,12 +59,13 @@ void showErrorSnackBar(
   showTopSnackBar(
     context,
     message,
+    icon: Icons.close_rounded,
     backgroundColor: Colors.red,
     topOffset: topOffset,
   );
 }
 
-/// Info message at top (blue)
+/// Info message at top (blue info)
 void showInfoSnackBar(
   BuildContext context,
   String message, {
@@ -71,6 +74,7 @@ void showInfoSnackBar(
   showTopSnackBar(
     context,
     message,
+    icon: Icons.info_outline_rounded,
     backgroundColor: Colors.blue,
     topOffset: topOffset,
   );
@@ -78,7 +82,7 @@ void showInfoSnackBar(
 
 /// Custom notification widget that slides from top
 class TopNotification extends StatefulWidget {
-  final String message;
+  final IconData icon;
   final Color backgroundColor;
   final double topPadding;
   final double topOffset;
@@ -86,7 +90,7 @@ class TopNotification extends StatefulWidget {
 
   const TopNotification({
     super.key,
-    required this.message,
+    required this.icon,
     required this.backgroundColor,
     required this.topPadding,
     required this.topOffset,
@@ -111,9 +115,9 @@ class _TopNotificationState extends State<TopNotification>
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1),
+      begin: const Offset(0, -3.0), // Fall completely from outside the top screen bounds
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCirc));
 
     _controller.forward();
   }
@@ -128,44 +132,40 @@ class _TopNotificationState extends State<TopNotification>
   Widget build(BuildContext context) {
     return Positioned(
       top: widget.topPadding + widget.topOffset,
-      left: 10,
-      right: 10,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: widget.backgroundColor,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+      left: 0,
+      right: 0,
+      child: Center(
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: ScaleTransition(
+            scale: CurvedAnimation(
+              parent: _controller,
+              curve: const ElasticOutCurve(0.9),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.message,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: widget.backgroundColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.backgroundColor.withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(
+                    widget.icon,
+                    color: Colors.white,
+                    size: 32,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () {
-                    _controller.reverse().then((_) => widget.onDismiss());
-                  },
-                  child: const Icon(Icons.close, color: Colors.white, size: 20),
-                ),
-              ],
+              ),
             ),
           ),
         ),

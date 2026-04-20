@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -35,93 +36,141 @@ class _WalletScreenState extends State<WalletScreen> {
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-        ),
-        title: Text(title, style: theme.textTheme.titleLarge),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(description, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: AppSpacing.lg),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        bool isLoading = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.lg),
               ),
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                hintText: '0.00',
-                prefixIcon: Icon(Icons.attach_money_rounded),
+              title: Text(title, style: theme.textTheme.titleLarge),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(description, style: theme.textTheme.bodyMedium),
+                  const SizedBox(height: AppSpacing.lg),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    enabled: !isLoading,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Amount',
+                      hintText: '0.00',
+                      prefixIcon: Icon(Icons.attach_money_rounded),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final amount = double.tryParse(controller.text.trim());
-              if (amount == null || amount < 0) {
-                return;
-              }
+              actions: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          final amount = double.tryParse(controller.text.trim());
+                          if (amount == null || amount < 0) {
+                            return;
+                          }
 
-              Navigator.of(dialogContext).pop();
-              await onSubmit(amount);
-            },
-            child: Text(confirmLabel),
-          ),
-        ],
-      ),
+                          setState(() => isLoading = true);
+                          await onSubmit(amount);
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(confirmLabel),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
   Future<void> _confirmReset() async {
-    final confirmed = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-        ),
-        title: const Text('Reset wallet?'),
-        content: const Text(
-          'This will set the wallet balance to \$0.00.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-            ),
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        bool isLoading = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.lg),
+              ),
+              title: const Text('Reset wallet?'),
+              content: const Text(
+                'This will set the wallet balance to \$0.00.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          setState(() => isLoading = true);
+                          await _processWalletAction(
+                            actionLabel: 'Reset wallet',
+                            action: () => context
+                                .read<WalletProvider>()
+                                .updateWalletBalance(0.0),
+                          );
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Reset'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
-
-    if (confirmed == true) {
-      await _processWalletAction(
-        actionLabel: 'Reset wallet',
-        action: () => context.read<WalletProvider>().updateWalletBalance(0.0),
-      );
-    }
   }
 
   Future<void> _processWalletAction({
     required String actionLabel,
     required Future<void> Function() action,
   }) async {
-    showInfoSnackBar(context, '$actionLabel in progress...');
     try {
       await action();
       if (mounted) {
@@ -140,270 +189,316 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
-    return SafeArea(
-      child: Consumer<WalletProvider>(
-        builder: (context, walletProvider, child) {
-          if (walletProvider.isLoading && walletProvider.walletData == null) {
-            return const _WalletLoadingState();
-          }
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDark
+          ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
+          : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Consumer<WalletProvider>(
+          builder: (context, walletProvider, child) {
+            if (walletProvider.isLoading && walletProvider.walletData == null) {
+              return const SafeArea(child: _WalletLoadingState());
+            }
 
-          if (walletProvider.error != null && walletProvider.walletData == null) {
-            return _WalletMessageState(
-              title: 'Could not load wallet',
-              message: walletProvider.error!,
-              actionLabel: 'Try again',
-              onPressed: walletProvider.fetchWalletData,
+            if (walletProvider.error != null && walletProvider.walletData == null) {
+              return SafeArea(
+                child: _WalletMessageState(
+                  title: 'Could not load wallet',
+                  message: walletProvider.error!,
+                  actionLabel: 'Try again',
+                  onPressed: walletProvider.fetchWalletData,
+                ),
+              );
+            }
+
+            final walletData = walletProvider.walletData;
+            if (walletData == null) {
+              return SafeArea(
+                child: _WalletMessageState(
+                  title: 'Wallet unavailable',
+                  message: 'No wallet data has been returned yet.',
+                  actionLabel: 'Refresh',
+                  onPressed: walletProvider.fetchWalletData,
+                ),
+              );
+            }
+
+            final transactions = walletData.transactions;
+            final transactionNet = transactions.fold<double>(
+              0,
+              (sum, transaction) => sum + transaction.amount,
             );
-          }
 
-          final walletData = walletProvider.walletData;
-          if (walletData == null) {
-            return _WalletMessageState(
-              title: 'Wallet unavailable',
-              message: 'No wallet data has been returned yet.',
-              actionLabel: 'Refresh',
-              onPressed: walletProvider.fetchWalletData,
+            final currentMonth = DateFormat('MMMM y').format(DateTime.now());
+            final previousMonth = DateFormat('MMM').format(
+              DateTime(DateTime.now().year, DateTime.now().month - 1),
             );
-          }
 
-          final transactions = walletData.transactions;
-          final transactionNet = transactions.fold<double>(
-            0,
-            (sum, transaction) => sum + transaction.amount,
-          );
-
-          final currentMonth = DateFormat('MMMM y').format(DateTime.now());
-          final previousMonth = DateFormat('MMM').format(
-            DateTime(DateTime.now().year, DateTime.now().month - 1),
-          );
-
-          return RefreshIndicator(
-            onRefresh: walletProvider.refreshData,
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
-                      AppSpacing.lg,
-                      AppSpacing.xl,
-                      AppSpacing.xl,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Fixed Gradient Header ──
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      height: 180.0,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [scheme.primary, AppColors.accent],
+                        ),
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                    SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xl,
+                          vertical: AppSpacing.md,
+                        ),
+                        child: Row(
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Wallet',
-                                    style: theme.textTheme.displaySmall?.copyWith(
-                                      fontSize: 32,
-                                    ),
-                                  ),
-                
-                                ],
+                            const Text(
+                              'Wallet',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
                               ),
-                            ),
-                            IconButton.filledTonal(
-                              onPressed: walletProvider.refreshData,
-                              icon: const Icon(Icons.refresh_rounded),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        _WalletBalanceCard(
-                          title: 'Available balance',
-                          amount: walletData.walletBalance.balance,
-                          subtitle: 'Tracked wallet amount',
-                          icon: Icons.account_balance_wallet_rounded,
-                          colors: const [
-                            AppColors.seed,
-                            AppColors.accent,
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _WalletStatCard(
-                                title: 'Transaction net',
-                                value: transactionNet,
-                                icon: Icons.swap_vert_rounded,
-                                accentColor: const Color(0xFF4B6ED6),
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: _WalletStatCard(
-                                title: 'Expense ($previousMonth)',
-                                value: walletProvider.lastMonthExpense,
-                                icon: Icons.calendar_month_rounded,
-                                accentColor: AppColors.danger,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text(
-                          'Quick actions',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _WalletActionCard(
-                                icon: Icons.add_circle_outline_rounded,
-                                label: 'Add funds',
-                                accentColor: AppColors.success,
-                                onTap: () => _showWalletAmountDialog(
-                                  title: 'Add funds',
-                                  description:
-                                      'Increase the wallet balance by the amount you enter.',
-                                  confirmLabel: 'Add',
-                                  onSubmit: (amount) => _processWalletAction(
-                                    actionLabel: 'Add funds',
-                                    action: () => context
-                                        .read<WalletProvider>()
-                                        .topUpWallet(amount),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: _WalletActionCard(
-                                icon: Icons.sync_alt_rounded,
-                                label: 'Set balance',
-                                accentColor: AppColors.warning,
-                                onTap: () => _showWalletAmountDialog(
-                                  title: 'Set wallet balance',
-                                  description:
-                                      'Replace the current wallet balance with a new amount.',
-                                  confirmLabel: 'Update',
-                                  onSubmit: (amount) => _processWalletAction(
-                                    actionLabel: 'Update balance',
-                                    action: () => context
-                                        .read<WalletProvider>()
-                                        .updateWalletBalance(amount),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: _WalletActionCard(
-                                icon: Icons.refresh_rounded,
-                                label: 'Reset',
-                                accentColor: AppColors.danger,
-                                onTap: _confirmReset,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Row(
-                          children: [
-                            Text(
-                              'Recent wallet transactions',
-                              style: theme.textTheme.titleLarge,
                             ),
                             const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.md,
-                                vertical: AppSpacing.sm,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadii.pill,
-                                ),
-                              ),
-                              child: Text(
-                                '${transactions.length} items',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                            IconButton(
+                              onPressed: walletProvider.refreshData,
+                              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                      ),
+                    ),
+                    Positioned(
+                      left: AppSpacing.xl,
+                      right: AppSpacing.xl,
+                      bottom: -56.0,
+                      child: _WalletBalanceCard(
+                        title: 'Available balance',
+                        amount: walletData.walletBalance.balance,
+                        subtitle: 'Tracked wallet amount',
+                        icon: Icons.account_balance_wallet_rounded,
+                        isDark: isDark,
+                        scheme: scheme,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 56.0 + AppSpacing.xl),
+
+                // ── Scrollable Body ──
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: walletProvider.refreshData,
+                    color: scheme.primary,
+                    displacement: 20,
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.xl,
+                              0,
+                              AppSpacing.xl,
+                              AppSpacing.xl,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _WalletStatCard(
+                                        title: 'Transaction net',
+                                        value: transactionNet,
+                                        icon: Icons.swap_vert_rounded,
+                                        accentColor: const Color(0xFF4B6ED6),
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.md),
+                                    Expanded(
+                                      child: _WalletStatCard(
+                                        title: 'Expense ($previousMonth)',
+                                        value: walletProvider.lastMonthExpense,
+                                        icon: Icons.calendar_month_rounded,
+                                        accentColor: AppColors.danger,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.xl),
+                                Text(
+                                  'Quick actions',
+                                  style: theme.textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _WalletActionCard(
+                                        icon: Icons.add_circle_outline_rounded,
+                                        label: 'Add funds',
+                                        accentColor: AppColors.success,
+                                        onTap: () => _showWalletAmountDialog(
+                                          title: 'Add funds',
+                                          description:
+                                              'Increase the wallet balance by the amount you enter.',
+                                          confirmLabel: 'Add',
+                                          onSubmit: (amount) => _processWalletAction(
+                                            actionLabel: 'Add funds',
+                                            action: () => context
+                                                .read<WalletProvider>()
+                                                .topUpWallet(amount),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.md),
+                                    Expanded(
+                                      child: _WalletActionCard(
+                                        icon: Icons.sync_alt_rounded,
+                                        label: 'Set balance',
+                                        accentColor: AppColors.warning,
+                                        onTap: () => _showWalletAmountDialog(
+                                          title: 'Set wallet balance',
+                                          description:
+                                              'Replace the current wallet balance with a new amount.',
+                                          confirmLabel: 'Update',
+                                          onSubmit: (amount) => _processWalletAction(
+                                            actionLabel: 'Update balance',
+                                            action: () => context
+                                                .read<WalletProvider>()
+                                                .updateWalletBalance(amount),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.md),
+                                    Expanded(
+                                      child: _WalletActionCard(
+                                        icon: Icons.refresh_rounded,
+                                        label: 'Reset',
+                                        accentColor: AppColors.danger,
+                                        onTap: _confirmReset,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.xl),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Recent wallet transactions',
+                                      style: theme.textTheme.titleLarge,
+                                    ),
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.md,
+                                        vertical: AppSpacing.sm,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadii.pill,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${transactions.length} items',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (transactions.isEmpty)
+                          const SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _WalletEmptyState(),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.xl,
+                              0,
+                              AppSpacing.xl,
+                              120,
+                            ),
+                            sliver: SliverList.separated(
+                              itemCount: transactions.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: AppSpacing.md),
+                              itemBuilder: (context, index) {
+                                final transaction = transactions[index];
+                                return Card(
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.lg,
+                                      vertical: AppSpacing.sm,
+                                    ),
+                                    leading: Container(
+                                      width: 46,
+                                      height: 46,
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.primary
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Icon(
+                                        Icons.payments_outlined,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      transaction.description.isNotEmpty
+                                          ? transaction.description
+                                          : 'Wallet movement',
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                    subtitle: Text(
+                                      DateFormat('MMM d, y • h:mm a')
+                                          .format(transaction.date),
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                    trailing: Text(
+                                      '\$${transaction.amount.toStringAsFixed(2)}',
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
-                if (transactions.isEmpty)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _WalletEmptyState(),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
-                      0,
-                      AppSpacing.xl,
-                      120,
-                    ),
-                    sliver: SliverList.separated(
-                      itemCount: transactions.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: AppSpacing.md),
-                      itemBuilder: (context, index) {
-                        final transaction = transactions[index];
-                        return Card(
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.lg,
-                              vertical: AppSpacing.sm,
-                            ),
-                            leading: Container(
-                              width: 46,
-                              height: 46,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primary
-                                    .withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Icon(
-                                Icons.payments_outlined,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                            title: Text(
-                              transaction.description.isNotEmpty
-                                  ? transaction.description
-                                  : 'Wallet movement',
-                              style: theme.textTheme.titleMedium,
-                            ),
-                            subtitle: Text(
-                              DateFormat('MMM d, y • h:mm a')
-                                  .format(transaction.date),
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                            trailing: Text(
-                              '\$${transaction.amount.toStringAsFixed(2)}',
-                              style: theme.textTheme.titleMedium,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
               ],
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -414,35 +509,35 @@ class _WalletBalanceCard extends StatelessWidget {
   final double amount;
   final String subtitle;
   final IconData icon;
-  final List<Color> colors;
+  final bool isDark;
+  final ColorScheme scheme;
 
   const _WalletBalanceCard({
     required this.title,
     required this.amount,
     required this.subtitle,
     required this.icon,
-    required this.colors,
+    required this.isDark,
+    required this.scheme,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cardColor = isDark ? const Color(0xFF10201D) : Colors.white;
+    final textColor = isDark ? Colors.white : scheme.onSurface;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: cardColor,
         borderRadius: BorderRadius.circular(AppRadii.lg),
         boxShadow: [
           BoxShadow(
-            color: colors.first.withValues(alpha: 0.24),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -455,17 +550,18 @@ class _WalletBalanceCard extends StatelessWidget {
                 child: Text(
                   title,
                   style: theme.textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
+                    color: textColor,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
+                  color: scheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: Colors.white),
+                child: Icon(icon, color: scheme.primary),
               ),
             ],
           ),
@@ -473,14 +569,15 @@ class _WalletBalanceCard extends StatelessWidget {
           Text(
             '\$${amount.toStringAsFixed(2)}',
             style: theme.textTheme.displaySmall?.copyWith(
-              color: Colors.white,
+              color: textColor,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             subtitle,
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: textColor.withValues(alpha: 0.6),
             ),
           ),
         ],
