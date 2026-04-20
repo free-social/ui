@@ -30,14 +30,6 @@ class UserProfileScreen extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    SystemChrome.setSystemUIOverlayStyle(
-      isDark
-          ? SystemUiOverlayStyle.light
-              .copyWith(statusBarColor: Colors.transparent)
-          : SystemUiOverlayStyle.dark
-              .copyWith(statusBarColor: Colors.transparent),
-    );
-
     final displayName = (user?.username.trim().isNotEmpty ?? false)
         ? user!.username
         : 'Spendwise user';
@@ -47,7 +39,11 @@ class UserProfileScreen extends StatelessWidget {
     final hasAvatar =
         user?.avatar != null && (user?.avatar.isNotEmpty ?? false);
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDark
+          ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
+          : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+      child: Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -270,8 +266,9 @@ class UserProfileScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
+      ), // Column
+      ), // Scaffold
+    ); // AnnotatedRegion
   }
 }
 
