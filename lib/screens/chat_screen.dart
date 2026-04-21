@@ -175,7 +175,6 @@ class _ChatScreenState extends State<ChatScreen> {
                       context,
                       chatProvider,
                       user,
-                      isLast: user.id == chatProvider.friends.last.id,
                     ),
                   )
                   .toList(),
@@ -360,7 +359,6 @@ class _ChatScreenState extends State<ChatScreen> {
                       context,
                       chatProvider,
                       user,
-                      isLast: user.id == chatProvider.searchResults.last.id,
                     ),
                   )
                   .toList(),
@@ -454,9 +452,8 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildSearchUserTile(
     BuildContext context,
     ChatProvider chatProvider,
-    ChatUser user, {
-    bool isLast = false,
-  }) {
+    ChatUser user,
+  ) {
     final theme = Theme.of(context);
     final relationshipStatus = user.relationshipStatus;
     final alreadyAdded =
@@ -490,13 +487,11 @@ class _ChatScreenState extends State<ChatScreen> {
         ? const Color(0xFF5C3B00)
         : theme.colorScheme.primary;
 
-    return Column(
-      children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 0,
-            vertical: 2,
-          ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 0,
+        vertical: AppSpacing.sm,
+      ),
           leading: _Avatar(
             avatarUrl: user.avatar,
             size: 44,
@@ -539,15 +534,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             child: Text(actionLabel),
           ),
-        ),
-        if (!isLast)
-          Divider(
-            height: 1,
-            indent: 76,
-            endIndent: AppSpacing.md,
-            color: theme.dividerColor.withValues(alpha: 0.8),
-          ),
-      ],
     );
   }
 
@@ -893,7 +879,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 0,
-        vertical: 0,
+        vertical: AppSpacing.sm,
       ),
       leading: _Avatar(
         avatarUrl: receiver.avatar,
@@ -941,7 +927,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 0,
-        vertical: 0,
+        vertical: AppSpacing.sm,
       ),
       leading: _Avatar(
         avatarUrl: user.avatar,
