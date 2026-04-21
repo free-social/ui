@@ -77,6 +77,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const SizedBox(height: 15), 
                         const Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: AppSpacing.xl,
@@ -91,7 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 33),
                         TabBar(
                           dividerColor: Colors.transparent,
                           indicatorColor: Colors.white,
