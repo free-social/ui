@@ -82,7 +82,9 @@ class _WalletScreenState extends State<WalletScreen> {
                   onPressed: isLoading
                       ? null
                       : () async {
-                          final amount = double.tryParse(controller.text.trim());
+                          final amount = double.tryParse(
+                            controller.text.trim(),
+                          );
                           if (amount == null || amount < 0) {
                             return;
                           }
@@ -96,15 +98,16 @@ class _WalletScreenState extends State<WalletScreen> {
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(0, 40),
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   child: isLoading
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : Text(confirmLabel),
                 ),
@@ -162,7 +165,10 @@ class _WalletScreenState extends State<WalletScreen> {
                     backgroundColor: AppColors.danger,
                     minimumSize: const Size(0, 40),
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   child: isLoading
                       ? const SizedBox(
@@ -210,8 +216,12 @@ class _WalletScreenState extends State<WalletScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark
-          ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
-          : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+          ? SystemUiOverlayStyle.light.copyWith(
+              statusBarColor: Colors.transparent,
+            )
+          : SystemUiOverlayStyle.dark.copyWith(
+              statusBarColor: Colors.transparent,
+            ),
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         body: Consumer<WalletProvider>(
@@ -220,7 +230,8 @@ class _WalletScreenState extends State<WalletScreen> {
               return const SafeArea(child: _WalletLoadingState());
             }
 
-            if (walletProvider.error != null && walletProvider.walletData == null) {
+            if (walletProvider.error != null &&
+                walletProvider.walletData == null) {
               return SafeArea(
                 child: _WalletMessageState(
                   title: 'Could not load wallet',
@@ -250,9 +261,9 @@ class _WalletScreenState extends State<WalletScreen> {
             );
 
             // final currentMonth = DateFormat('MMMM y').format(DateTime.now());
-            final previousMonth = DateFormat('MMM').format(
-              DateTime(DateTime.now().year, DateTime.now().month - 1),
-            );
+            final previousMonth = DateFormat(
+              'MMM',
+            ).format(DateTime(DateTime.now().year, DateTime.now().month - 1));
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -278,8 +289,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           horizontal: AppSpacing.xl,
                           vertical: AppSpacing.md,
                         ),
-                        child: Row(
-                          children: [
+                        child: Row(children: [
                           ],
                         ),
                       ),
@@ -358,6 +368,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                         icon: Icons.add_circle_outline_rounded,
                                         label: 'Add',
                                         accentColor: AppColors.success,
+                                        isHorizontal: true,
                                         onTap: () => _showWalletAmountDialog(
                                           title: 'Add',
                                           description:
@@ -372,23 +383,31 @@ class _WalletScreenState extends State<WalletScreen> {
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: AppSpacing.md),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                Row(
+                                  children: [
                                     Expanded(
                                       child: _WalletActionCard(
                                         icon: Icons.sync_alt_rounded,
                                         label: 'Set',
                                         accentColor: AppColors.warning,
+                                        isHorizontal: true,
                                         onTap: () => _showWalletAmountDialog(
                                           title: 'Set',
                                           description:
                                               'Replace the current wallet balance with a new amount.',
                                           confirmLabel: 'Update',
-                                          onSubmit: (amount) => _processWalletAction(
-                                            actionLabel: 'Update balance',
-                                            action: () => context
-                                                .read<WalletProvider>()
-                                                .updateWalletBalance(amount),
-                                          ),
+                                          onSubmit: (amount) =>
+                                              _processWalletAction(
+                                                actionLabel: 'Update balance',
+                                                action: () => context
+                                                    .read<WalletProvider>()
+                                                    .updateWalletBalance(
+                                                      amount,
+                                                    ),
+                                              ),
                                         ),
                                       ),
                                     ),
@@ -398,6 +417,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                         icon: Icons.refresh_rounded,
                                         label: 'Reset',
                                         accentColor: AppColors.danger,
+                                        isHorizontal: true,
                                         onTap: _confirmReset,
                                       ),
                                     ),
@@ -407,7 +427,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      'Recent wallet transactions',
+                                      'Recents',
                                       style: theme.textTheme.titleLarge,
                                     ),
                                     const Spacer(),
@@ -417,16 +437,19 @@ class _WalletScreenState extends State<WalletScreen> {
                                         vertical: AppSpacing.sm,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: theme.colorScheme.surfaceContainerHighest,
+                                        color: theme
+                                            .colorScheme
+                                            .surfaceContainerHighest,
                                         borderRadius: BorderRadius.circular(
                                           AppRadii.pill,
                                         ),
                                       ),
                                       child: Text(
                                         '${transactions.length} items',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                       ),
                                     ),
                                   ],
@@ -481,8 +504,9 @@ class _WalletScreenState extends State<WalletScreen> {
                                       style: theme.textTheme.titleMedium,
                                     ),
                                     subtitle: Text(
-                                      DateFormat('MMM d, y • h:mm a')
-                                          .format(transaction.date),
+                                      DateFormat(
+                                        'MMM d, y • h:mm a',
+                                      ).format(transaction.date),
                                       style: theme.textTheme.bodyMedium,
                                     ),
                                     trailing: Text(
@@ -640,17 +664,42 @@ class _WalletActionCard extends StatelessWidget {
   final String label;
   final Color accentColor;
   final VoidCallback onTap;
+  final bool isHorizontal;
 
   const _WalletActionCard({
     required this.icon,
     required this.label,
     required this.accentColor,
     required this.onTap,
+    this.isHorizontal = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    List<Widget> content = [
+      Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: accentColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(icon, color: accentColor),
+      ),
+      SizedBox(
+        width: isHorizontal ? AppSpacing.md : 0,
+        height: isHorizontal ? 0 : AppSpacing.md,
+      ),
+      Text(
+        label,
+        textAlign: TextAlign.center,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ];
 
     return Card(
       child: InkWell(
@@ -658,27 +707,14 @@ class _WalletActionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.lg),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
+          child: isHorizontal
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: content,
+                )
+              : Column(
+                  children: content,
                 ),
-                child: Icon(icon, color: accentColor),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -720,9 +756,7 @@ class _WalletLoadingState extends StatelessWidget {
 class _WalletSkeletonBlock extends StatelessWidget {
   final double height;
 
-  const _WalletSkeletonBlock({
-    required this.height,
-  });
+  const _WalletSkeletonBlock({required this.height});
 
   @override
   Widget build(BuildContext context) {
@@ -770,10 +804,7 @@ class _WalletMessageState extends StatelessWidget {
                   style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                ElevatedButton(
-                  onPressed: onPressed,
-                  child: Text(actionLabel),
-                ),
+                ElevatedButton(onPressed: onPressed, child: Text(actionLabel)),
               ],
             ),
           ),
