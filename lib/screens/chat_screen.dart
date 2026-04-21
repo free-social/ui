@@ -199,7 +199,6 @@ class _ChatScreenState extends State<ChatScreen> {
             _buildEmptyState(
               context,
               title: 'No conversations yet',
-              subtitle: 'No Chat',
             )
           else
             ...chatProvider.conversations.map(
@@ -251,7 +250,7 @@ class _ChatScreenState extends State<ChatScreen> {
           controller: _searchController,
           onChanged: chatProvider.searchUsers,
           decoration: InputDecoration(
-            hintText: 'Search users',
+            hintText: 'Search friends',
             filled: true,
             fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
             prefixIcon: Icon(
@@ -354,9 +353,6 @@ class _ChatScreenState extends State<ChatScreen> {
           _buildEmptyState(
             context,
             title: 'No ${_requestStatusLabel(activeFilter)} requests',
-            subtitle: activeFilter == FriendRequestStatusFilter.pending
-                ? 'New incoming and outgoing requests will appear here.'
-                : 'Nothing in this tab yet.',
           )
         else
           Column(
@@ -789,6 +785,14 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         );
       },
+      onLongPress: () => _handleRelationshipAction(
+        context,
+        context.read<ChatProvider>(),
+        friend,
+        alreadyAdded: true,
+        pendingSent: false,
+        pendingReceived: false,
+      ),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 0,
         vertical: AppSpacing.sm,
@@ -948,18 +952,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildEmptyState(
     BuildContext context, {
     required String title,
-    required String subtitle,
   }) {
     final theme = Theme.of(context);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: theme.dividerColor),
-      ),
       child: Column(
         children: [
           Container(
@@ -977,12 +975,6 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(title, style: theme.textTheme.titleLarge),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium,
-          ),
         ],
       ),
     );
