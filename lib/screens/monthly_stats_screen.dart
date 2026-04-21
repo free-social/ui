@@ -52,7 +52,9 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
   }
 
   void _toggleView(bool isDaily) {
-    if (_isDailyView == isDaily) return;
+    if (_isDailyView == isDaily) {
+      return;
+    }
     setState(() {
       _isDailyView = isDaily;
       _currentDate = DateTime.now();
@@ -385,11 +387,15 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
       for (int i = startKey; i <= endKey; i++) {
         final amt = timeGroups[i] ?? 0.0;
         spots.add(FlSpot(i.toDouble(), amt));
-        if (amt > maxY) maxY = amt;
+        if (amt > maxY) {
+          maxY = amt;
+        }
       }
     }
 
-    if (maxY == 0) maxY = 100;
+    if (maxY == 0) {
+      maxY = 100;
+    }
     double maxX = _isDailyView
         ? 23
         : DateTime(_currentDate.year, _currentDate.month + 1, 0).day.toDouble();
