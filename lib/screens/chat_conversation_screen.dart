@@ -48,10 +48,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   Timer? _typingTimer;
   Timer? _recordingTimer;
 
-  // ── Pagination state ──────────────────────────────────────────────────
-  /// The count of messages BEFORE the last load-more so we can compute
-  /// how many were prepended and preserve the viewport position.
-  int _countBeforeLoadMore = 0;
+
 
   @override
   void initState() {
@@ -92,67 +89,23 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     super.dispose();
   }
 
-  /// Returns true if the scroll controller is positioned near the bottom
-  /// (within [threshold] pixels). Used to decide whether auto-scroll should
-  /// fire when a new message arrives.
-  bool _isNearBottom({double threshold = 120}) {
-    if (!_scrollController.hasClients) return true;
-    final pos = _scrollController.position;
-    return pos.pixels >= pos.maxScrollExtent - threshold;
-  }
-
-  /// Triggered when the user scrolls near the top of the list.
-  /// Requests the next (older) page of messages from the provider.
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    final pos = _scrollController.position;
-    // Trigger load when within 200px of the top edge.
-    if (pos.pixels <= 200) {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
       final chatProvider = context.read<ChatProvider>();
       if (!chatProvider.isLoadingOlderMessages && chatProvider.hasMoreMessages) {
-        _countBeforeLoadMore = chatProvider.messages.length;
         chatProvider.loadOlderMessages();
       }
     }
   }
 
-  /// Called by the ChatProvider listener whenever its state changes.
-  /// - When new messages arrive at the bottom: auto-scroll if near bottom.
-  /// - When older messages are prepended: preserve viewport position.
   void _onChatProviderChanged() {
     if (!mounted || !_initialScrollDone) return;
     final newCount = context.read<ChatProvider>().messages.length;
     if (newCount == _lastRenderedMessageCount) return;
 
-    final prepended = newCount - _lastRenderedMessageCount;
     _lastRenderedMessageCount = newCount;
-
-    if (_countBeforeLoadMore > 0 && prepended > 0) {
-      // Older messages were prepended. Restore viewport so the user
-      // stays at the same message they were looking at.
-      _countBeforeLoadMore = 0;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scrollController.hasClients) return;
-        // Each prepended item is approximately some height; jumping by a
-        // fixed amount is not precise, so we jump to just past the loading
-        // indicator so the first new-old message is visible.
-        final pos = _scrollController.position;
-        // We want to scroll down by the approximate height of prepended items.
-        // Use a small fixed offset so the user sees the "join" point.
-        const estimatedItemHeight = 60.0;
-        final delta = prepended * estimatedItemHeight;
-        final target = (pos.pixels + delta).clamp(
-          pos.minScrollExtent,
-          pos.maxScrollExtent,
-        );
-        _scrollController.jumpTo(target);
-      });
-    } else {
-      // New message arrived at the bottom.
-      if (_isNearBottom()) {
-        _scrollToBottom();
-      }
-    }
+    // With reverse: true, new messages appear automatically at 0.0 without jumping.
   }
 
   Future<void> _handleSend() async {
@@ -413,21 +366,17 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        0.0,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
     });
   }
 
-  /// Instantly positions the list at the bottom without animation.
-  /// Used only for the very first load so `maxScrollExtent` is always valid.
   void _jumpToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      _scrollController.jumpTo(
-        _scrollController.position.maxScrollExtent,
-      );
+      _scrollController.jumpTo(0.0);
     });
   }
 
@@ -887,6 +836,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             items.add(_ChatListItem.typing(receiverColor));
           }
 
+          final reversedItems = items.reversed.toList();
+
           return Column(
             children: [
               Expanded(
@@ -896,15 +847,14 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       ? const Center(child: CircularProgressIndicator())
                       : ListView.builder(
                           controller: _scrollController,
+                          reverse: true,
                           physics: const AlwaysScrollableScrollPhysics(
                             parent: BouncingScrollPhysics(),
                           ),
                           padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-                          // +1 for the top pagination header (loading / all-loaded)
-                          itemCount: items.length + 1,
+                          itemCount: reversedItems.length + 1,
                           itemBuilder: (context, index) {
-                            // Index 0 is always the top header.
-                            if (index == 0) {
+                            if (index == reversedItems.length) {
                               if (chatProvider.isLoadingOlderMessages) {
                                 return const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 12),
@@ -938,7 +888,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                               }
                               return const SizedBox.shrink();
                             }
-                            final item = items[index - 1];
+                            final item = reversedItems[index];
                             if (item.isSeparator) {
                               return _DateSeparator(
                                 label: item.separatorLabel!,
