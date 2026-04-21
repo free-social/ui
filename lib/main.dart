@@ -9,6 +9,7 @@ import 'providers/chat_provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/wallet_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/sport_provider.dart';
 import 'screens/chat_call_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
@@ -41,6 +42,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => WalletProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => SportProvider()),
       ],
       child: const MyApp(),
     ),

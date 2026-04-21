@@ -12,6 +12,7 @@ import '../providers/theme_provider.dart';
 import 'change_password_screen.dart';
 import 'login_screen.dart';
 import 'update_user_profile.dart';
+import 'sport_tracking_screen.dart';
 
 // How far the profile card hangs below the gradient band.
 const double _cardOverlap = 56.0;
@@ -220,6 +221,28 @@ class UserProfileScreen extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const ChangePasswordScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // Activity Tracker
+                      _SectionLabel('Activity Tracker'),
+                      const SizedBox(height: AppSpacing.sm),
+                      _Card(
+                        children: [
+                          _Tile(
+                            icon: Icons.directions_run_rounded,
+                            iconColor: Colors.green,
+                            title: 'Track Sport',
+                            subtitle: 'Record running or cycling activity',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SportTrackingScreen(),
                               ),
                             ),
                           ),
