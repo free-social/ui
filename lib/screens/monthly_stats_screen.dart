@@ -137,7 +137,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      height: 180.0,
+                      height: MediaQuery.of(context).size.height * 0.22,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(

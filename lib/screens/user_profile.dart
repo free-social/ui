@@ -16,7 +16,6 @@ import 'update_user_profile.dart';
 // How far the profile card hangs below the gradient band.
 const double _cardOverlap = 56.0;
 // Height of the teal gradient band.
-const double _headerHeight = 180.0;
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -54,7 +53,7 @@ class UserProfileScreen extends StatelessWidget {
             children: [
               // Teal gradient band
               Container(
-                height: _headerHeight,
+                height: MediaQuery.of(context).size.height * 0.22,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,

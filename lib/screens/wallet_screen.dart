@@ -273,7 +273,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      height: 180.0,
+                      height: MediaQuery.of(context).size.height * 0.22,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
