@@ -105,6 +105,7 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
               children: [
                 Container(
                   height: 180.0,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,

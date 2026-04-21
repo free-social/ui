@@ -63,6 +63,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Container(
                     height: 180.0,
+                    width: double.infinity,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,

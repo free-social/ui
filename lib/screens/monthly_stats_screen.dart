@@ -80,125 +80,107 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
       child: Scaffold(
         backgroundColor: scaffoldBg,
-        body: Column(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
+        body: Builder(
+          builder: (context) {
+            final isStatsLoading = context.select<ExpenseProvider, bool>(
+              (provider) => provider.isStatsLoading,
+            );
+            final rawData = context.select<ExpenseProvider, dynamic>(
+              (provider) =>
+                  _isDailyView ? provider.dailySummary : provider.monthlySummary,
+            );
+
+            List<dynamic> rawTransactions = [];
+            if (rawData is Map && rawData.containsKey('data')) {
+              rawTransactions = rawData['data']['transactions'] ?? [];
+            }
+
+            Map<String, double> categoryTotals = {};
+            double totalSpent = 0.0;
+
+            for (var tx in rawTransactions) {
+              final double amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+              final String category =
+                  tx['category']?.toString().toLowerCase() ?? 'other';
+
+              if (amount > 0) {
+                totalSpent += amount;
+                categoryTotals[category] =
+                    (categoryTotals[category] ?? 0) + amount;
+              }
+            }
+
+            List<Map<String, dynamic>> uiList = categoryTotals.entries
+                .map(
+                  (e) => {
+                    'category': e.key,
+                    'amount': e.value,
+                    'color': _getCategoryColor(e.key),
+                  },
+                )
+                .toList();
+            uiList.sort(
+              (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
+            );
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  height: 180.0,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [theme.colorScheme.primary, AppColors.accent],
-                    ),
-                  ),
-                ),
-                SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
-                      vertical: AppSpacing.sm,
-                    ),
-                    child: Center(
-                      child: Text(
-                        "Spending Summary",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      height: 250.0,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [theme.colorScheme.primary, AppColors.accent],
                         ),
                       ),
                     ),
-                  ),
+
+                    Positioned(
+                      left: AppSpacing.xl,
+                      right: AppSpacing.xl,
+                      bottom: -80.0,
+                      child: isStatsLoading
+                          ? _buildSkeletonOverviewCard(cardColor, isDark)
+                          : _buildOverviewCard(
+                              categories: uiList,
+                              totalSpent: totalSpent,
+                              textColor: textColor,
+                              subTextColor: subTextColor,
+                              cardColor: cardColor,
+                            ),
+                    ),
+                  ],
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: -25.0,
-                  child: _buildToggleBar(cardColor, textColor),
-                ),
-              ],
-            ),
-            const SizedBox(height: 25.0 + AppSpacing.md),
-            Expanded(
-              child: Builder(
-                builder: (context) {
-                  final isStatsLoading = context.select<ExpenseProvider, bool>(
-                    (provider) => provider.isStatsLoading,
-                  );
-                  final rawData = context.select<ExpenseProvider, dynamic>(
-                    (provider) =>
-                        _isDailyView ? provider.dailySummary : provider.monthlySummary,
-                  );
-
-                  if (isStatsLoading) {
-                    return _buildSkeletonLoading(
-                      cardColor,
-                      textColor,
-                      subTextColor,
-                      isDark,
-                    );
-                  }
-
-                  List<dynamic> rawTransactions = [];
-                  if (rawData is Map && rawData.containsKey('data')) {
-                    rawTransactions = rawData['data']['transactions'] ?? [];
-                  }
-
-                  Map<String, double> categoryTotals = {};
-                  double totalSpent = 0.0;
-
-                  for (var tx in rawTransactions) {
-                    final double amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
-                    final String category =
-                        tx['category']?.toString().toLowerCase() ?? 'other';
-
-                    if (amount > 0) {
-                      totalSpent += amount;
-                      categoryTotals[category] =
-                          (categoryTotals[category] ?? 0) + amount;
-                    }
-                  }
-
-                  List<Map<String, dynamic>> uiList = categoryTotals.entries
-                      .map(
-                        (e) => {
-                          'category': e.key,
-                          'amount': e.value,
-                          'color': _getCategoryColor(e.key),
-                        },
-                      )
-                      .toList();
-                  uiList.sort(
-                    (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
-                  );
-
-                  return RefreshIndicator(
+                const SizedBox(height: 80.0 + AppSpacing.xl),
+                Expanded(
+                  child: RefreshIndicator(
                     onRefresh: _fetchData,
                     color: kPrimaryColor,
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, 120),
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, 120),
                       children: [
-                        _buildDateSelector(textColor, subTextColor),
-                        const SizedBox(height: AppSpacing.lg),
-                        _buildOverviewCard(
-                          categories: uiList,
-                          totalSpent: totalSpent,
-                          textColor: textColor,
-                          subTextColor: subTextColor,
-                          cardColor: cardColor,
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
                         _buildCategoryHeader(textColor, subTextColor, uiList.length),
                         const SizedBox(height: AppSpacing.md),
-                        if (uiList.isEmpty)
-                          SizedBox(height: 220, child: _buildEmptyState(subTextColor))
+                        if (isStatsLoading)
+                          ...List.generate(
+                            4,
+                            (_) => _buildSkeletonCategoryRow(
+                              isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                              highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+                              cardColor: cardColor,
+                            ),
+                          )
+                        else if (uiList.isEmpty)
+                          SizedBox(height: 180, child: _buildEmptyState(subTextColor))
                         else
                           ...uiList.map(
                             (item) => _buildStatRow(
@@ -214,11 +196,11 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                           ),
                       ],
                     ),
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -229,28 +211,21 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
   Widget _buildToggleBar(Color bgColor, Color textColor) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 0),
-      height: 50,
+      height: 48,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         children: [
-          _buildToggleButton("Daily", true),
-          _buildToggleButton("Monthly", false),
+          _buildToggleButton("Daily", true, textColor),
+          _buildToggleButton("Monthly", false, textColor),
         ],
       ),
     );
   }
 
-  Widget _buildToggleButton(String label, bool isDailyBtn) {
+  Widget _buildToggleButton(String label, bool isDailyBtn, Color textColor) {
     final bool isActive = _isDailyView == isDailyBtn;
     return Expanded(
       child: GestureDetector(
@@ -258,15 +233,15 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         child: Container(
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: isActive ? kPrimaryColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(22),
+            color: isActive ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Center(
             child: Text(
               label,
               style: TextStyle(
-                color: isActive ? Colors.white : Colors.grey,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                color: isActive ? kPrimaryColor : textColor,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
               ),
             ),
           ),
@@ -275,7 +250,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     );
   }
 
-  Widget _buildDateSelector(Color textColor, Color subTextColor) {
+  Widget _buildDateSelector(Color textColor) {
     String label;
     if (_isDailyView) {
       label = DateFormat('EEE, MMM d').format(_currentDate);
@@ -283,37 +258,29 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
       label = DateFormat('MMMM yyyy').format(_currentDate);
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        // border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildDateChevron(
-            icon: Icons.chevron_left,
-            onTap: () => _changeDate(-1),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildDateChevron(
+          icon: Icons.chevron_left,
+          onTap: () => _changeDate(-1),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: textColor,
           ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ),
-          const SizedBox(width: 8),
-          _buildDateChevron(
-            icon: Icons.chevron_right,
-            onTap: () => _changeDate(1),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        _buildDateChevron(
+          icon: Icons.chevron_right,
+          onTap: () => _changeDate(1),
+        ),
+      ],
     );
   }
 
@@ -322,15 +289,15 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: kPrimaryColor.withValues(alpha: 0.12),
+      color: Colors.white.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(icon, color: kPrimaryColor),
+          width: 36,
+          height: 36,
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
       ),
     );
@@ -344,10 +311,6 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     required Color cardColor,
   }) {
     final topCategory = categories.isEmpty ? null : categories.first;
-    final topCategoryAmount = (topCategory?['amount'] as double?) ?? 0.0;
-    final topCategoryShare = totalSpent == 0
-        ? 0
-        : ((topCategoryAmount / totalSpent) * 100).round();
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -394,49 +357,12 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                             ),
                       textColor: textColor,
                       subTextColor: subTextColor,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSummaryMetric(
-                      label: 'Share',
-                      value: topCategory == null ? '0%' : '$topCategoryShare%',
-                      textColor: textColor,
-                      subTextColor: subTextColor,
-                    ),
+                    ),      
                   ],
                 ),
               ),
             ],
           ),
-          if (topCategory != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: (topCategory['color'] as Color).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _getCategoryIcon(topCategory['category'] as String),
-                    color: topCategory['color'] as Color,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '${_formatCategoryName(topCategory['category'] as String)} leads this ${_isDailyView ? 'day' : 'month'}',
-                      style: TextStyle(
-                        color: textColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -717,107 +643,57 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
   }
 
   // Skeleton Loading Widgets
-  Widget _buildSkeletonLoading(
-    Color cardColor,
-    Color textColor,
-    Color subTextColor,
-    bool isDark,
-  ) {
+  Widget _buildSkeletonOverviewCard(Color cardColor, bool isDark) {
     final shimmerBaseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
     final shimmerHighlightColor = isDark
         ? Colors.grey[700]!
         : Colors.grey[100]!;
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, 120),
-      children: [
-        Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 132,
+            height: 132,
             decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(18),
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  shimmerBaseColor,
+                  shimmerHighlightColor,
+                  shimmerBaseColor,
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
               children: [
-                _buildSkeletonDateChevron(shimmerBaseColor),
-                const SizedBox(width: 8),
-                Container(
-                  width: 124,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        shimmerBaseColor,
-                        shimmerHighlightColor,
-                        shimmerBaseColor,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _buildSkeletonDateChevron(shimmerBaseColor),
+                _buildSkeletonSummaryLine(shimmerBaseColor, 90, 12),
+                const SizedBox(height: 8),
+                _buildSkeletonSummaryLine(shimmerBaseColor, 120, 20),
+                const SizedBox(height: 14),
+                _buildSkeletonSummaryLine(shimmerBaseColor, 80, 12),
+                const SizedBox(height: 8),
+                _buildSkeletonSummaryLine(shimmerBaseColor, 100, 20),
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 132,
-                height: 132,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [
-                      shimmerBaseColor,
-                      shimmerHighlightColor,
-                      shimmerBaseColor,
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildSkeletonSummaryLine(shimmerBaseColor, 90, 12),
-                    const SizedBox(height: 8),
-                    _buildSkeletonSummaryLine(shimmerBaseColor, 120, 20),
-                    const SizedBox(height: 14),
-                    _buildSkeletonSummaryLine(shimmerBaseColor, 80, 12),
-                    const SizedBox(height: 8),
-                    _buildSkeletonSummaryLine(shimmerBaseColor, 100, 20),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildCategoryHeader(textColor, subTextColor, 0),
-        const SizedBox(height: 10),
-        ...List.generate(
-          4,
-          (_) => _buildSkeletonCategoryRow(
-            shimmerBaseColor,
-            highlightColor: shimmerHighlightColor,
-            cardColor: cardColor,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
