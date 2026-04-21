@@ -357,7 +357,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                 ),
                                 const SizedBox(height: AppSpacing.xl),
                                 Text(
-                                  'Quick actions',
+                                  'Actions',
                                   style: theme.textTheme.titleLarge,
                                 ),
                                 const SizedBox(height: AppSpacing.md),
