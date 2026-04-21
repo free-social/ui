@@ -142,9 +142,15 @@ class ChatService {
     try {
       final response = await _apiService.client.get('/chat/friends');
 
-      return (response.data['friends'] as List<dynamic>? ?? [])
-          .map((item) => ChatUser.fromJson(item as Map<String, dynamic>))
-          .toList();
+      return (response.data['friends'] as List<dynamic>? ?? []).map((item) {
+        final data = item as Map<String, dynamic>;
+        final friendData = (data['friend'] as Map<String, dynamic>?) ?? {};
+        return ChatUser.fromJson({
+          ...friendData,
+          'relationshipStatus': 'friend',
+          'conversationId': data['conversationId']?.toString() ?? '',
+        });
+      }).toList();
     } catch (e) {
       return _handleFetchError<List<ChatUser>>(
         e,
