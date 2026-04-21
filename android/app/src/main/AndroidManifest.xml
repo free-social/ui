@@ -5,8 +5,9 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-    
-
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     
     <application
         android:label="Spendwise"
@@ -40,7 +41,11 @@
             </intent-filter>
             </activity>
         
-
+        <!-- REQUIRED: Foreground service declaration -->
+        <service
+            android:name=".CallService"
+            android:exported="false"
+            android:foregroundServiceType="camera|microphone" />
         
         <meta-data
             android:name="flutterEmbedding"
