@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'dart:math' as math;
+import 'package:fl_chart/fl_chart.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radii.dart';
 import '../core/theme/app_spacing.dart';
@@ -130,7 +130,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      height: 250.0,
+                      height: 180.0,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -153,6 +153,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                               textColor: textColor,
                               subTextColor: subTextColor,
                               cardColor: cardColor,
+                              rawTransactions: rawTransactions,
                             ),
                     ),
                   ],
@@ -168,6 +169,10 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                       ),
                       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, 120),
                       children: [
+                        _buildToggleBar(cardColor, textColor, isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                        const SizedBox(height: 24),
+                        _buildDateSelector(textColor, cardColor),
+                        const SizedBox(height: 32),
                         _buildCategoryHeader(textColor, subTextColor, uiList.length),
                         const SizedBox(height: AppSpacing.md),
                         if (isStatsLoading)
@@ -208,24 +213,31 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
 
   // --- WIDGETS ---
 
-  Widget _buildToggleBar(Color bgColor, Color textColor) {
+  Widget _buildToggleBar(Color cardColor, Color textColor, Color activeColor) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 0),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
       height: 48,
       decoration: BoxDecoration(
-        color: bgColor,
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          _buildToggleButton("Daily", true, textColor),
-          _buildToggleButton("Monthly", false, textColor),
+          _buildToggleButton("Daily", true, textColor, activeColor),
+          _buildToggleButton("Monthly", false, textColor, activeColor),
         ],
       ),
     );
   }
 
-  Widget _buildToggleButton(String label, bool isDailyBtn, Color textColor) {
+  Widget _buildToggleButton(String label, bool isDailyBtn, Color textColor, Color activeColor) {
     final bool isActive = _isDailyView == isDailyBtn;
     return Expanded(
       child: GestureDetector(
@@ -233,7 +245,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         child: Container(
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: isActive ? Colors.white : Colors.transparent,
+            color: isActive ? activeColor : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Center(
@@ -250,7 +262,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     );
   }
 
-  Widget _buildDateSelector(Color textColor) {
+  Widget _buildDateSelector(Color textColor, Color btnColor) {
     String label;
     if (_isDailyView) {
       label = DateFormat('EEE, MMM d').format(_currentDate);
@@ -265,20 +277,24 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         _buildDateChevron(
           icon: Icons.chevron_left,
           onTap: () => _changeDate(-1),
+          btnColor: btnColor,
+          iconColor: textColor,
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 16),
         Text(
           label,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
             color: textColor,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 16),
         _buildDateChevron(
           icon: Icons.chevron_right,
           onTap: () => _changeDate(1),
+          btnColor: btnColor,
+          iconColor: textColor,
         ),
       ],
     );
@@ -287,17 +303,21 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
   Widget _buildDateChevron({
     required IconData icon,
     required VoidCallback onTap,
+    required Color btnColor,
+    required Color iconColor,
   }) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.15),
+      color: btnColor,
       borderRadius: BorderRadius.circular(14),
+      shadowColor: Colors.black.withValues(alpha: 0.05),
+      elevation: 2,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(icon, color: Colors.white, size: 20),
+          width: 42,
+          height: 42,
+          child: Icon(icon, color: iconColor, size: 24),
         ),
       ),
     );
@@ -309,8 +329,39 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     required Color textColor,
     required Color subTextColor,
     required Color cardColor,
+    required List<dynamic> rawTransactions,
   }) {
     final topCategory = categories.isEmpty ? null : categories.first;
+
+    List<FlSpot> spots = [];
+    double maxY = 0;
+    if (rawTransactions.isNotEmpty) {
+      Map<int, double> timeGroups = {};
+      for (var tx in rawTransactions) {
+        final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
+        final dateStr = tx['date'] ?? tx['createdAt'];
+        if (dateStr != null && amount > 0) {
+          DateTime dt = DateTime.tryParse(dateStr.toString())?.toLocal() ?? DateTime.now();
+          int key = _isDailyView ? dt.hour : dt.day;
+          timeGroups[key] = (timeGroups[key] ?? 0) + amount;
+        }
+      }
+      
+      int startKey = _isDailyView ? 0 : 1;
+      int endKey = _isDailyView ? 23 : DateTime(_currentDate.year, _currentDate.month + 1, 0).day;
+      
+      for (int i = startKey; i <= endKey; i++) {
+        final amt = timeGroups[i] ?? 0.0;
+        spots.add(FlSpot(i.toDouble(), amt));
+        if (amt > maxY) maxY = amt;
+      }
+    }
+    
+    if (maxY == 0) maxY = 100;
+    double maxX = _isDailyView ? 23 : DateTime(_currentDate.year, _currentDate.month + 1, 0).day.toDouble();
+    if (spots.isEmpty) {
+      spots = [FlSpot(0, 0), FlSpot(maxX, 0)];
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -326,42 +377,100 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildDynamicRing(
-                categories,
-                totalSpent,
-                textColor,
-                subTextColor,
+              _buildSummaryMetric(
+                label: 'Total spent',
+                value: '\$${NumberFormat("#,##0").format(totalSpent)}',
+                textColor: textColor,
+                subTextColor: subTextColor,
+                crossAxisAlignment: CrossAxisAlignment.start,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSummaryMetric(
-                      label: 'Total spent',
-                      value: '\$${NumberFormat("#,##0").format(totalSpent)}',
-                      textColor: textColor,
-                      subTextColor: subTextColor,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSummaryMetric(
-                      label: 'Top category',
-                      value: topCategory == null
-                          ? 'No data'
-                          : _formatCategoryName(
-                              topCategory['category'] as String,
-                            ),
-                      textColor: textColor,
-                      subTextColor: subTextColor,
-                    ),      
-                  ],
+              if (topCategory != null)
+                _buildSummaryMetric(
+                  label: 'Top category',
+                  value: _formatCategoryName(topCategory['category'] as String),
+                  textColor: textColor,
+                  subTextColor: subTextColor,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                 ),
-              ),
             ],
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 60,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(show: false),
+                titlesData: FlTitlesData(
+                  show: true,
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 22,
+                      getTitlesWidget: (value, meta) {
+                        // For daily view we show some hour labels, monthly we show days
+                        if (_isDailyView && (value % 6 != 0)) return const SizedBox.shrink();
+                        if (!_isDailyView && (value % 5 != 0 && value != 1)) return const SizedBox.shrink();
+                        
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            value.toInt().toString(),
+                            style: TextStyle(color: subTextColor, fontSize: 10),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                minX: _isDailyView ? 0 : 1,
+                maxX: maxX,
+                minY: 0,
+                maxY: maxY * 1.2,
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => textColor.withValues(alpha: 0.8),
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((LineBarSpot touchedSpot) {
+                        return LineTooltipItem(
+                          '\$${touchedSpot.y.toStringAsFixed(0)}',
+                          TextStyle(color: cardColor, fontWeight: FontWeight.bold),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    color: kPrimaryColor,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          kPrimaryColor.withValues(alpha: 0.3),
+                          kPrimaryColor.withValues(alpha: 0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -373,9 +482,10 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     required String value,
     required Color textColor,
     required Color subTextColor,
+    CrossAxisAlignment crossAxisAlignment = CrossAxisAlignment.start,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: crossAxisAlignment,
       children: [
         Text(label, style: TextStyle(color: subTextColor, fontSize: 12)),
         const SizedBox(height: 2),
@@ -388,52 +498,6 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDynamicRing(
-    List<Map<String, dynamic>> categories,
-    double total,
-    Color mainText,
-    Color subText,
-  ) {
-    return SizedBox(
-      width: 132,
-      height: 132,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 132,
-            height: 132,
-            child: CustomPaint(
-              painter: MultiSegmentPainter(
-                categories: categories,
-                total: total,
-                strokeWidth: 14,
-              ),
-            ),
-          ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "Total Spent",
-                style: TextStyle(color: subText, fontSize: 11),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                "\$${NumberFormat.compactCurrency(symbol: '', decimalDigits: 0).format(total)}",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: mainText,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -662,13 +726,36 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSkeletonSummaryLine(shimmerBaseColor, 80, 12),
+                  const SizedBox(height: 4),
+                  _buildSkeletonSummaryLine(shimmerBaseColor, 120, 20),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _buildSkeletonSummaryLine(shimmerBaseColor, 80, 12, alignment: Alignment.centerRight),
+                  const SizedBox(height: 4),
+                  _buildSkeletonSummaryLine(shimmerBaseColor, 100, 16, alignment: Alignment.centerRight),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           Container(
-            width: 132,
-            height: 132,
+            height: 100,
+            width: double.infinity,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(12),
               gradient: LinearGradient(
                 colors: [
                   shimmerBaseColor,
@@ -678,28 +765,14 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              children: [
-                _buildSkeletonSummaryLine(shimmerBaseColor, 90, 12),
-                const SizedBox(height: 8),
-                _buildSkeletonSummaryLine(shimmerBaseColor, 120, 20),
-                const SizedBox(height: 14),
-                _buildSkeletonSummaryLine(shimmerBaseColor, 80, 12),
-                const SizedBox(height: 8),
-                _buildSkeletonSummaryLine(shimmerBaseColor, 100, 20),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildSkeletonSummaryLine(Color color, double width, double height) {
+  Widget _buildSkeletonSummaryLine(Color color, double width, double height, {Alignment alignment = Alignment.centerLeft}) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: alignment,
       child: Container(
         width: width,
         height: height,
@@ -814,43 +887,4 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
       ),
     );
   }
-}
-
-class MultiSegmentPainter extends CustomPainter {
-  final List<Map<String, dynamic>> categories;
-  final double total;
-  final double strokeWidth;
-
-  MultiSegmentPainter({
-    required this.categories,
-    required this.total,
-    required this.strokeWidth,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (total <= 0) return;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) - (strokeWidth / 2);
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    double startAngle = -math.pi / 2;
-
-    for (var cat in categories) {
-      final sweepAngle = (cat['amount'] / total) * 2 * math.pi;
-
-      final paint = Paint()
-        ..color = cat['color']
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.butt;
-
-      canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
-      startAngle += sweepAngle;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant MultiSegmentPainter oldDelegate) => true;
 }

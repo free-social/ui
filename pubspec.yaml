@@ -30,6 +30,7 @@ dependencies:
   image_gallery_saver_plus: ^4.0.1
   cached_network_image: ^3.4.1
   connectivity_plus: ^7.1.1
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

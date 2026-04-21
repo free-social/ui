@@ -249,7 +249,7 @@ class _WalletScreenState extends State<WalletScreen> {
               (sum, transaction) => sum + transaction.amount,
             );
 
-            final currentMonth = DateFormat('MMMM y').format(DateTime.now());
+            // final currentMonth = DateFormat('MMMM y').format(DateTime.now());
             final previousMonth = DateFormat('MMM').format(
               DateTime(DateTime.now().year, DateTime.now().month - 1),
             );
