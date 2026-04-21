@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../core/theme/app_colors.dart';
-import '../core/theme/app_radii.dart';
 import '../core/theme/app_spacing.dart';
 import '../providers/expense_provider.dart';
 
@@ -76,8 +75,12 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark
-          ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
-          : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+          ? SystemUiOverlayStyle.light.copyWith(
+              statusBarColor: Colors.transparent,
+            )
+          : SystemUiOverlayStyle.dark.copyWith(
+              statusBarColor: Colors.transparent,
+            ),
       child: Scaffold(
         backgroundColor: scaffoldBg,
         body: Builder(
@@ -86,8 +89,9 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               (provider) => provider.isStatsLoading,
             );
             final rawData = context.select<ExpenseProvider, dynamic>(
-              (provider) =>
-                  _isDailyView ? provider.dailySummary : provider.monthlySummary,
+              (provider) => _isDailyView
+                  ? provider.dailySummary
+                  : provider.monthlySummary,
             );
 
             List<dynamic> rawTransactions = [];
@@ -120,7 +124,8 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                 )
                 .toList();
             uiList.sort(
-              (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
+              (a, b) =>
+                  (b['amount'] as double).compareTo(a['amount'] as double),
             );
 
             return Column(
@@ -167,25 +172,43 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, 120),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.xl,
+                        0,
+                        AppSpacing.xl,
+                        120,
+                      ),
                       children: [
-                        _buildToggleBar(cardColor, textColor, isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                        _buildToggleBar(
+                          cardColor,
+                          textColor,
+                          isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                        ),
                         const SizedBox(height: 24),
                         _buildDateSelector(textColor, cardColor),
                         const SizedBox(height: 32),
-                        _buildCategoryHeader(textColor, subTextColor, uiList.length),
+                        _buildCategoryHeader(
+                          textColor,
+                          subTextColor,
+                          uiList.length,
+                        ),
                         const SizedBox(height: AppSpacing.md),
                         if (isStatsLoading)
                           ...List.generate(
                             4,
                             (_) => _buildSkeletonCategoryRow(
                               isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                              highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+                              highlightColor: isDark
+                                  ? Colors.grey[700]!
+                                  : Colors.grey[100]!,
                               cardColor: cardColor,
                             ),
                           )
                         else if (uiList.isEmpty)
-                          SizedBox(height: 180, child: _buildEmptyState(subTextColor))
+                          SizedBox(
+                            height: 180,
+                            child: _buildEmptyState(subTextColor),
+                          )
                         else
                           ...uiList.map(
                             (item) => _buildStatRow(
@@ -237,7 +260,12 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     );
   }
 
-  Widget _buildToggleButton(String label, bool isDailyBtn, Color textColor, Color activeColor) {
+  Widget _buildToggleButton(
+    String label,
+    bool isDailyBtn,
+    Color textColor,
+    Color activeColor,
+  ) {
     final bool isActive = _isDailyView == isDailyBtn;
     return Expanded(
       child: GestureDetector(
@@ -341,26 +369,32 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
         final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
         final dateStr = tx['date'] ?? tx['createdAt'];
         if (dateStr != null && amount > 0) {
-          DateTime dt = DateTime.tryParse(dateStr.toString())?.toLocal() ?? DateTime.now();
+          DateTime dt =
+              DateTime.tryParse(dateStr.toString())?.toLocal() ??
+              DateTime.now();
           int key = _isDailyView ? dt.hour : dt.day;
           timeGroups[key] = (timeGroups[key] ?? 0) + amount;
         }
       }
-      
+
       int startKey = _isDailyView ? 0 : 1;
-      int endKey = _isDailyView ? 23 : DateTime(_currentDate.year, _currentDate.month + 1, 0).day;
-      
+      int endKey = _isDailyView
+          ? 23
+          : DateTime(_currentDate.year, _currentDate.month + 1, 0).day;
+
       for (int i = startKey; i <= endKey; i++) {
         final amt = timeGroups[i] ?? 0.0;
         spots.add(FlSpot(i.toDouble(), amt));
         if (amt > maxY) maxY = amt;
       }
     }
-    
+
     if (maxY == 0) maxY = 100;
-    double maxX = _isDailyView ? 23 : DateTime(_currentDate.year, _currentDate.month + 1, 0).day.toDouble();
+    double maxX = _isDailyView
+        ? 23
+        : DateTime(_currentDate.year, _currentDate.month + 1, 0).day.toDouble();
     if (spots.isEmpty) {
-      spots = [FlSpot(0, 0), FlSpot(maxX, 0)];
+      spots = [const FlSpot(0, 0), FlSpot(maxX, 0)];
     }
 
     return Container(
@@ -404,21 +438,31 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
             height: 60,
             child: LineChart(
               LineChartData(
-                gridData: FlGridData(show: false),
+                gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
                   show: true,
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 22,
                       getTitlesWidget: (value, meta) {
                         // For daily view we show some hour labels, monthly we show days
-                        if (_isDailyView && (value % 6 != 0)) return const SizedBox.shrink();
-                        if (!_isDailyView && (value % 5 != 0 && value != 1)) return const SizedBox.shrink();
-                        
+                        if (_isDailyView && (value % 6 != 0)) {
+                          return const SizedBox.shrink();
+                        }
+                        if (!_isDailyView && (value % 5 != 0 && value != 1)) {
+                          return const SizedBox.shrink();
+                        }
+
                         return Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
@@ -442,7 +486,10 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                       return touchedSpots.map((LineBarSpot touchedSpot) {
                         return LineTooltipItem(
                           '\$${touchedSpot.y.toStringAsFixed(0)}',
-                          TextStyle(color: cardColor, fontWeight: FontWeight.bold),
+                          TextStyle(
+                            color: cardColor,
+                            fontWeight: FontWeight.bold,
+                          ),
                         );
                       }).toList();
                     },
@@ -455,7 +502,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                     color: kPrimaryColor,
                     barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: FlDotData(show: false),
+                    dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
                       gradient: LinearGradient(
@@ -743,9 +790,19 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildSkeletonSummaryLine(shimmerBaseColor, 80, 12, alignment: Alignment.centerRight),
+                  _buildSkeletonSummaryLine(
+                    shimmerBaseColor,
+                    80,
+                    12,
+                    alignment: Alignment.centerRight,
+                  ),
                   const SizedBox(height: 4),
-                  _buildSkeletonSummaryLine(shimmerBaseColor, 100, 16, alignment: Alignment.centerRight),
+                  _buildSkeletonSummaryLine(
+                    shimmerBaseColor,
+                    100,
+                    16,
+                    alignment: Alignment.centerRight,
+                  ),
                 ],
               ),
             ],
@@ -755,14 +812,16 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
             height: 60,
             child: LineChart(
               LineChartData(
-                gridData: FlGridData(show: false),
-                titlesData: FlTitlesData(show: false),
+                gridData: const FlGridData(show: false),
+                titlesData: const FlTitlesData(show: false),
                 borderData: FlBorderData(show: false),
                 minX: 0,
                 maxX: 6,
                 minY: 0,
                 maxY: 10,
-                lineTouchData: LineTouchData(enabled: false), // disable tooltips for skeleton
+                lineTouchData: const LineTouchData(
+                  enabled: false,
+                ), // disable tooltips for skeleton
                 lineBarsData: [
                   LineChartBarData(
                     spots: const [
@@ -778,7 +837,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                     color: shimmerHighlightColor,
                     barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: FlDotData(show: false),
+                    dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
                       gradient: LinearGradient(
@@ -800,7 +859,12 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
     );
   }
 
-  Widget _buildSkeletonSummaryLine(Color color, double width, double height, {Alignment alignment = Alignment.centerLeft}) {
+  Widget _buildSkeletonSummaryLine(
+    Color color,
+    double width,
+    double height, {
+    Alignment alignment = Alignment.centerLeft,
+  }) {
     return Align(
       alignment: alignment,
       child: Container(
@@ -810,17 +874,6 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
           color: color,
           borderRadius: BorderRadius.circular(6),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSkeletonDateChevron(Color color) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(14),
       ),
     );
   }
