@@ -216,17 +216,19 @@ class _CallControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(28),
-      child: Ink(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          shape: BoxShape.circle,
+    return Material(
+      color: backgroundColor,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.hardEdge,
+      child: InkWell(
+        onTap: onPressed,
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: Center(
+            child: Icon(icon, color: Colors.white),
+          ),
         ),
-        child: Icon(icon, color: Colors.white),
       ),
     );
   }

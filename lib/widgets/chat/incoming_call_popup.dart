@@ -112,17 +112,19 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Ink(
-        width: 54,
-        height: 54,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          shape: BoxShape.circle,
+    return Material(
+      color: backgroundColor,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.hardEdge,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 54,
+          height: 54,
+          child: Center(
+            child: Icon(icon, color: Colors.white, size: 28),
+          ),
         ),
-        child: Icon(icon, color: Colors.white, size: 28),
       ),
     );
   }
