@@ -751,16 +751,46 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          Container(
-            height: 100,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                colors: [
-                  shimmerBaseColor,
-                  shimmerHighlightColor,
-                  shimmerBaseColor,
+          SizedBox(
+            height: 60,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(show: false),
+                titlesData: FlTitlesData(show: false),
+                borderData: FlBorderData(show: false),
+                minX: 0,
+                maxX: 6,
+                minY: 0,
+                maxY: 10,
+                lineTouchData: LineTouchData(enabled: false), // disable tooltips for skeleton
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: const [
+                      FlSpot(0, 3),
+                      FlSpot(1, 5),
+                      FlSpot(2, 4),
+                      FlSpot(3, 8),
+                      FlSpot(4, 5),
+                      FlSpot(5, 7),
+                      FlSpot(6, 6),
+                    ],
+                    isCurved: true,
+                    color: shimmerHighlightColor,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          shimmerBaseColor.withValues(alpha: 0.5),
+                          shimmerBaseColor.withValues(alpha: 0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
