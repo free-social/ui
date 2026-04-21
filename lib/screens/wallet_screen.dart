@@ -366,11 +366,11 @@ class _WalletScreenState extends State<WalletScreen> {
                                     Expanded(
                                       child: _WalletActionCard(
                                         icon: Icons.add_circle_outline_rounded,
-                                        label: 'Add',
+                                        label: 'Add to wallet',
                                         accentColor: AppColors.success,
                                         isHorizontal: true,
                                         onTap: () => _showWalletAmountDialog(
-                                          title: 'Add',
+                                          title: 'Add to wallet',
                                           description:
                                               'Increase the wallet balance by the amount you enter.',
                                           confirmLabel: 'Add',
@@ -678,15 +678,19 @@ class _WalletActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final double iconBoxSize = isHorizontal ? 38 : 52;
+    final double iconSize = isHorizontal ? 20 : 24;
+    final double iconPadding = isHorizontal ? 12 : 16;
+    
     List<Widget> content = [
       Container(
-        width: 52,
-        height: 52,
+        width: iconBoxSize,
+        height: iconBoxSize,
         decoration: BoxDecoration(
           color: accentColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(iconPadding),
         ),
-        child: Icon(icon, color: accentColor),
+        child: Icon(icon, color: accentColor, size: iconSize),
       ),
       SizedBox(
         width: isHorizontal ? AppSpacing.md : 0,
@@ -706,7 +710,9 @@ class _WalletActionCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.lg),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: isHorizontal
+              ? const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm)
+              : const EdgeInsets.all(AppSpacing.lg),
           child: isHorizontal
               ? Row(
                   mainAxisAlignment: MainAxisAlignment.center,
