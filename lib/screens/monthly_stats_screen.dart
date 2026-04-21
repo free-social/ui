@@ -144,7 +144,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                     Positioned(
                       left: AppSpacing.xl,
                       right: AppSpacing.xl,
-                      bottom: -80.0,
+                      bottom: -56.0,
                       child: isStatsLoading
                           ? _buildSkeletonOverviewCard(cardColor, isDark)
                           : _buildOverviewCard(
@@ -158,7 +158,7 @@ class _MonthlyStatsScreenState extends State<MonthlyStatsScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 80.0 + AppSpacing.xl),
+                const SizedBox(height: 56.0 + AppSpacing.xl),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _fetchData,
