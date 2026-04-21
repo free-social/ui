@@ -104,6 +104,12 @@ class PushNotificationService {
         _handleNotificationTap(message.data);
       });
 
+      final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint('FCM initial message: ${jsonEncode(initialMessage.data)}');
+        _handleNotificationTap(initialMessage.data);
+      }
+
       _isFirebaseAvailable = true;
     } catch (error) {
       debugPrint('FCM initialization failed: $error');
@@ -227,29 +233,50 @@ class PushNotificationService {
     );
   }
 
-  void _handleNotificationTap(Map<String, dynamic> data) {
+  Future<void> _handleNotificationTap(Map<String, dynamic> data) async {
     if (data['type'] == 'CHAT_MESSAGE' && data['conversationId'] != null) {
       final conversationId = data['conversationId'] as String;
-      final context = navigatorKey.currentContext;
+      
+      bool appJustStarted = false;
+      BuildContext? context = navigatorKey.currentContext;
+      int retries = 0;
+      
+      while (context == null && retries < 40) {
+        appJustStarted = true;
+        await Future.delayed(const Duration(milliseconds: 250));
+        context = navigatorKey.currentContext;
+        retries++;
+      }
 
       if (context != null) {
+        if (appJustStarted) {
+          // Wait for splash screen (1400ms) and auth logic to complete
+          // before pushing the chat screen.
+          await Future.delayed(const Duration(milliseconds: 2000));
+        }
+
         final chatProvider = context.read<ChatProvider>();
         
         // Find existing conversation in inbox
-        final existingConv = chatProvider.conversations
+        var existingConv = chatProvider.conversations
             .where((c) => c.id == conversationId)
             .firstOrNull;
             
+        if (existingConv == null) {
+          try {
+            await chatProvider.loadInbox(forceSearchRefresh: true);
+            existingConv = chatProvider.conversations
+                .where((c) => c.id == conversationId)
+                .firstOrNull;
+          } catch (_) {}
+        }
+
         if (existingConv != null) {
           navigatorKey.currentState?.push(
             MaterialPageRoute(
-              builder: (_) => ChatConversationScreen(conversation: existingConv),
+              builder: (_) => ChatConversationScreen(conversation: existingConv!),
             ),
           );
-        } else {
-          // If we don't have the conversation loaded yet, we could trigger a fetch, 
-          // but for now let's just refresh the inbox and let the user see it.
-          chatProvider.loadInbox(forceSearchRefresh: true);
         }
       }
     }
