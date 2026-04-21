@@ -423,101 +423,12 @@ class _WalletScreenState extends State<WalletScreen> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: AppSpacing.xl),
-                                Row(
-                                  children: [
-                                    Text(
-                                      'Recents',
-                                      style: theme.textTheme.titleLarge,
-                                    ),
-                                    const Spacer(),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.md,
-                                        vertical: AppSpacing.sm,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: theme
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(
-                                          AppRadii.pill,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        '${transactions.length} items',
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                              
                                 const SizedBox(height: AppSpacing.md),
                               ],
                             ),
                           ),
                         ),
-                        if (transactions.isEmpty)
-                          const SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: _WalletEmptyState(),
-                          )
-                        else
-                          SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.xl,
-                              0,
-                              AppSpacing.xl,
-                              120,
-                            ),
-                            sliver: SliverList.separated(
-                              itemCount: transactions.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: AppSpacing.md),
-                              itemBuilder: (context, index) {
-                                final transaction = transactions[index];
-                                return Card(
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: AppSpacing.lg,
-                                      vertical: AppSpacing.sm,
-                                    ),
-                                    leading: Container(
-                                      width: 46,
-                                      height: 46,
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.primary
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: Icon(
-                                        Icons.payments_outlined,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ),
-                                    title: Text(
-                                      transaction.description.isNotEmpty
-                                          ? transaction.description
-                                          : 'Wallet movement',
-                                      style: theme.textTheme.titleMedium,
-                                    ),
-                                    subtitle: Text(
-                                      DateFormat(
-                                        'MMM d, y • h:mm a',
-                                      ).format(transaction.date),
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                    trailing: Text(
-                                      '\$${transaction.amount.toStringAsFixed(2)}',
-                                      style: theme.textTheme.titleMedium,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -820,55 +731,3 @@ class _WalletMessageState extends StatelessWidget {
   }
 }
 
-class _WalletEmptyState extends StatelessWidget {
-  const _WalletEmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: theme.dividerColor),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: scheme.primary,
-                  size: 34,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                'No wallet transactions yet',
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Use the actions above to add funds or set your first wallet balance.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
