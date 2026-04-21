@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../utils/auth_image_headers.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radii.dart';
@@ -348,7 +348,7 @@ class _ProfileCard extends StatelessWidget {
               radius: 32,
               backgroundColor: scheme.primary.withValues(alpha: 0.12),
               backgroundImage:
-                  hasAvatar ? CachedNetworkImageProvider(avatarUrl) : null,
+                  hasAvatar ? authImageProvider(avatarUrl) : null,
               child: !hasAvatar
                   ? Icon(
                       Icons.person_rounded,

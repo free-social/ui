@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../utils/auth_image_headers.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radii.dart';
@@ -168,7 +168,7 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                               backgroundImage: _imageFile != null
                                   ? FileImage(_imageFile!)
                                   : (user?.avatar != null && user!.avatar.isNotEmpty)
-                                      ? CachedNetworkImageProvider(user.avatar)
+                                      ? authImageProvider(user.avatar)
                                       : null,
                               child: (_imageFile == null &&
                                       (user?.avatar == null || user!.avatar.isEmpty))

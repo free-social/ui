@@ -8,6 +8,7 @@ import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import '../utils/auth_image_headers.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -563,7 +564,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: CachedNetworkImage(
-                            imageUrl: imageUrl,
+                            imageUrl: toProxyUrl(imageUrl),
+                            httpHeaders: authImageHeaders,
                             fit: BoxFit.contain,
                             placeholder: (context, url) => const SizedBox(
                               width: 240,
@@ -650,9 +652,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   Future<void> _saveImageToGallery(String imageUrl) async {
     try {
+      final proxyUrl = toProxyUrl(imageUrl);
       final response = await Dio().get<List<int>>(
-        imageUrl,
-        options: Options(responseType: ResponseType.bytes),
+        proxyUrl,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: authImageHeaders,
+        ),
       );
 
       final bytes = response.data;
@@ -750,7 +756,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               radius: 20,
               backgroundColor: Colors.white24,
               backgroundImage: friend.avatar.isNotEmpty
-                  ? CachedNetworkImageProvider(friend.avatar)
+                  ? authImageProvider(friend.avatar)
                   : null,
               child: friend.avatar.isEmpty
                   ? const Icon(
@@ -1504,7 +1510,8 @@ class _TelegramBubble extends StatelessWidget {
       child: Stack(
         children: [
           CachedNetworkImage(
-            imageUrl: message.imageUrl,
+            imageUrl: toProxyUrl(message.imageUrl),
+            httpHeaders: authImageHeaders,
             width: double.infinity,
             fit: BoxFit.cover,
             placeholder: (context, url) => Container(
@@ -1753,7 +1760,7 @@ class _TelegramBubble extends StatelessWidget {
                   ? CircleAvatar(
                       radius: 16,
                       backgroundImage: senderAvatarUrl.isNotEmpty
-                          ? CachedNetworkImageProvider(senderAvatarUrl)
+                          ? authImageProvider(senderAvatarUrl)
                           : null,
                       backgroundColor: theme.colorScheme.primary.withValues(
                         alpha: 0.2,

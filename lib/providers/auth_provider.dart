@@ -4,6 +4,7 @@ import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/local_cache_service.dart';
 import '../models/user_model.dart';
+import '../utils/auth_image_headers.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
@@ -30,6 +31,7 @@ class AuthProvider with ChangeNotifier {
 
     if (token != null && userId != null) {
       _isAuthenticated = true;
+      setAuthImageToken(token);
       _user = await _cacheService.getUserProfile(userId);
       notifyListeners();
       try {
@@ -134,6 +136,7 @@ class AuthProvider with ChangeNotifier {
       }
 
       _isAuthenticated = true;
+      await initAuthImageHeaders();
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -205,6 +208,7 @@ class AuthProvider with ChangeNotifier {
       await checkAuthStatus();
 
       _isAuthenticated = true;
+      await initAuthImageHeaders();
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -223,6 +227,7 @@ class AuthProvider with ChangeNotifier {
     }
     _user = null;
     _isAuthenticated = false;
+    setAuthImageToken(null);
     notifyListeners();
   }
 
