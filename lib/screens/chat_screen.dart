@@ -53,7 +53,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
           : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
       child: DefaultTabController(
-        length: 3,
+        length: 4,
         child: Scaffold(
           backgroundColor: scaffoldBg,
           body: Column(
@@ -103,6 +103,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                           tabs: const [
                             Tab(text: 'Chats'),
+                            Tab(text: 'Friends'),
                             Tab(text: 'Find'),
                             Tab(text: 'Requests'),
                           ],
@@ -118,6 +119,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     return TabBarView(
                       children: [
                         _buildChatsTab(context, chatProvider),
+                        _buildFriendsTab(context, chatProvider),
                         _buildFindPeopleTab(context, chatProvider),
                         _buildRequestsTab(context, chatProvider),
                       ],
@@ -128,6 +130,56 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFriendsTab(BuildContext context, ChatProvider chatProvider) {
+    return RefreshIndicator(
+      onRefresh: () => chatProvider.loadInbox(forceSearchRefresh: true),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.xl,
+          AppSpacing.xl,
+          120,
+        ),
+        children: [
+          _buildSectionHeader(
+            context,
+            'Your friends',
+            chatProvider.friends.isEmpty
+                ? 'No friends yet'
+                : '${chatProvider.friends.length} total',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (chatProvider.isLoading && chatProvider.friends.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (chatProvider.friends.isEmpty)
+            _buildEmptyState(
+              context,
+              title: 'No friends found',
+            )
+          else
+            Column(
+              children: chatProvider.friends
+                  .map(
+                    (user) => _buildSearchUserTile(
+                      context,
+                      chatProvider,
+                      user,
+                      isLast: user.id == chatProvider.friends.last.id,
+                    ),
+                  )
+                  .toList(),
+            ),
+        ],
       ),
     );
   }
@@ -303,7 +355,12 @@ class _ChatScreenState extends State<ChatScreen> {
             Column(
               children: chatProvider.searchResults
                   .map(
-                    (user) => _buildSearchUserTile(context, chatProvider, user),
+                    (user) => _buildSearchUserTile(
+                      context,
+                      chatProvider,
+                      user,
+                      isLast: user.id == chatProvider.searchResults.last.id,
+                    ),
                   )
                   .toList(),
             ),
@@ -396,8 +453,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildSearchUserTile(
     BuildContext context,
     ChatProvider chatProvider,
-    ChatUser user,
-  ) {
+    ChatUser user, {
+    bool isLast = false,
+  }) {
     final theme = Theme.of(context);
     final relationshipStatus = user.relationshipStatus;
     final alreadyAdded =
@@ -481,7 +539,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Text(actionLabel),
           ),
         ),
-        if (chatProvider.searchResults.last.id != user.id)
+        if (!isLast)
           Divider(
             height: 1,
             indent: 76,

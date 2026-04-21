@@ -138,6 +138,22 @@ class ChatService {
     }
   }
 
+  Future<List<ChatUser>> getFriends() async {
+    try {
+      final response = await _apiService.client.get('/chat/friends');
+
+      return (response.data['friends'] as List<dynamic>? ?? [])
+          .map((item) => ChatUser.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      return _handleFetchError<List<ChatUser>>(
+        e,
+        'Failed to fetch friends',
+        [],
+      );
+    }
+  }
+
   Future<MessagesPage> getMessages(
     String conversationId, {
     int page = 1,

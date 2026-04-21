@@ -83,6 +83,7 @@ class ChatProvider with ChangeNotifier {
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
 
   List<ChatUser> _searchResults = [];
+  List<ChatUser> _friends = [];
   List<FriendRequestModel> _receivedRequests = [];
   List<FriendRequestModel> _sentRequests = [];
   List<FriendRequestModel> _pendingReceivedRequests = [];
@@ -107,6 +108,7 @@ class ChatProvider with ChangeNotifier {
   String get currentUserId => _currentUserId;
   FriendRequestStatusFilter get requestStatusFilter => _requestStatusFilter;
   List<ChatUser> get searchResults => _searchResults;
+  List<ChatUser> get friends => _friends;
   List<FriendRequestModel> get receivedRequests => _receivedRequests;
   List<FriendRequestModel> get sentRequests => _sentRequests;
   List<ChatConversation> get conversations => _conversations;
@@ -189,6 +191,7 @@ class ChatProvider with ChangeNotifier {
     _currentUserId = ''; // reset so _ensureCurrentUserId re-reads on next login
     _activeConversationId = null;
     _searchResults = [];
+    _friends = [];
     _receivedRequests = [];
     _sentRequests = [];
     _pendingReceivedRequests = [];
@@ -291,11 +294,14 @@ class ChatProvider with ChangeNotifier {
         if (activeRequestStatus != FriendRequestStatusFilter.pending)
           _chatService.getFriendRequests(
             status: FriendRequestStatusFilter.pending,
-          ),
+          )
+        else
+          Future.value(null),
         if (forceSearchRefresh || _searchQuery.trim().isNotEmpty)
           _chatService.searchUsers(_searchQuery)
         else
           Future.value(<ChatUser>[]),
+        _chatService.getFriends(),
       ]);
 
       _conversations = results[0] as List<ChatConversation>;
@@ -304,7 +310,7 @@ class ChatProvider with ChangeNotifier {
       _sentRequests = requestMap['sent'] ?? [];
 
       final pendingRequestMap =
-          activeRequestStatus == FriendRequestStatusFilter.pending
+          results[2] == null
           ? requestMap
           : results[2] as Map<String, List<FriendRequestModel>>;
       _pendingReceivedRequests = pendingRequestMap['received'] ?? [];
@@ -315,8 +321,9 @@ class ChatProvider with ChangeNotifier {
       );
 
       if (forceSearchRefresh || _searchQuery.trim().isNotEmpty) {
-        _searchResults = results.last as List<ChatUser>;
+        _searchResults = results[3] as List<ChatUser>;
       }
+      _friends = results[4] as List<ChatUser>;
     } finally {
       _isLoading = false;
       notifyListeners();
