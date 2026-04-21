@@ -92,7 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 33),
+                        const SizedBox(height: 30),
                         TabBar(
                           dividerColor: Colors.transparent,
                           indicatorColor: Colors.white,

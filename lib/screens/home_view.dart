@@ -655,45 +655,22 @@ class _EmptyTransactionsState extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: theme.dividerColor),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(
-                  Icons.receipt_long_rounded,
-                  color: scheme.primary,
-                  size: 34,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                'No transactions yet',
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                selectedFilter == 'All'
-                    ? 'Start by adding your first expense.'
-                    : 'No transactions found for $selectedFilter.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium,
-              ),
-            ],
-          ),
+      child: Align(
+        alignment: const Alignment(0, -0.6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.receipt_long_rounded,
+              color: scheme.primary,
+              size: 34,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'No transactions yet',
+              style: theme.textTheme.titleLarge,
+            ),
+          ],
         ),
       ),
     );
