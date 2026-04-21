@@ -16,13 +16,12 @@ class SportTrackingScreen extends StatefulWidget {
 class _SportTrackingScreenState extends State<SportTrackingScreen> {
   final MapController _mapController = MapController();
   final List<LatLng> _routePoints = [];
-  
+
   StreamSubscription<Position>? _positionStream;
   bool _isTracking = false;
   double _totalDistanceKm = 0.0;
-  
-  // Map center starts at some default or gets updated on first location
-  LatLng _currentLocation = const LatLng(11.5564, 104.9282); // Default to Phnom Penh
+
+  LatLng _currentLocation = const LatLng(11.5564, 104.9282);
 
   @override
   void initState() {
@@ -31,10 +30,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
   }
 
   Future<void> _checkPermissions() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -44,34 +40,27 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
       return;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return;
-      }
+      if (permission == LocationPermission.denied) return;
     }
-    
-    if (permission == LocationPermission.deniedForever) {
-      return;
-    }
+    if (permission == LocationPermission.deniedForever) return;
 
-    // Get initial location
     try {
-      final position = await Geolocator.getCurrentPosition(
-        timeLimit: const Duration(seconds: 5),
-      );
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
       });
       _mapController.move(_currentLocation, 16.0);
     } catch (e) {
-      debugPrint('Failed to get initial location, using default: $e');
+      debugPrint('Could not get initial location: $e');
     }
   }
 
-  void _startTracking() async {
-    final locationSettings = const LocationSettings(
+  void _startTracking() {
+    const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 10,
     );
@@ -88,7 +77,6 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
       final newPoint = LatLng(position.latitude, position.longitude);
       setState(() {
         _currentLocation = newPoint;
-        
         if (_routePoints.isNotEmpty) {
           final distance = Geolocator.distanceBetween(
             _routePoints.last.latitude,
@@ -96,9 +84,8 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
             newPoint.latitude,
             newPoint.longitude,
           );
-          _totalDistanceKm += distance / 1000.0; // convert meters to km
+          _totalDistanceKm += distance / 1000.0;
         }
-        
         _routePoints.add(newPoint);
       });
       _mapController.move(newPoint, _mapController.camera.zoom);
@@ -117,7 +104,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
     final noteController = TextEditingController();
     await showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
           title: const Text('Save Workout?'),
           content: Column(
@@ -136,7 +123,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
@@ -148,10 +135,8 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
                   note: noteController.text,
                   date: DateTime.now(),
                 );
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Save'),
             ),
@@ -170,109 +155,140 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sport Tracking'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
         elevation: 0,
       ),
-      body: Stack(
+
+      // ── Map fills the entire body ──
+      body: FlutterMap(
+        mapController: _mapController,
+        options: MapOptions(
+          initialCenter: _currentLocation,
+          initialZoom: 16.0,
+        ),
         children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentLocation,
-              initialZoom: 16.0,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.mobile_wallet', // Update to your package ID
-              ),
-              if (_routePoints.isNotEmpty)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _routePoints,
-                      strokeWidth: 4.0,
-                      color: Colors.blue,
-                    ),
-                  ],
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.example.mobile_wallet',
+          ),
+          if (_routePoints.isNotEmpty)
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: _routePoints,
+                  strokeWidth: 4.0,
+                  color: Colors.blue,
                 ),
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: _currentLocation,
-                    width: 40,
-                    height: 40,
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Colors.red,
-                      size: 40,
-                    ),
-                  ),
-                ],
+              ],
+            ),
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: _currentLocation,
+                width: 40,
+                height: 40,
+                child: const Icon(
+                  Icons.location_on,
+                  color: Colors.red,
+                  size: 40,
+                ),
               ),
             ],
           ),
-          Positioned(
-            bottom: 30,
-            left: 20,
-            right: 20,
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        ],
+      ),
+
+      // ── My-location FAB ──
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: FloatingActionButton.small(
+          heroTag: 'myLocation',
+          backgroundColor: Colors.white,
+          child: const Icon(Icons.my_location, color: Colors.black87),
+          onPressed: () => _mapController.move(_currentLocation, 16.0),
+        ),
+      ),
+
+      // ── Bottom bar with distance + start/stop ──
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Distance info
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Distance',
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
-                        Text(
-                          '${_totalDistanceKm.toStringAsFixed(2)} km',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isTracking ? Colors.red : Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    Text(
+                      'Distance',
+                      style: TextStyle(
+                        color: scheme.onSurface.withOpacity(0.6),
+                        fontSize: 13,
                       ),
-                      onPressed: _isTracking ? _stopTracking : _startTracking,
-                      icon: Icon(_isTracking ? Icons.stop : Icons.play_arrow),
-                      label: Text(_isTracking ? 'STOP' : 'START'),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_totalDistanceKm.toStringAsFixed(2)} km',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onSurface,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
+
+              // Start / Stop button
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isTracking ? Colors.red : Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 2,
+                ),
+                onPressed: _isTracking ? _stopTracking : _startTracking,
+                icon: Icon(
+                  _isTracking ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                  size: 24,
+                ),
+                label: Text(
+                  _isTracking ? 'STOP' : 'START',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
           ),
-          Positioned(
-            top: 20,
-            right: 20,
-            child: FloatingActionButton(
-              mini: true,
-              backgroundColor: Colors.white,
-              child: const Icon(Icons.my_location, color: Colors.black),
-              onPressed: () {
-                _mapController.move(_currentLocation, 16.0);
-              },
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
