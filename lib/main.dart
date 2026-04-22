@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/navigation/app_navigator.dart';
 import 'core/theme/app_theme.dart';
@@ -20,6 +21,10 @@ import 'core/widgets/network_aware_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+  );
   await PushNotificationService.instance.initialize();
   await CallKitService.instance.initialize();
 
