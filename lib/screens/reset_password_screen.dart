@@ -96,8 +96,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Reset code is required';
                     }
-                    if (!RegExp(r'^\d{6}$').hasMatch(value.trim())) {
-                      return 'Reset code must be 6 digits';
+                    if (!RegExp(r'^\d{4}$').hasMatch(value.trim())) {
+                      return 'Reset code must be 4 digits';
                     }
                     return null;
                   },

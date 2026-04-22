@@ -2,7 +2,7 @@ class ValidationUtils {
   static bool isValidPassword(String password) {
     // Password must be at least 6 chars and include uppercase, lowercase, number, and special character
     final regex = RegExp(
-      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{6,}$',
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{4,}$',
     );
     return regex.hasMatch(password);
   }
@@ -18,7 +18,7 @@ class ValidationUtils {
 
   static String? validatePassword(String? password) {
     if (password == null || password.isEmpty) return 'Password is required';
-    if (password.length < 6) return 'Password must be at least 6 characters';
+    if (password.length < 4) return 'Password must be at least 4 characters';
     if (!password.contains(RegExp(r'[a-z]'))) {
       return 'Password must contain lowercase letter';
     }

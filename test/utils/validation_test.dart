@@ -8,7 +8,7 @@ void main() {
 
     group('isValidPassword', () {
       test('returns true for valid password', () {
-        // Meets all criteria: >6 chars, upper, lower, digit, special char
+        // Meets all criteria: >4 chars, upper, lower, digit, special char
         expect(ValidationUtils.isValidPassword('SecurePass1!'), true);
       });
 
@@ -73,7 +73,7 @@ void main() {
       });
 
       test('returns error when too short', () {
-        expect(ValidationUtils.validatePassword('12345'), 'Password must be at least 6 characters');
+        expect(ValidationUtils.validatePassword('12345'), 'Password must be at least 4 characters');
       });
 
       test('returns error when missing lowercase', () {
