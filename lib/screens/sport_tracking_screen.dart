@@ -27,6 +27,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
   DateTime? _startTime;
   int _durationMinutes = 0;
   StreamSubscription? _serviceSubscription;
+  Timer? _durationTicker;
 
   @override
   void initState() {
@@ -46,7 +47,10 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
       SharedPreferences.getInstance().then((prefs) {
         final savedStartTime = prefs.getString('bg_start_time');
         if (savedStartTime != null) {
-          _startTime = DateTime.parse(savedStartTime);
+          if (!mounted) return;
+          setState(() {
+            _startTime = DateTime.parse(savedStartTime);
+          });
         }
       });
 
@@ -54,6 +58,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
         setState(() {
           _isTracking = true;
         });
+        _startDurationTicker();
       }
     }
 
@@ -122,8 +127,10 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
       _isTracking = true;
       _routePoints.clear();
       _totalDistanceKm = 0.0;
+      _durationMinutes = 0;
       _startTime = DateTime.now();
     });
+    _startDurationTicker();
   }
 
   void _stopTracking() {
@@ -131,20 +138,50 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
     service.invoke('stopService');
 
     if (_startTime != null) {
-      _durationMinutes = DateTime.now().difference(_startTime!).inMinutes;
+      final elapsedSeconds = _elapsedSeconds;
+      _durationMinutes = elapsedSeconds ~/ 60;
       if (_durationMinutes == 0) {
-        final diffSeconds = DateTime.now().difference(_startTime!).inSeconds;
-        if (diffSeconds > 10) _durationMinutes = 1;
+        if (elapsedSeconds > 10) _durationMinutes = 1;
       }
     } else {
       // Best guess from shared prefs if start time was lost
       _durationMinutes = 1; // Default
     }
 
+    _durationTicker?.cancel();
     setState(() {
       _isTracking = false;
+      _startTime = null;
     });
     _showSaveDialog();
+  }
+
+  int get _elapsedSeconds {
+    if (_startTime == null) return 0;
+    final seconds = DateTime.now().difference(_startTime!).inSeconds;
+    return seconds < 0 ? 0 : seconds;
+  }
+
+  String get _durationLabel {
+    final totalSeconds = _isTracking ? _elapsedSeconds : _durationMinutes * 60;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:'
+          '${minutes.toString().padLeft(2, '0')}:'
+          '${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _startDurationTicker() {
+    _durationTicker?.cancel();
+    _durationTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !_isTracking) return;
+      setState(() {});
+    });
   }
 
   Future<void> _showSaveDialog() async {
@@ -210,6 +247,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
   @override
   void dispose() {
     _serviceSubscription?.cancel();
+    _durationTicker?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -340,6 +378,23 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Duration',
+                            style: TextStyle(
+                              color: scheme.onSurface.withValues(alpha: 0.6),
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _durationLabel,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
                               color: scheme.onSurface,
                             ),
                           ),
