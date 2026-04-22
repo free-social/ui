@@ -75,19 +75,6 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
                         ),
                       ],
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: AppSpacing.lg,
-                        top: AppSpacing.xs,
-                      ),
-                      child: Text(
-                        'All your recorded activities',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
