@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import '../providers/sport_provider.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SportTrackingScreen extends StatefulWidget {
   const SportTrackingScreen({super.key});
@@ -40,6 +41,15 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
 
     if (isRunning) {
       service.invoke('resumeTracking');
+      
+      // Resume startTime from shared prefs
+      SharedPreferences.getInstance().then((prefs) {
+        final savedStartTime = prefs.getString('bg_start_time');
+        if (savedStartTime != null) {
+          _startTime = DateTime.parse(savedStartTime);
+        }
+      });
+
       if (mounted) {
         setState(() {
           _isTracking = true;
