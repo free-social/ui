@@ -72,7 +72,7 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
                   AppSpacing.sm,
                   AppSpacing.md,
                   AppSpacing.xl,
-                  AppSpacing.xxl,
+                  AppSpacing.xl,
                 ),
                 child: Row(
                   children: [
@@ -227,14 +227,6 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
                 iconColor: const Color(0xFF8B5CF6),
                 label: 'Time',
                 value: timeStr,
-              ),
-              _divider(scheme),
-              _InfoRow(
-                icon: Icons.category_rounded,
-                iconColor: AppColors.warning,
-                label: 'Category',
-                value: sport.category[0].toUpperCase() +
-                    sport.category.substring(1),
               ),
               _divider(scheme),
               _InfoRow(
