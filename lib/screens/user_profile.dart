@@ -13,6 +13,7 @@ import 'change_password_screen.dart';
 import 'login_screen.dart';
 import 'update_user_profile.dart';
 import 'sport_tracking_screen.dart';
+import 'sport_history_screen.dart';
 
 // How far the profile card hangs below the gradient band.
 const double _cardOverlap = 56.0;
@@ -243,6 +244,19 @@ class UserProfileScreen extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const SportTrackingScreen(),
+                              ),
+                            ),
+                          ),
+                          _Divider(),
+                          _Tile(
+                            icon: Icons.history_rounded,
+                            iconColor: const Color(0xFF3B82F6),
+                            title: 'Sport History',
+                            subtitle: 'View all past activities',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SportHistoryScreen(),
                               ),
                             ),
                           ),

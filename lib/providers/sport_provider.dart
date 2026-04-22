@@ -81,4 +81,13 @@ class SportProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<SportModel?> getSportById(String id) async {
+    try {
+      return await _sportService.getSport(id);
+    } catch (e) {
+      debugPrint('Error fetching sport by id: $e');
+      return null;
+    }
+  }
 }
