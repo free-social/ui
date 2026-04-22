@@ -1610,7 +1610,7 @@ class _TelegramBubble extends StatelessWidget {
       );
     }
 
-    final hasCallEvent = message.callEvent != null;
+    final hasCallEvent = message.callEvent != null && message.callEvent!.status.isNotEmpty;
 
     if (hasCallEvent) {
       final isVideo = message.callEvent!.type == 'video';
