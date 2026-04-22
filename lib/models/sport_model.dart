@@ -3,6 +3,7 @@ class SportModel {
   final double length;
   final String category;
   final String? note;
+  final double? calories;
   final int duration;
   final DateTime date;
 
@@ -11,6 +12,7 @@ class SportModel {
     required this.length,
     required this.category,
     this.note,
+    this.calories,
     required this.duration,
     required this.date,
   });
@@ -18,6 +20,7 @@ class SportModel {
   factory SportModel.fromJson(Map<String, dynamic> json) {
     final rawLength = json['length'];
     final rawDuration = json['duration'];
+    final rawCalories = json['calories'] ?? json['kcal'];
 
     return SportModel(
       id: json['_id'] ?? json['id'] ?? '',
@@ -26,6 +29,9 @@ class SportModel {
           : double.tryParse(rawLength?.toString() ?? '') ?? 0.0,
       category: json['category'] ?? 'jogging',
       note: json['note'],
+      calories: rawCalories is num
+          ? rawCalories.toDouble()
+          : double.tryParse(rawCalories?.toString() ?? ''),
       duration: rawDuration is num
           ? rawDuration.toInt()
           : int.tryParse(rawDuration?.toString() ?? '') ?? 0,
@@ -43,6 +49,7 @@ class SportModel {
       'length': length,
       'category': category,
       if (note != null) 'note': note,
+      if (calories != null) 'calories': calories,
       'duration': duration,
       'date': date.toUtc().toIso8601String(),
     };

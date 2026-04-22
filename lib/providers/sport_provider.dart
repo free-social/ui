@@ -4,7 +4,7 @@ import '../services/sport_service.dart';
 
 class SportProvider with ChangeNotifier {
   final SportService _sportService;
-  
+
   SportProvider({SportService? sportService})
     : _sportService = sportService ?? SportService();
 
@@ -55,11 +55,11 @@ class SportProvider with ChangeNotifier {
     }
   }
 
-
   Future<void> addSport({
     required double length,
     required String category,
     String? note,
+    double? calories,
     required int duration,
     required DateTime date,
   }) async {
@@ -71,6 +71,7 @@ class SportProvider with ChangeNotifier {
         length: length,
         category: category,
         note: note,
+        calories: calories,
         duration: duration,
         date: date,
       );
@@ -92,5 +93,17 @@ class SportProvider with ChangeNotifier {
       debugPrint('Error fetching sport by id: $e');
       return null;
     }
+  }
+
+  Future<double> calculateCalories({
+    required String category,
+    required double weightKg,
+    required int durationMinutes,
+  }) {
+    return _sportService.calculateCalories(
+      category: category,
+      weightKg: weightKg,
+      durationMinutes: durationMinutes,
+    );
   }
 }

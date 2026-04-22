@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -185,7 +186,13 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
   }
 
   Future<void> _showSaveDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedWeightKg = prefs.getDouble('sport_weight_kg') ?? 70.0;
+    if (!mounted) return;
     final noteController = TextEditingController();
+    final weightController = TextEditingController(
+      text: savedWeightKg.toStringAsFixed(1),
+    );
     await showDialog(
       context: context,
       builder: (ctx) {
@@ -195,6 +202,20 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Distance: ${_totalDistanceKm.toStringAsFixed(2)} km'),
+              const SizedBox(height: 10),
+              TextField(
+                controller: weightController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Weight (kg)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 10),
               TextField(
                 controller: noteController,
@@ -214,9 +235,30 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
               onPressed: () async {
                 final provider = context.read<SportProvider>();
                 try {
+                  final weightKg = double.tryParse(
+                    weightController.text.trim(),
+                  );
+                  if (weightKg == null || weightKg <= 0) {
+                    if (!ctx.mounted) return;
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid weight in kg.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final calories = await provider.calculateCalories(
+                    category: 'jogging',
+                    weightKg: weightKg,
+                    durationMinutes: _durationMinutes,
+                  );
+                  await prefs.setDouble('sport_weight_kg', weightKg);
+
                   await provider.addSport(
                     length: _totalDistanceKm,
                     category: 'jogging',
+                    calories: calories,
                     duration: _durationMinutes,
                     note: noteController.text.trim().isEmpty
                         ? null

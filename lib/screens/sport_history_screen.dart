@@ -60,8 +60,10 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
                     Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back_rounded,
-                              color: Colors.white),
+                          icon: const Icon(
+                            Icons.arrow_back_rounded,
+                            color: Colors.white,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                         const SizedBox(width: AppSpacing.sm),
@@ -94,9 +96,11 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.directions_run_rounded,
-                            size: 64,
-                            color: scheme.onSurface.withValues(alpha: 0.2)),
+                        Icon(
+                          Icons.directions_run_rounded,
+                          size: 64,
+                          color: scheme.onSurface.withValues(alpha: 0.2),
+                        ),
                         const SizedBox(height: AppSpacing.lg),
                         Text(
                           'No activities yet',
@@ -120,10 +124,8 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
                 final grouped = _groupByMonth(provider.sports);
 
                 return RefreshIndicator(
-                  onRefresh: () => provider.fetchSports(
-                    page: 1,
-                    forceRefresh: true,
-                  ),
+                  onRefresh: () =>
+                      provider.fetchSports(page: 1, forceRefresh: true),
                   color: scheme.primary,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(
@@ -163,30 +165,30 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
                               color: isDark
                                   ? AppColors.darkSurface
                                   : Colors.white,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadii.lg),
+                              borderRadius: BorderRadius.circular(AppRadii.lg),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(
-                                      alpha: isDark ? 0.18 : 0.05),
+                                    alpha: isDark ? 0.18 : 0.05,
+                                  ),
                                   blurRadius: 10,
                                   offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
                             child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(AppRadii.lg),
+                              borderRadius: BorderRadius.circular(AppRadii.lg),
                               child: Column(
                                 children: items
                                     .asMap()
                                     .entries
-                                    .map((e) => _buildSportTile(
-                                          context,
-                                          e.value,
-                                          showDivider:
-                                              e.key < items.length - 1,
-                                        ))
+                                    .map(
+                                      (e) => _buildSportTile(
+                                        context,
+                                        e.value,
+                                        showDivider: e.key < items.length - 1,
+                                      ),
+                                    )
                                     .toList(),
                               ),
                             ),
@@ -250,8 +252,7 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
               ),
               const SizedBox(width: AppSpacing.sm),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: categoryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -271,7 +272,9 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              '$dateStr • ${sport.duration} min',
+              sport.calories != null
+                  ? '$dateStr • ${sport.duration} min • ${sport.calories!.toStringAsFixed(0)} kcal'
+                  : '$dateStr • ${sport.duration} min',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurface.withValues(alpha: 0.5),
               ),

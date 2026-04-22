@@ -77,8 +77,10 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_rounded,
-                          color: Colors.white),
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Colors.white,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -101,8 +103,8 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? _buildError(theme, scheme)
-                    : _buildDetail(theme, scheme, isDark),
+                ? _buildError(theme, scheme)
+                : _buildDetail(theme, scheme, isDark),
           ),
         ],
       ),
@@ -114,8 +116,11 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline_rounded,
-              size: 56, color: AppColors.danger.withValues(alpha: 0.6)),
+          Icon(
+            Icons.error_outline_rounded,
+            size: 56,
+            color: AppColors.danger.withValues(alpha: 0.6),
+          ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             _error ?? 'Unknown error',
@@ -160,10 +165,7 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  categoryColor,
-                  categoryColor.withValues(alpha: 0.7),
-                ],
+                colors: [categoryColor, categoryColor.withValues(alpha: 0.7)],
               ),
               borderRadius: BorderRadius.circular(AppRadii.lg),
               boxShadow: [
@@ -189,8 +191,10 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -235,6 +239,15 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
                 label: 'Duration',
                 value: '${sport.duration} min',
               ),
+              if (sport.calories != null) ...[
+                _divider(scheme),
+                _InfoRow(
+                  icon: Icons.local_fire_department_outlined,
+                  iconColor: const Color(0xFFF97316),
+                  label: 'Calories',
+                  value: '${sport.calories!.toStringAsFixed(0)} kcal',
+                ),
+              ],
               if (sport.note != null && sport.note!.trim().isNotEmpty) ...[
                 _divider(scheme),
                 _InfoRow(
@@ -314,10 +327,7 @@ class _InfoCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: children,
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
       ),
     );
   }
