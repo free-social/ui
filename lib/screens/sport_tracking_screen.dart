@@ -41,7 +41,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
 
     if (isRunning) {
       service.invoke('resumeTracking');
-      
+
       // Resume startTime from shared prefs
       SharedPreferences.getInstance().then((prefs) {
         final savedStartTime = prefs.getString('bg_start_time');
@@ -176,15 +176,28 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
             ElevatedButton(
               onPressed: () async {
                 final provider = context.read<SportProvider>();
-                await provider.addSport(
-                  length: _totalDistanceKm,
-                  category: 'jogging',
-                  duration: _durationMinutes,
-                  note: noteController.text,
-                  date: DateTime.now(),
-                );
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) Navigator.pop(context);
+                try {
+                  await provider.addSport(
+                    length: _totalDistanceKm,
+                    category: 'jogging',
+                    duration: _durationMinutes,
+                    note: noteController.text.trim().isEmpty
+                        ? null
+                        : noteController.text.trim(),
+                    date: DateTime.now(),
+                  );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) Navigator.pop(context);
+                } catch (_) {
+                  if (!ctx.mounted) return;
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Could not save activity. Please try again.',
+                      ),
+                    ),
+                  );
+                }
               },
               child: const Text('Save'),
             ),
@@ -257,10 +270,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        border: Border.all(
-                          color: scheme.primary,
-                          width: 2,
-                        ),
+                        border: Border.all(color: scheme.primary, width: 2),
                       ),
                       child: Icon(
                         Icons.directions_run_rounded,
@@ -340,8 +350,9 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
                     // Start / Stop button
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            _isTracking ? Colors.red : Colors.green,
+                        backgroundColor: _isTracking
+                            ? Colors.red
+                            : Colors.green,
                         foregroundColor: Colors.white,
                         minimumSize: const Size(0, 48),
                         padding: const EdgeInsets.symmetric(

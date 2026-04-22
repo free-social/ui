@@ -16,12 +16,19 @@ class SportModel {
   });
 
   factory SportModel.fromJson(Map<String, dynamic> json) {
+    final rawLength = json['length'];
+    final rawDuration = json['duration'];
+
     return SportModel(
       id: json['_id'] ?? json['id'] ?? '',
-      length: (json['length'] ?? 0).toDouble(),
+      length: rawLength is num
+          ? rawLength.toDouble()
+          : double.tryParse(rawLength?.toString() ?? '') ?? 0.0,
       category: json['category'] ?? 'jogging',
       note: json['note'],
-      duration: json['duration'] ?? 0,
+      duration: rawDuration is num
+          ? rawDuration.toInt()
+          : int.tryParse(rawDuration?.toString() ?? '') ?? 0,
       date: json['date'] != null
           ? DateTime.parse(json['date']).toLocal()
           : (json['createdAt'] != null
@@ -32,7 +39,7 @@ class SportModel {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      if (id.isNotEmpty) 'id': id,
       'length': length,
       'category': category,
       if (note != null) 'note': note,

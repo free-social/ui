@@ -487,7 +487,7 @@ packages:
     source: hosted
     version: "5.0.3"
   flutter_background_service_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: flutter_background_service_platform_interface
       sha256: ca74aa95789a8304f4d3f57f07ba404faa86bed6e415f83e8edea6ad8b904a41
@@ -1169,7 +1169,7 @@ packages:
     source: hosted
     version: "3.1.6"
   plugin_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: plugin_platform_interface
       sha256: "4820fbfdb9478b1ebae27888254d445073732dae3d6ea81f0b7e06d5dedc3f02"
