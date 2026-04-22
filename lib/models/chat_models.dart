@@ -258,6 +258,28 @@ class ChatConversation {
   }
 }
 
+class ChatCallEvent {
+  final String status;
+  final String type;
+  final int? durationSeconds;
+
+  ChatCallEvent({
+    required this.status,
+    required this.type,
+    this.durationSeconds,
+  });
+
+  factory ChatCallEvent.fromJson(Map<String, dynamic> json) {
+    return ChatCallEvent(
+      status: json['status']?.toString() ?? '',
+      type: json['type']?.toString() ?? '',
+      durationSeconds: json['durationSeconds'] is num
+          ? (json['durationSeconds'] as num).toInt()
+          : int.tryParse('${json['durationSeconds']}'),
+    );
+  }
+}
+
 class ChatMessageModel {
   final String id;
   final String conversationId;
@@ -273,6 +295,7 @@ class ChatMessageModel {
   final DateTime? editedAt;
   final ChatMessageModel? replyTo;
   final String? reaction;
+  final ChatCallEvent? callEvent;
 
   const ChatMessageModel({
     required this.id,
@@ -289,6 +312,7 @@ class ChatMessageModel {
     this.editedAt,
     this.replyTo,
     this.reaction,
+    this.callEvent,
   });
 
   factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
@@ -332,6 +356,9 @@ class ChatMessageModel {
           ? ChatMessageModel.fromJson(json['replyTo'])
           : null,
       reaction: json['reaction']?.toString(),
+      callEvent: json['callEvent'] is Map<String, dynamic>
+          ? ChatCallEvent.fromJson(json['callEvent'])
+          : null,
     );
   }
 
@@ -350,6 +377,7 @@ class ChatMessageModel {
     DateTime? editedAt,
     ChatMessageModel? replyTo,
     String? reaction,
+    ChatCallEvent? callEvent,
   }) {
     return ChatMessageModel(
       id: id ?? this.id,
@@ -366,6 +394,7 @@ class ChatMessageModel {
       editedAt: editedAt ?? this.editedAt,
       replyTo: replyTo ?? this.replyTo,
       reaction: reaction ?? this.reaction,
+      callEvent: callEvent ?? this.callEvent,
     );
   }
 }

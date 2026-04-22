@@ -1610,7 +1610,51 @@ class _TelegramBubble extends StatelessWidget {
       );
     }
 
-    if (hasImage && !hasText && !hasAudio && replyQuoteWidget == null) {
+    final hasCallEvent = message.callEvent != null;
+
+    if (hasCallEvent) {
+      final isVideo = message.callEvent!.type == 'video';
+      final isMissed = ['missed', 'rejected', 'cancelled', 'failed'].contains(message.callEvent!.status);
+      final iconColor = isMissed ? Colors.redAccent : (isDark ? Colors.white70 : Colors.black54);
+      final icon = isVideo ? (isMissed ? Icons.videocam_off : Icons.videocam) : (isMissed ? Icons.phone_missed : Icons.phone);
+      
+      bubbleContent = Padding(
+        padding: const EdgeInsets.fromLTRB(10, 10, 6, 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.content.replaceAll('📞 ', ''),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  inlineMeta,
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (hasImage && !hasText && !hasAudio && replyQuoteWidget == null) {
       // Pure image: overlay everything, no extra rows
       bubbleContent = imageWidget(true);
     } else {
