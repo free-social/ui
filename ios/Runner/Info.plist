@@ -32,12 +32,15 @@
 		<string>Spendwise needs access to save chat images to your photo library.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Spendwise uses your photo library for saving and viewing shared images.</string>
-        <key>NSLocationWhenInUseUsageDescription</key>
+		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>Spendwise needs access to your location to track your route during sports activities.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>Spendwise uses your location in background to continue sport tracking while the app is minimized.</string>
 		<key>NSLocationAlwaysUsageDescription</key>
 		<string>Spendwise needs access to your location to track your route even when in the background.</string>
 		<key>UIBackgroundModes</key>
 		<array>
+			<string>location</string>
 			<string>remote-notification</string>
 			<string>voip</string>
 		</array>
