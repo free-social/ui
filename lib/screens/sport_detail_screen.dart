@@ -230,13 +230,6 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
               ),
               _divider(scheme),
               _InfoRow(
-                icon: Icons.straighten_rounded,
-                iconColor: AppColors.success,
-                label: 'Distance',
-                value: '${sport.length.toStringAsFixed(2)} km',
-              ),
-              _divider(scheme),
-              _InfoRow(
                 icon: Icons.category_rounded,
                 iconColor: AppColors.warning,
                 label: 'Category',
@@ -250,61 +243,17 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
                 label: 'Duration',
                 value: '${sport.duration} min',
               ),
-            ],
-          ),
-
-          // ── Note section ──
-          if (sport.note != null && sport.note!.trim().isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            _InfoCard(
-              isDark: isDark,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF06B6D4).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.note_alt_outlined,
-                            color: Color(0xFF06B6D4), size: 20),
-                      ),
-                      const SizedBox(width: AppSpacing.lg),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Note',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color:
-                                    scheme.onSurface.withValues(alpha: 0.45),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              sport.note!,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color:
-                                    scheme.onSurface.withValues(alpha: 0.85),
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+              if (sport.note != null && sport.note!.trim().isNotEmpty) ...[
+                _divider(scheme),
+                _InfoRow(
+                  icon: Icons.note_alt_outlined,
+                  iconColor: const Color(0xFF06B6D4),
+                  label: 'Note',
+                  value: sport.note!,
                 ),
               ],
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );
