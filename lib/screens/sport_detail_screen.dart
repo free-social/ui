@@ -243,6 +243,13 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
                 value: sport.category[0].toUpperCase() +
                     sport.category.substring(1),
               ),
+              _divider(scheme),
+              _InfoRow(
+                icon: Icons.timer_outlined,
+                iconColor: const Color(0xFF10B981),
+                label: 'Duration',
+                value: '${sport.duration} min',
+              ),
             ],
           ),
 
@@ -320,6 +327,8 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
         return Icons.pool_rounded;
       case 'walking':
         return Icons.directions_walk_rounded;
+      case 'jogging':
+        return Icons.directions_run_rounded;
       default:
         return Icons.directions_run_rounded;
     }
@@ -333,6 +342,8 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
         return const Color(0xFF06B6D4);
       case 'walking':
         return const Color(0xFF8B5CF6);
+      case 'jogging':
+        return const Color(0xFF10B981);
       default:
         return AppColors.success;
     }

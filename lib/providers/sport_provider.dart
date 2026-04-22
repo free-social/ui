@@ -55,10 +55,12 @@ class SportProvider with ChangeNotifier {
     }
   }
 
+
   Future<void> addSport({
     required double length,
     required String category,
     String? note,
+    required int duration,
     required DateTime date,
   }) async {
     _isLoading = true;
@@ -69,6 +71,7 @@ class SportProvider with ChangeNotifier {
         length: length,
         category: category,
         note: note,
+        duration: duration,
         date: date,
       );
       await _sportService.createSport(newSport);

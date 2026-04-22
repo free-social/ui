@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import '../providers/sport_provider.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 
 class SportTrackingScreen extends StatefulWidget {
   const SportTrackingScreen({super.key});
@@ -17,17 +18,49 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
   final MapController _mapController = MapController();
   final List<LatLng> _routePoints = [];
 
-  StreamSubscription<Position>? _positionStream;
   bool _isTracking = false;
   bool _mapReady = false;
   double _totalDistanceKm = 0.0;
 
   LatLng _currentLocation = const LatLng(11.5564, 104.9282);
+  DateTime? _startTime;
+  int _durationMinutes = 0;
+  StreamSubscription? _serviceSubscription;
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+    _initBackgroundListener();
+  }
+
+  void _initBackgroundListener() async {
+    final service = FlutterBackgroundService();
+    final isRunning = await service.isRunning();
+
+    if (isRunning) {
+      service.invoke('resumeTracking');
+      if (mounted) {
+        setState(() {
+          _isTracking = true;
+        });
+      }
+    }
+
+    _serviceSubscription = service.on('update').listen((event) {
+      if (event != null && mounted) {
+        setState(() {
+          _totalDistanceKm = (event['distance'] as num).toDouble();
+          final List<dynamic> points = event['points'];
+          _routePoints.clear();
+          _routePoints.addAll(points.map((p) => LatLng(p['lat'], p['lng'])));
+          if (_routePoints.isNotEmpty) {
+            _currentLocation = _routePoints.last;
+          }
+        });
+        _tryMoveMap(_currentLocation, _mapController.camera.zoom);
+      }
+    });
   }
 
   Future<void> _checkPermissions() async {
@@ -67,41 +100,37 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
     } catch (_) {}
   }
 
-  void _startTracking() {
-    const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
-    );
+  void _startTracking() async {
+    final service = FlutterBackgroundService();
+    final isRunning = await service.isRunning();
+    if (!isRunning) {
+      await service.startService();
+    }
+    service.invoke('startTracking');
 
     setState(() {
       _isTracking = true;
       _routePoints.clear();
       _totalDistanceKm = 0.0;
-    });
-
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((Position position) {
-      final newPoint = LatLng(position.latitude, position.longitude);
-      setState(() {
-        _currentLocation = newPoint;
-        if (_routePoints.isNotEmpty) {
-          final distance = Geolocator.distanceBetween(
-            _routePoints.last.latitude,
-            _routePoints.last.longitude,
-            newPoint.latitude,
-            newPoint.longitude,
-          );
-          _totalDistanceKm += distance / 1000.0;
-        }
-        _routePoints.add(newPoint);
-      });
-      _tryMoveMap(newPoint, _mapController.camera.zoom);
+      _startTime = DateTime.now();
     });
   }
 
   void _stopTracking() {
-    _positionStream?.cancel();
+    final service = FlutterBackgroundService();
+    service.invoke('stopService');
+
+    if (_startTime != null) {
+      _durationMinutes = DateTime.now().difference(_startTime!).inMinutes;
+      if (_durationMinutes == 0) {
+        final diffSeconds = DateTime.now().difference(_startTime!).inSeconds;
+        if (diffSeconds > 10) _durationMinutes = 1;
+      }
+    } else {
+      // Best guess from shared prefs if start time was lost
+      _durationMinutes = 1; // Default
+    }
+
     setState(() {
       _isTracking = false;
     });
@@ -139,7 +168,8 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
                 final provider = context.read<SportProvider>();
                 await provider.addSport(
                   length: _totalDistanceKm,
-                  category: 'track',
+                  category: 'jogging',
+                  duration: _durationMinutes,
                   note: noteController.text,
                   date: DateTime.now(),
                 );
@@ -156,7 +186,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
 
   @override
   void dispose() {
-    _positionStream?.cancel();
+    _serviceSubscription?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -204,12 +234,29 @@ class _SportTrackingScreenState extends State<SportTrackingScreen> {
                 markers: [
                   Marker(
                     point: _currentLocation,
-                    width: 40,
-                    height: 40,
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Colors.red,
-                      size: 40,
+                    width: 50,
+                    height: 50,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: scheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.directions_run_rounded,
+                        color: scheme.primary,
+                        size: 30,
+                      ),
                     ),
                   ),
                 ],

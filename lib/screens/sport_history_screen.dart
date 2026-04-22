@@ -284,7 +284,7 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              dateStr,
+              '$dateStr • ${sport.duration} min',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurface.withValues(alpha: 0.5),
               ),
@@ -324,6 +324,8 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
         return Icons.pool_rounded;
       case 'walking':
         return Icons.directions_walk_rounded;
+      case 'jogging':
+        return Icons.directions_run_rounded;
       default:
         return Icons.directions_run_rounded;
     }
@@ -337,6 +339,8 @@ class _SportHistoryScreenState extends State<SportHistoryScreen> {
         return const Color(0xFF06B6D4);
       case 'walking':
         return const Color(0xFF8B5CF6);
+      case 'jogging':
+        return const Color(0xFF10B981);
       default:
         return AppColors.success;
     }

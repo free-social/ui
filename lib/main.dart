@@ -18,9 +18,11 @@ import 'screens/splash_screen.dart';
 import 'services/callkit_service.dart';
 import 'services/push_notification_service.dart';
 import 'core/widgets/network_aware_widget.dart';
+import 'services/background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeService();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
