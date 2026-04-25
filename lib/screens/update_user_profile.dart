@@ -164,25 +164,25 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                     ),
                     child: Column(
                       children: [
-                        Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            CircleAvatar(
-                              radius: 46,
-                              backgroundColor: scheme.primary.withValues(alpha: 0.12),
-                              backgroundImage: _imageFile != null
-                                  ? FileImage(_imageFile!)
-                                  : (user?.avatar != null && user!.avatar.isNotEmpty)
-                                      ? authImageProvider(user.avatar)
-                                      : null,
-                              child: (_imageFile == null &&
-                                      (user?.avatar == null || user!.avatar.isEmpty))
-                                  ? Icon(Icons.person_rounded, size: 46, color: scheme.primary)
-                                  : null,
-                            ),
-                            GestureDetector(
-                              onTap: _pickImage,
-                              child: Container(
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              CircleAvatar(
+                                radius: 46,
+                                backgroundColor: scheme.primary.withValues(alpha: 0.12),
+                                backgroundImage: _imageFile != null
+                                    ? FileImage(_imageFile!)
+                                    : (user?.avatar != null && user!.avatar.isNotEmpty)
+                                        ? authImageProvider(user.avatar)
+                                        : null,
+                                child: (_imageFile == null &&
+                                        (user?.avatar == null || user!.avatar.isEmpty))
+                                    ? Icon(Icons.person_rounded, size: 46, color: scheme.primary)
+                                    : null,
+                              ),
+                              Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
                                   color: scheme.primary,
@@ -195,8 +195,8 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                                   color: scheme.onPrimary,
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
