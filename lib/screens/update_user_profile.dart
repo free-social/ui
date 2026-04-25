@@ -41,7 +41,12 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
   }
 
   Future<void> _pickImage() async {
-    final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
     if (image != null) {
       setState(() => _imageFile = File(image.path));
     }
@@ -117,18 +122,18 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                     ),
                   ),
                 ),
-                SafeArea(
+                const SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                       horizontal: AppSpacing.sm,
                       vertical: AppSpacing.xs,
                     ),
                     child: Row(
                       children: [
-                        const BackButton(color: Colors.white),
-                        const SizedBox(width: AppSpacing.sm),
-                        const Text(
+                        BackButton(color: Colors.white),
+                        SizedBox(width: AppSpacing.sm),
+                        Text(
                           'Edit profile',
                           style: TextStyle(
                             color: Colors.white,
@@ -175,18 +180,20 @@ class _UpdateUserProfileState extends State<UpdateUserProfile> {
                                   ? Icon(Icons.person_rounded, size: 46, color: scheme.primary)
                                   : null,
                             ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: cardColor, width: 3),
-                              ),
-                              child: IconButton(
-                                onPressed: _pickImage,
-                                icon: const Icon(Icons.camera_alt_rounded, size: 20),
-                                color: scheme.onPrimary,
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.all(8),
+                            GestureDetector(
+                              onTap: _pickImage,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: cardColor, width: 3),
+                                ),
+                                child: Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 14,
+                                  color: scheme.onPrimary,
+                                ),
                               ),
                             ),
                           ],
