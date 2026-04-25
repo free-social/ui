@@ -201,8 +201,14 @@ void onStart(ServiceInstance service) async {
     });
   }
 
-  service.on('stopService').listen((event) {
+  service.on('stopService').listen((event) async {
     positionStream?.cancel();
+    // Clear saved tracking state so it doesn't auto-resume next launch
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('bg_total_distance');
+    await prefs.remove('bg_start_time');
+    await prefs.remove('bg_route_points');
+    await prefs.remove('bg_is_tracking');
     service.stopSelf();
   });
 
@@ -212,6 +218,8 @@ void onStart(ServiceInstance service) async {
     routePoints.clear();
     recentRawPoints.clear();
     lastPointTime = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('bg_is_tracking', true);
     await saveState();
 
     final locationSettings = buildLocationSettings();
@@ -256,4 +264,35 @@ void onStart(ServiceInstance service) async {
           },
         );
   });
+
+  // ── Auto-resume: if a previous tracking session was active, reload it ──
+  final prefs = await SharedPreferences.getInstance();
+  final wasTracking = prefs.getBool('bg_is_tracking') ?? false;
+  if (wasTracking) {
+    totalDistance = prefs.getDouble('bg_total_distance') ?? 0.0;
+    final startTimeStr = prefs.getString('bg_start_time');
+    if (startTimeStr != null) startTime = DateTime.parse(startTimeStr);
+
+    final pointsStr = prefs.getString('bg_route_points');
+    if (pointsStr != null) {
+      final List<dynamic> decoded = jsonDecode(pointsStr);
+      routePoints = decoded.map((e) => LatLng(e[0], e[1])).toList();
+    }
+    recentRawPoints = List<LatLng>.from(routePoints.take(_smoothingWindowSize));
+    lastPointTime = DateTime.now();
+
+    service.invoke('update', {
+      'distance': totalDistance,
+      'points': routePoints
+          .map((e) => {'lat': e.latitude, 'lng': e.longitude})
+          .toList(),
+    });
+
+    positionStream?.cancel();
+    positionStream =
+        Geolocator.getPositionStream(locationSettings: buildLocationSettings())
+            .listen((Position position) {
+      processPosition(position);
+    });
+  }
 }
