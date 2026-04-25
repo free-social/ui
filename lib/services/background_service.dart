@@ -70,16 +70,18 @@ void onStart(ServiceInstance service) async {
 
   StreamSubscription<Position>? positionStream;
 
+  bool isPaused = false;
+
   void updateNotification() {
     if (service is AndroidServiceInstance) {
       service.setForegroundNotificationInfo(
-        title: "Sport Tracking",
+        title: isPaused ? "Sport Tracking (Paused)" : "Sport Tracking",
         content: "Distance: ${totalDistance.toStringAsFixed(2)} km",
       );
     }
   }
 
-  Future<void> saveState() async {
+  Future<void> saveState({bool? paused}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('bg_total_distance', totalDistance);
     await prefs.setString('bg_start_time', startTime.toIso8601String());
@@ -87,6 +89,7 @@ void onStart(ServiceInstance service) async {
         .map((p) => [p.latitude, p.longitude])
         .toList();
     await prefs.setString('bg_route_points', jsonEncode(pointsJson));
+    if (paused != null) await prefs.setBool('bg_is_paused', paused);
   }
 
   LocationSettings buildLocationSettings() {
@@ -246,23 +249,51 @@ void onStart(ServiceInstance service) async {
     }
     recentRawPoints = List<LatLng>.from(routePoints.take(_smoothingWindowSize));
     lastPointTime = DateTime.now();
+    isPaused = prefs.getBool('bg_is_paused') ?? false;
 
     service.invoke('update', {
       'distance': totalDistance,
       'points': routePoints
           .map((e) => {'lat': e.latitude, 'lng': e.longitude})
           .toList(),
+      'isPaused': isPaused,
     });
 
-    final locationSettings = buildLocationSettings();
+    if (!isPaused) {
+      final locationSettings = buildLocationSettings();
+      positionStream?.cancel();
+      positionStream = Geolocator.getPositionStream(
+        locationSettings: locationSettings,
+      ).listen((Position position) {
+        processPosition(position);
+      });
+    }
+  });
 
+  // ── Pause: stop GPS, keep all data in memory ──
+  service.on('pauseTracking').listen((event) async {
+    isPaused = true;
     positionStream?.cancel();
-    positionStream =
-        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
-          (Position position) {
-            processPosition(position);
-          },
-        );
+    positionStream = null;
+    await saveState(paused: true);
+    updateNotification();
+    service.invoke('paused', {});
+  });
+
+  // ── Unpause: restart GPS from current in-memory state ──
+  service.on('unpauseTracking').listen((event) async {
+    isPaused = false;
+    lastPointTime = null; // ignore gap distance after pause
+    await saveState(paused: false);
+    updateNotification();
+    final locationSettings = buildLocationSettings();
+    positionStream?.cancel();
+    positionStream = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen((Position position) {
+      processPosition(position);
+    });
+    service.invoke('unpaused', {});
   });
 
   // ── Auto-resume: if a previous tracking session was active, reload it ──
@@ -280,19 +311,23 @@ void onStart(ServiceInstance service) async {
     }
     recentRawPoints = List<LatLng>.from(routePoints.take(_smoothingWindowSize));
     lastPointTime = DateTime.now();
+    isPaused = prefs.getBool('bg_is_paused') ?? false;
 
     service.invoke('update', {
       'distance': totalDistance,
       'points': routePoints
           .map((e) => {'lat': e.latitude, 'lng': e.longitude})
           .toList(),
+      'isPaused': isPaused,
     });
 
-    positionStream?.cancel();
-    positionStream =
-        Geolocator.getPositionStream(locationSettings: buildLocationSettings())
-            .listen((Position position) {
-      processPosition(position);
-    });
+    if (!isPaused) {
+      positionStream?.cancel();
+      positionStream =
+          Geolocator.getPositionStream(locationSettings: buildLocationSettings())
+              .listen((Position position) {
+        processPosition(position);
+      });
+    }
   }
 }
