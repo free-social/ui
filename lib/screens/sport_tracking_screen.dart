@@ -291,6 +291,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
               ],
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
+                filled: false,
                 labelText: 'Weight (kg)',
                 labelStyle: const TextStyle(color: Colors.grey),
                 border: OutlineInputBorder(
@@ -310,6 +311,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
               controller: noteController,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
+                filled: false,
                 labelText: 'How was your run?',
                 labelStyle: const TextStyle(color: Colors.grey),
                 border: OutlineInputBorder(
@@ -329,11 +331,15 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(80, 44),
+            ),
             child:
                 const Text('Discard', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
+              minimumSize: const Size(120, 44),
               backgroundColor: const Color(0xFF00C853),
               foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
@@ -882,7 +888,7 @@ class _GradientButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 54,
+        height: 48,
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(16),
@@ -897,14 +903,14 @@ class _GradientButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.black, size: 22),
+            Icon(icon, color: Colors.black, size: 20),
             const SizedBox(width: 8),
             Text(
               label,
               style: const TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.w800,
-                fontSize: 15,
+                fontSize: 14,
                 letterSpacing: 0.5,
               ),
             ),
@@ -927,8 +933,8 @@ class _RoundIconButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 54,
-        height: 54,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(16),
@@ -940,7 +946,7 @@ class _RoundIconButton extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(icon, color: Colors.white, size: 26),
+        child: Icon(icon, color: Colors.white, size: 24),
       ),
     );
   }

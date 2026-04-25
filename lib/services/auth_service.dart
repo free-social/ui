@@ -50,9 +50,9 @@ class AuthService {
         subtype = 'webp';
       }
 
-      // Prepare Multipart data matching your Postman 'avatars' key
+      // Prepare Multipart data matching your Postman 'avatar' key
       FormData formData = FormData.fromMap({
-        "avatars": await MultipartFile.fromFile(
+        "avatar": await MultipartFile.fromFile(
           imageFile.path,
           filename: fileName,
           contentType: MediaType(
@@ -65,9 +65,6 @@ class AuthService {
       final response = await _apiService.client.post(
         '/auth/$userId/avatar',
         data: formData,
-        options: Options(
-          contentType: 'multipart/form-data',
-        ), // Ensure multipart header
       );
 
       debugPrint('Avatar upload successful: ${response.data}');

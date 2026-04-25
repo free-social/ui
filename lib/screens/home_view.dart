@@ -115,16 +115,16 @@ class _HomeViewState extends State<HomeView> {
                         ),
                       ),
                     ),
-                    SafeArea(
+                    const SafeArea(
                       bottom: false,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: AppSpacing.xl,
                           vertical: AppSpacing.md,
                         ),
                         child: Row(
                           children: [
-                            const Spacer(),
+                            Spacer(),
                           ],
                         ),
                       ),
