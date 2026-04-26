@@ -74,14 +74,20 @@ class _AiChatScreenState extends State<AiChatScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.seed,
         foregroundColor: Colors.white,
-        title: const Row(
+        title: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Icon(Icons.auto_awesome, color: AppColors.seed),
+            Image.asset(
+              'assets/images/ai_bot.png',
+              height: 48,
+              width: 48,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.auto_awesome, color: AppColors.seed),
+              ),
             ),
-            SizedBox(width: 12),
-            Text('AI Assistant', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 12),
+            const Text('AI Assistant', style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
       ),
