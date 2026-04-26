@@ -11,7 +11,7 @@ import '../models/chat_models.dart';
 import '../providers/chat_provider.dart';
 import '../utils/snackbar_helper.dart';
 import 'chat_conversation_screen.dart';
-
+import 'ai_chat_screen.dart';
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -78,21 +78,43 @@ class _ChatScreenState extends State<ChatScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 15), 
-                        const Padding(
-                          padding: EdgeInsets.symmetric(
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.xl,
                             vertical: AppSpacing.sm,
                           ),
-                          child: Text(
-                            'Messages',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Messages',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              FilledButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const AiChatScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.auto_awesome, size: 18),
+                                label: const Text("Chat AI"),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 12),
                         TabBar(
                           dividerColor: Colors.transparent,
                           indicatorColor: Colors.white,
