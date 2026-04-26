@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_spacing.dart';
+import '../widgets/animated_ai_bot.dart';
 import 'chat_screen.dart';
 import 'home_view.dart';
 import 'monthly_stats_screen.dart';
@@ -223,14 +224,7 @@ class _MainScreenState extends State<MainScreen> {
                         bottom: 8,
                         child: Hero(
                           tag: 'ai_bot_avatar',
-                          child: Image.asset(
-                            'assets/images/ai_bot.png',
-                            height: 75,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const CircleAvatar(
-                              child: Icon(Icons.auto_awesome),
-                            ),
-                          ),
+                          child: const AnimatedAiBot(),
                         ),
                       ),
                     ],
