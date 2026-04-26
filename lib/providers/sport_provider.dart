@@ -99,11 +99,15 @@ class SportProvider with ChangeNotifier {
     required String category,
     required double weightKg,
     required int durationMinutes,
+    double distanceKm = 0.0,
+    List<Map<String, dynamic>> timedPoints = const [],
   }) {
     return _sportService.calculateCalories(
       category: category,
       weightKg: weightKg,
       durationMinutes: durationMinutes,
+      distanceKm: distanceKm,
+      timedPoints: timedPoints,
     );
   }
 }

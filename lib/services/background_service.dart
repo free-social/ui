@@ -63,7 +63,8 @@ void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
   double totalDistance = 0.0;
-  List<LatLng> routePoints = [];
+  // Each entry: {'lat': double, 'lng': double, 'ts': ISO-8601 string}
+  List<Map<String, dynamic>> routePoints = [];
   List<LatLng> recentRawPoints = [];
   DateTime startTime = DateTime.now();
   DateTime? lastPointTime;
@@ -85,10 +86,8 @@ void onStart(ServiceInstance service) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('bg_total_distance', totalDistance);
     await prefs.setString('bg_start_time', startTime.toIso8601String());
-    final pointsJson = routePoints
-        .map((p) => [p.latitude, p.longitude])
-        .toList();
-    await prefs.setString('bg_route_points', jsonEncode(pointsJson));
+    // Persist full timed points so we can resume without data loss
+    await prefs.setString('bg_route_points', jsonEncode(routePoints));
     if (paused != null) await prefs.setBool('bg_is_paused', paused);
   }
 
@@ -133,6 +132,9 @@ void onStart(ServiceInstance service) async {
     return LatLng(latitudes[1], longitudes[1]);
   }
 
+  LatLng _toLatLng(Map<String, dynamic> p) =>
+      LatLng(p['lat'] as double, p['lng'] as double);
+
   bool shouldAcceptPosition(Position position) {
     final accuracy = position.accuracy;
     final maxAccuracyAllowed = routePoints.isEmpty
@@ -144,7 +146,7 @@ void onStart(ServiceInstance service) async {
 
     if (routePoints.isEmpty) return true;
 
-    final previous = routePoints.last;
+    final previous = _toLatLng(routePoints.last);
     final segmentDistance = Geolocator.distanceBetween(
       previous.latitude,
       previous.longitude,
@@ -182,25 +184,28 @@ void onStart(ServiceInstance service) async {
     final rawPoint = LatLng(position.latitude, position.longitude);
     final newPoint = smoothPoint(rawPoint);
     if (routePoints.isNotEmpty) {
+      final prev = _toLatLng(routePoints.last);
       final segmentDistance = Geolocator.distanceBetween(
-        routePoints.last.latitude,
-        routePoints.last.longitude,
+        prev.latitude,
+        prev.longitude,
         newPoint.latitude,
         newPoint.longitude,
       );
       totalDistance += segmentDistance / 1000.0;
     }
 
-    routePoints.add(newPoint);
+    routePoints.add({
+      'lat': newPoint.latitude,
+      'lng': newPoint.longitude,
+      'ts': position.timestamp.toIso8601String(),
+    });
     lastPointTime = position.timestamp;
     await saveState();
     updateNotification();
 
     service.invoke('update', {
       'distance': totalDistance,
-      'points': routePoints
-          .map((e) => {'lat': e.latitude, 'lng': e.longitude})
-          .toList(),
+      'points': routePoints,
     });
   }
 
@@ -245,17 +250,24 @@ void onStart(ServiceInstance service) async {
     final pointsStr = prefs.getString('bg_route_points');
     if (pointsStr != null) {
       final List<dynamic> decoded = jsonDecode(pointsStr);
-      routePoints = decoded.map((e) => LatLng(e[0], e[1])).toList();
+      routePoints = decoded.map<Map<String, dynamic>>((e) {
+        if (e is List) {
+          // Legacy format: [lat, lng] — upgrade to new format without timestamp
+          return {'lat': e[0] as double, 'lng': e[1] as double, 'ts': ''};
+        }
+        return Map<String, dynamic>.from(e as Map);
+      }).toList();
     }
-    recentRawPoints = List<LatLng>.from(routePoints.take(_smoothingWindowSize));
+    recentRawPoints = routePoints
+        .take(_smoothingWindowSize)
+        .map(_toLatLng)
+        .toList();
     lastPointTime = DateTime.now();
     isPaused = prefs.getBool('bg_is_paused') ?? false;
 
     service.invoke('update', {
       'distance': totalDistance,
-      'points': routePoints
-          .map((e) => {'lat': e.latitude, 'lng': e.longitude})
-          .toList(),
+      'points': routePoints,
       'isPaused': isPaused,
     });
 
@@ -307,17 +319,23 @@ void onStart(ServiceInstance service) async {
     final pointsStr = prefs.getString('bg_route_points');
     if (pointsStr != null) {
       final List<dynamic> decoded = jsonDecode(pointsStr);
-      routePoints = decoded.map((e) => LatLng(e[0], e[1])).toList();
+      routePoints = decoded.map<Map<String, dynamic>>((e) {
+        if (e is List) {
+          return {'lat': e[0] as double, 'lng': e[1] as double, 'ts': ''};
+        }
+        return Map<String, dynamic>.from(e as Map);
+      }).toList();
     }
-    recentRawPoints = List<LatLng>.from(routePoints.take(_smoothingWindowSize));
+    recentRawPoints = routePoints
+        .take(_smoothingWindowSize)
+        .map(_toLatLng)
+        .toList();
     lastPointTime = DateTime.now();
     isPaused = prefs.getBool('bg_is_paused') ?? false;
 
     service.invoke('update', {
       'distance': totalDistance,
-      'points': routePoints
-          .map((e) => {'lat': e.latitude, 'lng': e.longitude})
-          .toList(),
+      'points': routePoints,
       'isPaused': isPaused,
     });
 

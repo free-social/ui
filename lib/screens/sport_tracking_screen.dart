@@ -21,6 +21,9 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
     with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   final List<LatLng> _routePoints = [];
+  // Timed GPS points for per-segment calorie calculation
+  // Each entry: {'lat': double, 'lng': double, 'ts': ISO-8601 string}
+  final List<Map<String, dynamic>> _timedRoutePoints = [];
 
   bool _isTracking = false;
   bool _isPaused = false;
@@ -91,7 +94,14 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
           _totalDistanceKm = (event['distance'] as num).toDouble();
           final List<dynamic> points = event['points'];
           _routePoints.clear();
-          _routePoints.addAll(points.map((p) => LatLng(p['lat'], p['lng'])));
+          _timedRoutePoints.clear();
+          for (final p in points) {
+            final lat = (p['lat'] as num).toDouble();
+            final lng = (p['lng'] as num).toDouble();
+            final ts = p['ts'] as String? ?? '';
+            _routePoints.add(LatLng(lat, lng));
+            _timedRoutePoints.add({'lat': lat, 'lng': lng, 'ts': ts});
+          }
           if (_routePoints.isNotEmpty) _currentLocation = _routePoints.last;
           if (event['isPaused'] == true && !_isPaused) _isPaused = true;
         });
@@ -153,6 +163,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
       _isTracking = true;
       _isPaused = false;
       _routePoints.clear();
+      _timedRoutePoints.clear();
       _totalDistanceKm = 0.0;
       _durationMinutes = 0;
       _pausedElapsedSeconds = 0;
@@ -196,7 +207,7 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
       _pausedElapsedSeconds = 0;
       _pauseStartTime = null;
     });
-    _showSaveDialog();
+    _showSaveDialog(_timedRoutePoints);
   }
 
   // ── Duration helpers ───────────────────────────────────────────────────────
@@ -250,7 +261,9 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
 
   // ── Save dialog ────────────────────────────────────────────────────────────
 
-  Future<void> _showSaveDialog() async {
+  Future<void> _showSaveDialog(
+    List<Map<String, dynamic>> timedPoints,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final savedWeightKg = prefs.getDouble('sport_weight_kg') ?? 70.0;
     if (!mounted) return;
@@ -362,6 +375,8 @@ class _SportTrackingScreenState extends State<SportTrackingScreen>
                   category: 'jogging',
                   weightKg: weightKg,
                   durationMinutes: _durationMinutes,
+                  distanceKm: _totalDistanceKm,
+                  timedPoints: timedPoints,
                 );
                 await prefs.setDouble('sport_weight_kg', weightKg);
                 await provider.addSport(
