@@ -779,10 +779,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(
-                    friend.email,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
                 ],
               ),
             ),
