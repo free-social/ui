@@ -46,7 +46,6 @@ class _MainScreenState extends State<MainScreen> {
       icon: Icons.chat_bubble_outline_rounded,
       selectedIcon: Icons.chat_bubble_rounded,
       screen: ChatScreen(),
-      isBeta: true,
     ),
     _NavItem(
       label: 'Profile',
@@ -153,31 +152,8 @@ class _MainScreenState extends State<MainScreen> {
                         selectedIndex: _selectedIndex,
                         onDestinationSelected: _onDestinationSelected,
                         destinations: _items.map((item) {
-                          Widget icon = Icon(item.icon);
-                          Widget selectedIcon = Icon(item.selectedIcon);
-
-                          if (item.isBeta) {
-                            final badgeLabel = Text(
-                              'BETA',
-                              style: TextStyle(
-                                fontSize: 7,
-                                fontWeight: FontWeight.bold,
-                                color: scheme.onPrimary,
-                              ),
-                            );
-                            icon = Badge(
-                              label: badgeLabel,
-                              backgroundColor: scheme.primary,
-                              offset: const Offset(14, -10),
-                              child: icon,
-                            );
-                            selectedIcon = Badge(
-                              label: badgeLabel,
-                              backgroundColor: scheme.primary,
-                              offset: const Offset(14, -10),
-                              child: selectedIcon,
-                            );
-                          }
+                          final icon = Icon(item.icon);
+                          final selectedIcon = Icon(item.selectedIcon);
 
                           return NavigationDestination(
                             icon: icon,
@@ -206,47 +182,59 @@ class _MainScreenState extends State<MainScreen> {
                   MaterialPageRoute(builder: (_) => const AiChatScreen()),
                 );
               },
-              child: SizedBox(
-                width: 70,
-                height: 85,
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      height: 56,
-                      width: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: scheme.primaryContainer,
-                        boxShadow: [
-                          BoxShadow(
-                            color: scheme.primary.withValues(alpha: 0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                        border: Border.all(
-                          color: scheme.primary.withValues(alpha: 0.2),
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      child: Hero(
-                        tag: 'ai_bot_avatar',
-                        child: Image.asset(
-                          'assets/images/ai_bot.png',
-                          height: 75,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const CircleAvatar(
-                            child: Icon(Icons.auto_awesome),
+              child: Badge(
+                label: Text(
+                  'BETA',
+                  style: TextStyle(
+                    fontSize: 7,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onPrimary,
+                  ),
+                ),
+                backgroundColor: scheme.primary,
+                offset: const Offset(-4, 4),
+                child: SizedBox(
+                  width: 70,
+                  height: 85,
+                  child: Stack(
+                    alignment: Alignment.bottomCenter,
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        height: 56,
+                        width: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: scheme.primaryContainer,
+                          boxShadow: [
+                            BoxShadow(
+                              color: scheme.primary.withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: scheme.primary.withValues(alpha: 0.2),
+                            width: 2,
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        bottom: 8,
+                        child: Hero(
+                          tag: 'ai_bot_avatar',
+                          child: Image.asset(
+                            'assets/images/ai_bot.png',
+                            height: 75,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const CircleAvatar(
+                              child: Icon(Icons.auto_awesome),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -261,13 +249,11 @@ class _NavItem {
   final IconData icon;
   final IconData selectedIcon;
   final Widget screen;
-  final bool isBeta;
 
   const _NavItem({
     required this.label,
     required this.icon,
     required this.selectedIcon,
     required this.screen,
-    this.isBeta = false,
   });
 }
