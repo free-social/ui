@@ -194,41 +194,9 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 backgroundColor: scheme.primary,
                 offset: const Offset(-4, 4),
-                child: SizedBox(
-                  width: 70,
-                  height: 85,
-                  child: Stack(
-                    alignment: Alignment.bottomCenter,
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        height: 56,
-                        width: 56,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: scheme.primaryContainer,
-                          boxShadow: [
-                            BoxShadow(
-                              color: scheme.primary.withValues(alpha: 0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: scheme.primary.withValues(alpha: 0.2),
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 8,
-                        child: Hero(
-                          tag: 'ai_bot_avatar',
-                          child: const AnimatedAiBot(),
-                        ),
-                      ),
-                    ],
-                  ),
+                child: Hero(
+                  tag: 'ai_bot_avatar',
+                  child: const AnimatedAiBot(),
                 ),
               ),
             ),
